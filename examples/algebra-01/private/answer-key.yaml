@@ -1,0 +1,28 @@
+# Answer key — never sent to the browser.
+format: assess/v1
+exam: algebra-01
+answers:
+  q001:
+    option: b
+    points: 1
+  q002:
+    options: [a, b, d]
+    partial: true
+    points: 2
+  q003:
+    value: false
+    points: 1
+  q004:
+    number: 4
+    points: 2
+  q005:
+    option: a
+    points: 2
+  q006:
+    accept: [coeficiente]
+    normalize: [trim, casefold, collapse_spaces, strip_accents]
+    points: 1
+  q007:
+    number: 12
+    tolerance: 0
+    points: 2

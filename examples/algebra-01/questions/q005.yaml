@@ -1,0 +1,14 @@
+id: q005
+type: single
+prompt: |
+  Ana tiene el triple de la edad de Luis y entre los dos suman 48 años.
+  ¿Cuántos años tiene Luis?
+options:
+  - id: a
+    text: "12 años"
+  - id: b
+    text: "16 años"
+  - id: c
+    text: "24 años"
+  - id: d
+    text: "36 años"

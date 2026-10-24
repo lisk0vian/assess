@@ -1,0 +1,34 @@
+# Assess exam manifest — format assess/v1 (see docs/format.md)
+format: assess/v1
+id: algebra-01
+title: "Álgebra 1 — Ecuaciones lineales"
+language: es
+duration: 45m
+result_visibility: score
+
+instructions: |
+  Lee cada pregunta con atención. Puedes moverte libremente entre preguntas
+  y marcarlas para revisarlas antes de entregar.
+
+  - Las respuestas se guardan automáticamente.
+  - El tiempo lo controla el servidor; al terminar, el examen se entrega solo.
+
+order:
+  shuffle_questions: true
+  shuffle_options: true
+
+proctoring:
+  profile: standard
+
+items:
+  - question: q001
+  - question: q002
+  - question: q003
+  - pool:
+      id: problemas
+      pick: 2
+      from: [q004, q005, q007]
+  - question: q006
+
+branding:
+  accent: "#4f46e5"

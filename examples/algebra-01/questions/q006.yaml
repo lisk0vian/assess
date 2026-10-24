@@ -1,0 +1,7 @@
+id: q006
+type: short
+input: text
+prompt: |
+  ¿Cómo se llama el número que multiplica a la variable en un término
+  algebraico como $7x$?
+placeholder: "Escribe una palabra"

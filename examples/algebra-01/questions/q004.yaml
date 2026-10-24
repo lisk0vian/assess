@@ -1,0 +1,5 @@
+id: q004
+type: short
+input: number
+prompt: |
+  Si $5x - 3 = 2x + 9$, ¿cuál es el valor de $x$?

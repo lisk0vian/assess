@@ -1,0 +1,16 @@
+id: q001
+type: single
+prompt: |
+  Resuelve la ecuación $3x + 7 = 22$.
+options:
+  - id: a
+    text: "$x = 3$"
+  - id: b
+    text: "$x = 5$"
+  - id: c
+    text: "$x = 7$"
+  - id: d
+    text: "$x = \\frac{29}{3}$"
+  - id: e
+    text: "Ninguna de las anteriores"
+    pin: true

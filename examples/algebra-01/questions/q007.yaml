@@ -1,0 +1,6 @@
+id: q007
+type: short
+input: number
+prompt: |
+  Resuelve $\frac{x}{3} + 2 = 6$.
+time_limit: 90s

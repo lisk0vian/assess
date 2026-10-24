@@ -1,0 +1,4 @@
+id: q003
+type: truefalse
+prompt: |
+  La ecuación $2(x + 3) = 2x + 6$ tiene una única solución.

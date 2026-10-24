@@ -1,0 +1,19 @@
+# Build output
+/ax
+/ax.exe
+/dist/
+
+# Local runtime data
+/data/
+*.db
+*.db-wal
+*.db-shm
+
+# Web app
+/web/node_modules/
+/web/dist/
+
+# Tooling
+coverage.out
+*.test
+.env
