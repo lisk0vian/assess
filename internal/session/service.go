@@ -568,6 +568,59 @@ func (s *Service) Snapshot(ctx context.Context, sessionID string) (*Snapshot, er
 	return snap, err
 }
 
+// Now returns the server clock used for every rule, in UTC milliseconds.
+func (s *Service) Now() time.Time { return s.clock() }
+
+// AttemptDetail is everything a student's client needs about one attempt.
+type AttemptDetail struct {
+	Attempt     *Attempt
+	Session     *Session
+	Participant *Participant
+	Answers     []*Answer
+	Exam        *exam.Published
+}
+
+// Attempt loads an attempt with its session, participant, answers and exam.
+func (s *Service) Attempt(ctx context.Context, attemptID string) (*AttemptDetail, error) {
+	d := &AttemptDetail{}
+	err := s.store.View(ctx, func(tx Tx) error {
+		var err error
+		if d.Attempt, err = tx.GetAttempt(attemptID); err != nil {
+			return err
+		}
+		if d.Session, err = tx.GetSession(d.Attempt.SessionID); err != nil {
+			return err
+		}
+		if d.Participant, err = tx.GetParticipant(d.Attempt.ParticipantID); err != nil {
+			return err
+		}
+		if d.Answers, err = tx.ListAnswers(attemptID); err != nil {
+			return err
+		}
+		d.Exam, err = s.published(tx, d.Session.ExamHash)
+		return err
+	})
+	if err != nil {
+		return nil, err
+	}
+	return d, nil
+}
+
+// Session loads a session and its published exam.
+func (s *Service) Session(ctx context.Context, sessionID string) (*Session, *exam.Published, error) {
+	var sess *Session
+	var pub *exam.Published
+	err := s.store.View(ctx, func(tx Tx) error {
+		var err error
+		if sess, err = tx.GetSession(sessionID); err != nil {
+			return err
+		}
+		pub, err = s.published(tx, sess.ExamHash)
+		return err
+	})
+	return sess, pub, err
+}
+
 // Session code alphabet: no 0/O, 1/I/L, so codes can be dictated.
 const codeAlphabet = "ABCDEFGHJKMNPQRSTUVWXYZ23456789"
 
