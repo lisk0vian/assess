@@ -1,0 +1,16 @@
+# TypeScript types for the student web app, generated from the Go API views.
+# Regenerate with: go run github.com/gzuidhof/tygo@v0.2.21 generate
+packages:
+  - path: "github.com/lisk0vian/assess/internal/grading"
+    output_path: "web/src/api/grading.ts"
+    include_files: ["grading.go"]
+  - path: "github.com/lisk0vian/assess/internal/server/student"
+    output_path: "web/src/api/types.ts"
+    include_files: ["views.go"]
+    frontmatter: |
+      import type { Response } from "./grading";
+    type_mappings:
+      grading.Response: "Response"
+      session.State: '"lobby" | "running" | "ended"'
+      session.AttemptState: '"active" | "submitted" | "annulled" | "withdrawn"'
+      session.SubmitReason: '"manual" | "timeout" | "ended" | ""'
