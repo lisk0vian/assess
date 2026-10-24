@@ -18,6 +18,10 @@ coverage.out
 *.test
 .env
 
+# Agent tooling (skills-lock.json is tracked)
+/.agents/
+/.claude/
+
 # Design tooling scratch (keep the direction brief and the design sidecar)
 /.impeccable/*
 !/.impeccable/surfaces/
