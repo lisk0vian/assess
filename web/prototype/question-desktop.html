@@ -1,0 +1,89 @@
+<!doctype html>
+<html lang="es"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Assess · Pregunta (escritorio)</title>
+<script src="theme.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=Sofia+Sans+Extra+Condensed:wght@600;700;800&family=Sofia+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="tokens.css"><link rel="stylesheet" href="components.css">
+<style>
+html, body { width: 1440px; height: 900px; overflow: hidden; }
+body { position: relative; }
+header.cells { position: absolute; inset: 0 0 auto 0; height: 80px; grid-template-columns: 280px 1fr 250px 210px 200px; }
+.brand .label { display: flex; align-items: center; gap: 8px; }
+.brand .label i { width: 8px; height: 8px; border-radius: 50%; background: var(--ink); }
+.side-rail { position: absolute; left: 0; top: 80px; bottom: 0; width: 280px; padding: 26px 22px; border-right: 1px solid var(--rule-strong); }
+.side-rail .rail { margin-top: 12px; }
+.side-rail .save { position: absolute; left: 22px; bottom: 24px; }
+.stack { position: absolute; left: 340px; top: 110px; width: 790px; height: 756px; }
+.stack > .sheet { height: 100%; }
+.actions { display: flex; gap: 10px; margin-top: 28px; }
+.actions .btn--primary { margin-left: auto; }
+.aside { position: absolute; left: 1220px; top: 110px; width: 194px; }
+.aside .legend { margin-top: 12px; }
+.submit-block { position: absolute; left: 1220px; bottom: 34px; width: 194px; }
+</style></head><body>
+<header class="cells">
+  <div class="cell brand"><span class="wordmark">ASSESS</span><span class="label"><i></i>Examen en curso</span></div>
+  <div class="cell"><span class="label">Examen</span><b>Programación en Python — Parcial 1</b></div>
+  <div class="cell"><span class="label">Alumno</span><b>Ana Pérez · A-001</b></div>
+  <div class="cell"><span class="label">Tiempo restante</span><span class="clock">32:14</span></div>
+  <div class="cell"><span class="label">Avisos</span><div class="strikes"><i></i><i></i><i></i><span>0 de 3</span></div></div>
+</header>
+<aside class="side-rail">
+  <span class="label">Recorrido · 12 preguntas</span>
+  <ol class="rail">
+    <li class="rail__row"><b class="rail__num">01</b>Respondida<i class="swatch swatch--done"></i></li>
+    <li class="rail__row"><b class="rail__num">02</b>Respondida<i class="swatch swatch--done"></i></li>
+    <li class="rail__row"><b class="rail__num">03</b>Para revisar<i class="swatch swatch--flag"></i></li>
+    <li class="rail__row is-current" aria-current="step"><b class="rail__num">04</b>Aquí<i class="swatch swatch--done"></i></li>
+    <li class="rail__row"><b class="rail__num">05</b>Pendiente<i class="swatch"></i></li>
+    <li class="rail__row"><b class="rail__num">06</b>Pendiente<i class="swatch"></i></li>
+    <li class="rail__row"><b class="rail__num">07</b>Pendiente<i class="swatch"></i></li>
+    <li class="rail__row"><b class="rail__num">08</b>Pendiente<i class="swatch"></i></li>
+    <li class="rail__row"><b class="rail__num">09</b>Pendiente<i class="swatch"></i></li>
+    <li class="rail__row"><b class="rail__num">10</b>Pendiente<i class="swatch"></i></li>
+    <li class="rail__row"><b class="rail__num">11</b>Pendiente<i class="swatch"></i></li>
+    <li class="rail__row"><b class="rail__num">12</b>Pendiente<i class="swatch"></i></li>
+  </ol>
+  <span class="save"><svg class="icon"><use href="icons.svg#check"/></svg>Guardado hace 2 s</span>
+</aside>
+<div class="stack">
+  <div class="stack__under stack__under--far"></div>
+  <div class="stack__under stack__under--near"><span class="stack__peek label">Siguiente · pregunta 05</span></div>
+  <section class="sheet" aria-labelledby="q">
+    <div class="record">
+      <div class="record__cell"><span class="label">Pregunta</span><b class="record__num">04<em> / 12</em></b></div>
+      <div class="record__cell"><span class="label">Valor</span><b class="record__value">2 puntos</b></div>
+      <div class="record__cell"><span class="label">Tipo</span><b class="record__value">Opción única</b></div>
+      <div class="record__cell"><span class="label">Estado</span><b class="record__value">Guardada</b></div>
+    </div>
+    <h1 class="prompt" id="q">¿Qué imprime este programa?</h1>
+    <figure class="code"><figcaption class="code__head"><span class="label">programa.py</span><span class="label">Python</span></figcaption>
+<pre><span class="ln">1</span><span class="tok-kw">def</span> f(xs):
+<span class="ln">2</span>    <span class="tok-kw">return</span> [x * <span class="tok-num">2</span> <span class="tok-kw">for</span> x <span class="tok-kw">in</span> xs <span class="tok-kw">if</span> x % <span class="tok-num">2</span>]
+<span class="ln">3</span>
+<span class="ln">4</span>print(f([<span class="tok-num">1</span>, <span class="tok-num">2</span>, <span class="tok-num">3</span>, <span class="tok-num">4</span>, <span class="tok-num">5</span>]))</pre></figure>
+    <div class="options" role="radiogroup" aria-labelledby="q" style="margin-top:24px">
+      <div class="option" role="radio" aria-checked="false"><span class="option__key">A</span><code class="option__text is-code">[2, 4, 6, 8, 10]</code><span></span></div>
+      <div class="option is-selected" role="radio" aria-checked="true"><span class="option__key">B</span><code class="option__text is-code">[2, 6, 10]</code><span class="option__mark label">Tu respuesta</span></div>
+      <div class="option" role="radio" aria-checked="false"><span class="option__key">C</span><code class="option__text is-code">[4, 8]</code><span></span></div>
+      <div class="option" role="radio" aria-checked="false"><span class="option__key">D</span><code class="option__text is-code">TypeError</code><span></span></div>
+    </div>
+    <div class="actions">
+      <button class="btn"><svg class="icon"><use href="icons.svg#arrow-left"/></svg>Anterior</button>
+      <button class="btn" aria-pressed="false"><i class="flag-chip"></i>Marcar para revisar</button>
+      <button class="btn btn--primary">Siguiente<svg class="icon"><use href="icons.svg#arrow-right"/></svg></button>
+    </div>
+  </section>
+  <div class="watermark" aria-hidden="true"><svg><defs><pattern id="wm" width="420" height="240" patternUnits="userSpaceOnUse" patternTransform="rotate(-18)"><text x="0" y="120" fill="currentColor" font-family="Sofia Sans Extra Condensed" font-weight="700" font-size="15" letter-spacing="2">ANA PÉREZ · A-001 · 09:27</text></pattern></defs><rect width="100%" height="100%" fill="url(#wm)"/></svg></div>
+</div>
+<aside class="aside">
+  <span class="label">Leyenda</span>
+  <ul class="legend">
+    <li><i class="swatch swatch--done"></i>Respondida</li>
+    <li><i class="swatch swatch--flag"></i>Para revisar</li>
+    <li><i class="swatch"></i>Pendiente</li>
+    <li><i class="swatch swatch--answer"></i>Tu respuesta</li>
+  </ul>
+</aside>
+<div class="submit-block" role="button" tabindex="0"><b>Revisar y entregar</b><span>Podrás revisar<svg class="icon"><use href="icons.svg#arrow-right"/></svg></span></div>
+</body></html>

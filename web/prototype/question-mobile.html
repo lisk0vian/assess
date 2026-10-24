@@ -1,0 +1,46 @@
+<!doctype html>
+<html lang="es"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Assess · Pregunta (móvil)</title>
+<script src="theme.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=Sofia+Sans+Extra+Condensed:wght@600;700;800&family=Sofia+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="tokens.css"><link rel="stylesheet" href="components.css">
+<style>
+:root { --sheet-pad: 18px; }
+html, body { width: 390px; height: 844px; overflow: hidden; }
+body { position: relative; font-size: 16px; }
+header.cells { position: absolute; inset: 0 0 auto 0; height: 60px; grid-template-columns: 1fr 132px; }
+header .cell { padding: 0 14px; gap: 3px; }
+header .wordmark { font-size: 24px; }
+header .clock { font-size: 34px; }
+.strip { position: absolute; left: 12px; right: 12px; top: 72px; }
+.stack { position: absolute; left: 12px; top: 112px; width: 366px; height: 630px; }
+.stack > .sheet { height: 100%; padding-bottom: 0; }
+.stack__under--near { transform: translate(6px, 16px) rotate(1.4deg); }
+.stack__peek { top: auto; bottom: 3px; writing-mode: horizontal-tb; }
+.record { grid-template-columns: .9fr .8fr 1.5fr; }
+.record__cell { padding: 12px 8px 10px 0; gap: 2px; }
+.record__value { font-size: 15px; }
+.record__num { font-size: 24px; }
+.answer { display: grid; gap: 8px; margin-top: 16px; }
+.bar { position: absolute; left: 0; right: 0; bottom: 0; height: 76px; }
+</style></head><body>
+<header class="cells">
+  <div class="cell"><span class="wordmark">ASSESS</span><span class="label">Introducción a la IA</span></div>
+  <div class="cell"><span class="label">Restante</span><span class="clock">32:14</span></div>
+</header>
+<div class="strip" style="--n:10" aria-label="Progreso: 7 de 10"><i class="done"></i><i class="done"></i><i class="flag"></i><i class="done"></i><i class="done"></i><i class="done"></i><i class="done cur"></i><i></i><i></i><i></i></div>
+<div class="stack">
+  <div class="stack__under stack__under--near"><span class="stack__peek label">Siguiente · 08</span></div>
+  <section class="sheet" aria-labelledby="q">
+    <div class="record">
+      <div class="record__cell"><span class="label">Pregunta</span><b class="record__num">07<em> / 10</em></b></div>
+      <div class="record__cell"><span class="label">Valor</span><b class="record__value">1 punto</b></div>
+      <div class="record__cell"><span class="label">Tipo</span><b class="record__value">Respuesta corta</b></div>
+    </div>
+    <h1 class="prompt prompt--sm" id="q">La red de la figura tiene 3 entradas, una capa oculta de 4 neuronas y 2 salidas. ¿Cuántos parámetros entrenables tiene (pesos y sesgos)?</h1>
+    <figure class="figure"><div class="figure__print"><svg class="nn" viewBox="0 0 360 215" role="img" aria-label="Red neuronal con 3 entradas, 4 neuronas ocultas y 2 salidas"><g class="w"><line x1="60" y1="50" x2="180" y2="25"/><line x1="60" y1="50" x2="180" y2="75"/><line x1="60" y1="50" x2="180" y2="125"/><line x1="60" y1="50" x2="180" y2="175"/><line x1="60" y1="100" x2="180" y2="25"/><line x1="60" y1="100" x2="180" y2="75"/><line x1="60" y1="100" x2="180" y2="125"/><line x1="60" y1="100" x2="180" y2="175"/><line x1="60" y1="150" x2="180" y2="25"/><line x1="60" y1="150" x2="180" y2="75"/><line x1="60" y1="150" x2="180" y2="125"/><line x1="60" y1="150" x2="180" y2="175"/><line x1="180" y1="25" x2="300" y2="70"/><line x1="180" y1="25" x2="300" y2="130"/><line x1="180" y1="75" x2="300" y2="70"/><line x1="180" y1="75" x2="300" y2="130"/><line x1="180" y1="125" x2="300" y2="70"/><line x1="180" y1="125" x2="300" y2="130"/><line x1="180" y1="175" x2="300" y2="70"/><line x1="180" y1="175" x2="300" y2="130"/></g><g class="n"><circle cx="60" cy="50" r="13"/><circle cx="60" cy="100" r="13"/><circle cx="60" cy="150" r="13"/><circle cx="180" cy="25" r="13"/><circle cx="180" cy="75" r="13"/><circle cx="180" cy="125" r="13"/><circle cx="180" cy="175" r="13"/><circle cx="300" cy="70" r="13"/><circle cx="300" cy="130" r="13"/></g><g class="t"><text x="60" y="210">Entrada</text><text x="180" y="210">Oculta</text><text x="300" y="210">Salida</text></g></svg></div><figcaption class="label">Figura 1 · Red totalmente conectada</figcaption></figure>
+    <label class="answer"><span class="label">Tu respuesta</span><input class="input is-answer" value="26" inputmode="decimal" aria-describedby="h"><span class="field__hint" id="h">Escribe un número. Se guarda solo.</span></label>
+  </section>
+</div>
+<nav class="bar"><button class="btn" aria-label="Índice de preguntas">7/10</button><button class="btn">Anterior</button><button class="btn btn--primary">Siguiente<svg class="icon"><use href="icons.svg#arrow-right"/></svg></button></nav>
+</body></html>

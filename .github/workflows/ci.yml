@@ -22,7 +22,14 @@ jobs:
           go-version-file: go.mod
       - run: go vet ./...
       - run: go test ./...
+      # The race detector needs CGO; release binaries stay CGO-free.
+      - if: runner.os == 'Linux'
+        run: go test -race ./...
+        env:
+          CGO_ENABLED: "1"
       - run: go build ./cmd/ax
+        env:
+          CGO_ENABLED: "0"
 
   lint:
     runs-on: ubuntu-latest

@@ -1,0 +1,412 @@
+<!doctype html>
+<html lang="es"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Assess · Componentes</title>
+<script src="theme.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=Sofia+Sans+Extra+Condensed:wght@600;700;800&family=Sofia+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="tokens.css"><link rel="stylesheet" href="components.css">
+<style>
+.doc-top { position: sticky; top: 0; z-index: 5; display: flex; align-items: center; gap: 24px; height: 72px; padding: 0 40px; border-bottom: 1px solid var(--rule-strong); background: var(--bg); }
+.doc-top nav { display: flex; gap: 18px; margin-left: auto; align-items: center; }
+.doc-top a { color: var(--ink); font: var(--text-small); text-underline-offset: 4px; }
+.doc { max-width: 1320px; margin: 0 auto; padding: 48px 40px 120px; }
+.doc > section { padding: 56px 0 8px; border-top: 1px solid var(--rule-strong); }
+.doc > section:first-of-type { border-top: 0; padding-top: 8px; }
+.doc h2 { font: 800 44px/1 var(--font-display); letter-spacing: .04em; text-transform: uppercase; }
+.doc h2 + p { max-width: 70ch; margin: 10px 0 28px; color: var(--ink-2); }
+.doc h3 { margin: 30px 0 12px; font: var(--text-label); letter-spacing: var(--tracking-label); text-transform: uppercase; color: var(--ink-2); }
+.row { display: flex; flex-wrap: wrap; gap: 14px; align-items: flex-start; }
+.grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 28px; }
+.grid3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 24px; }
+.cap-note { margin-top: 8px; font: var(--text-small); color: var(--ink-2); }
+.mini { padding: 0 var(--sheet-pad) 28px; }
+.pal { border: 1px solid var(--rule-strong); }
+.pal h4 { padding: 12px 16px; border-bottom: 1px solid var(--rule-strong); font: var(--text-label); letter-spacing: var(--tracking-label); text-transform: uppercase; }
+.pal ul { list-style: none; }
+.pal li { display: grid; grid-template-columns: 56px 1fr auto; align-items: center; gap: 14px; height: 50px; padding: 0 16px 0 0; border-bottom: 1px solid var(--rule); font-size: 15px; }
+.pal li:last-child { border-bottom: 0; }
+.pal li i { height: 100%; box-shadow: inset -1px 0 0 var(--rule); }
+.pal code { font: 400 13px var(--font-mono); color: var(--ink-2); }
+.type-spec > div { display: grid; grid-template-columns: 220px 1fr; align-items: baseline; gap: 20px; padding: 16px 0; border-bottom: 1px solid var(--rule); }
+.icons { display: grid; grid-template-columns: repeat(10, 1fr); border: 1px solid var(--rule-strong); }
+.icons div { display: flex; flex-direction: column; align-items: center; gap: 10px; padding: 18px 6px; border-right: 1px solid var(--rule); border-bottom: 1px solid var(--rule); font: 400 12px var(--font-mono); color: var(--ink-2); }
+.icons .icon { width: 24px; height: 24px; color: var(--ink); }
+.screen { position: relative; height: 420px; overflow: hidden; border: 1px solid var(--rule-strong); background: var(--bg); }
+.screen .ghost { position: absolute; left: 40px; right: 40px; top: 36px; bottom: -20px; padding: 0 var(--sheet-pad); }
+.screen .ghost .prompt { font-size: 28px; }
+.flow { display: grid; grid-template-columns: repeat(2, 1fr); gap: 28px; }
+.flow .sheet { padding-bottom: 32px; }
+.tablelike { width: 100%; border-collapse: collapse; }
+.tablelike th { padding: 10px 12px 10px 0; text-align: left; border-bottom: 1px solid var(--rule-strong); font: var(--text-label); letter-spacing: var(--tracking-label); text-transform: uppercase; color: var(--ink-2); }
+.tablelike td { height: 48px; padding: 0 12px 0 0; border-bottom: 1px solid var(--rule); }
+.tablelike .num { font: 800 21px/1 var(--font-display); }
+.chip { display: inline-flex; align-items: center; gap: 6px; padding: 4px 9px; border: 1px solid var(--rule-strong); font: 700 12px/1 var(--font-display); letter-spacing: .12em; text-transform: uppercase; }
+.chip--flag { background: var(--hatch-ink), var(--surface); }
+.chip--flag span { background: var(--surface); padding: 1px 3px; }
+.chip--empty { background: var(--inverse); color: var(--on-inverse); border-color: var(--inverse); }
+.score { font: 800 112px/.85 var(--font-display); letter-spacing: -.01em; }
+.score small { font-size: 48px; color: var(--ink-3); }
+.kbd { display: inline-flex; min-width: 24px; height: 24px; align-items: center; justify-content: center; padding: 0 6px; border: 1px solid var(--rule-strong); font: 700 13px/1 var(--font-display); }
+.sheet-index { width: 390px; border: 1px solid var(--rule-strong); background: var(--surface); box-shadow: var(--shadow-float); }
+.sheet-index header { display: flex; align-items: center; justify-content: space-between; padding: 14px 16px; border-bottom: 1px solid var(--rule-strong); }
+.sheet-index .rail { border-top: 0; padding: 0 16px; }
+.sheet-index .rail__row.is-current { margin: 0 -16px; padding: 0 16px; }
+.pledge-target { padding: 12px 14px; border: 1px dashed var(--rule-strong); font-weight: 600; }
+</style></head><body>
+<div class="doc-top">
+  <span class="wordmark" style="font-size:26px">ASSESS</span>
+  <span class="label">Sistema de diseño · Mesa de luz</span>
+  <nav>
+    <a href="question-desktop.html">Pregunta · escritorio</a>
+    <a href="question-mobile.html">Pregunta · móvil</a>
+    <button class="btn btn--sm" onclick="toggleTheme()"><svg class="icon"><use href="icons.svg#layers"/></svg>Claro / oscuro</button>
+  </nav>
+</div>
+<main class="doc">
+
+<!-- ===================== FUNDAMENTOS ===================== -->
+<section id="fundamentos">
+  <h2>Fundamentos</h2>
+  <p>Dos temas del mismo mundo: la mesa de luz (claro) y el cuarto oscuro (oscuro). Las zonas neutras cargan toda la estructura; un único magenta marca solo lo que es del alumno.</p>
+  <div class="grid2">
+    <div class="pal"><h4>Mesa de luz · claro</h4><ul>
+      <li><i style="background:#e8e6e1"></i>Mesa · fondo<code>#e8e6e1</code></li>
+      <li><i style="background:#f8f7f4"></i>Hoja superior<code>#f8f7f4</code></li>
+      <li><i style="background:#f0efeb"></i>Hojas debajo · hover<code>#f0efeb</code></li>
+      <li><i style="background:#141414"></i>Tinta · zona 0<code>#141414</code></li>
+      <li><i style="background:#5b5a56"></i>Tinta secundaria<code>#5b5a56</code></li>
+      <li><i style="background:#cdcbc5"></i>Filete<code>#cdcbc5</code></li>
+      <li><i style="background:#ec2a8a"></i>Magenta · lo tuyo<code>#ec2a8a</code></li>
+      <li><i style="background:#a30e58"></i>Magenta como texto<code>#a30e58</code></li>
+    </ul></div>
+    <div class="pal"><h4>Cuarto oscuro · oscuro</h4><ul>
+      <li><i style="background:#111110"></i>Cuarto · fondo<code>#111110</code></li>
+      <li><i style="background:#1c1c1a"></i>Hoja superior<code>#1c1c1a</code></li>
+      <li><i style="background:#232321"></i>Hojas debajo · hover<code>#232321</code></li>
+      <li><i style="background:#ecebe6"></i>Tinta clara<code>#ecebe6</code></li>
+      <li><i style="background:#a7a59f"></i>Tinta secundaria<code>#a7a59f</code></li>
+      <li><i style="background:#353431"></i>Filete<code>#353431</code></li>
+      <li><i style="background:#ff4fa3"></i>Magenta · lo tuyo<code>#ff4fa3</code></li>
+      <li><i style="background:#ff7ab9"></i>Magenta como texto<code>#ff7ab9</code></li>
+    </ul></div>
+  </div>
+  <p class="cap-note">Los avisos nunca se vuelven rojos: se invierten a tinta. Contraste mínimo 4,5:1 en todo el texto; el magenta sobre la hoja supera 7:1 como texto.</p>
+
+  <h3>Tipografía</h3>
+  <div class="type-spec">
+    <div><span class="label">Marca · 30</span><span class="wordmark">ASSESS</span></div>
+    <div><span class="label">Rótulo · 13 · +0,14em</span><span class="label" style="color:var(--ink)">Tiempo restante · Pregunta · Tu respuesta</span></div>
+    <div><span class="label">Reloj · 46</span><span class="clock">32:14</span></div>
+    <div><span class="label">Numeral · 30</span><b class="record__num">04<em> / 12</em></b></div>
+    <div><span class="label">Enunciado · 34 / 20</span><span class="prompt" style="margin:0">¿Qué imprime este programa?</span></div>
+    <div><span class="label">Texto · 18</span><span>Lee cada pregunta con calma. Tus respuestas se guardan solas, incluso si se corta la conexión.</span></div>
+    <div><span class="label">Código · 16</span><code style="font:var(--text-code)">print(f([1, 2, 3, 4, 5]))</code></div>
+  </div>
+  <p class="cap-note">Sofia Sans Extra Condensed (rótulos, números, acciones) · Sofia Sans (texto) · JetBrains Mono (código). En producción se sirven desde el binario.</p>
+
+  <h3>Materiales</h3>
+  <ul class="legend" style="max-width:520px">
+    <li><i class="swatch swatch--done"></i>Tinta llena — respondida</li>
+    <li><i class="swatch swatch--flag"></i>Rayado de tinta — para revisar</li>
+    <li><i class="swatch"></i>Papel — pendiente</li>
+    <li><i class="swatch swatch--answer"></i>Rayado magenta — tu respuesta, tu posición</li>
+    <li><i class="swatch" style="background:var(--inverse);border-color:var(--inverse)"></i>Inversión — avisos y estados serios</li>
+  </ul>
+
+  <h3>Iconos</h3>
+  <div class="icons">
+    <div><svg class="icon"><use href="icons.svg#check"/></svg>check</div>
+    <div><svg class="icon"><use href="icons.svg#arrow-right"/></svg>arrow-right</div>
+    <div><svg class="icon"><use href="icons.svg#arrow-left"/></svg>arrow-left</div>
+    <div><svg class="icon"><use href="icons.svg#clock"/></svg>clock</div>
+    <div><svg class="icon"><use href="icons.svg#flag"/></svg>flag</div>
+    <div><svg class="icon"><use href="icons.svg#wifi-off"/></svg>wifi-off</div>
+    <div><svg class="icon"><use href="icons.svg#eye-off"/></svg>eye-off</div>
+    <div><svg class="icon"><use href="icons.svg#maximize"/></svg>maximize</div>
+    <div><svg class="icon"><use href="icons.svg#pause"/></svg>pause</div>
+    <div><svg class="icon"><use href="icons.svg#lock"/></svg>lock</div>
+    <div><svg class="icon"><use href="icons.svg#list"/></svg>list</div>
+    <div><svg class="icon"><use href="icons.svg#info"/></svg>info</div>
+    <div><svg class="icon"><use href="icons.svg#alert"/></svg>alert</div>
+    <div><svg class="icon"><use href="icons.svg#x"/></svg>x</div>
+    <div><svg class="icon"><use href="icons.svg#layers"/></svg>layers</div>
+    <div><svg class="icon"><use href="icons.svg#message"/></svg>message</div>
+    <div><svg class="icon"><use href="icons.svg#loader"/></svg>loader</div>
+    <div><svg class="icon"><use href="icons.svg#plus"/></svg>plus</div>
+    <div><svg class="icon"><use href="icons.svg#monitor"/></svg>monitor</div>
+  </div>
+  <p class="cap-note">Geometría de Lucide con terminaciones rectas. En producción, lucide-react con <code>strokeLinecap="square"</code>.</p>
+
+  <h3>Elevación · la pila de hojas</h3>
+  <div class="stack" style="width:560px;height:200px;margin:8px 0 36px">
+    <div class="stack__under stack__under--far"></div>
+    <div class="stack__under stack__under--near"><span class="stack__peek label">Siguiente</span></div>
+    <div class="sheet" style="height:100%;padding-top:26px"><span class="label">Hoja superior</span><p class="muted" style="margin-top:8px;max-width:40ch">Una sola sombra suave por hoja. Las de debajo van torcidas; la de arriba siempre recta para leer.</p></div>
+  </div>
+</section>
+
+<!-- ===================== ACCIONES ===================== -->
+<section id="acciones">
+  <h2>Acciones</h2>
+  <p>Rectángulos rectos con rótulos condensados. Una sola acción principal por zona; entregar vive aislado.</p>
+  <h3>Botones · estados</h3>
+  <div class="row">
+    <button class="btn btn--primary">Siguiente<svg class="icon"><use href="icons.svg#arrow-right"/></svg></button>
+    <button class="btn btn--primary is-hover">Hover</button>
+    <button class="btn btn--primary is-focus">Foco</button>
+    <button class="btn btn--primary" disabled>Desactivado</button>
+    <button class="btn btn--primary is-loading"><svg class="icon"><use href="icons.svg#loader"/></svg>Entregando</button>
+  </div>
+  <div class="row" style="margin-top:14px">
+    <button class="btn"><svg class="icon"><use href="icons.svg#arrow-left"/></svg>Anterior</button>
+    <button class="btn is-hover">Hover</button>
+    <button class="btn is-focus">Foco</button>
+    <button class="btn" disabled>Desactivado</button>
+    <button class="btn btn--quiet">Silencioso</button>
+    <button class="btn btn--icon" aria-label="Índice"><svg class="icon"><use href="icons.svg#list"/></svg></button>
+    <button class="btn btn--sm">Pequeño</button>
+  </div>
+  <h3>Marcar para revisar · conmutador</h3>
+  <div class="row">
+    <button class="btn" aria-pressed="false"><i class="flag-chip"></i>Marcar para revisar</button>
+    <button class="btn" aria-pressed="true"><i class="flag-chip"></i>Marcada para revisar</button>
+  </div>
+  <h3>Bloque de entrega</h3>
+  <div class="submit-block" style="width:220px"><b>Revisar y entregar</b><span>Podrás revisar<svg class="icon"><use href="icons.svg#arrow-right"/></svg></span></div>
+  <p class="cap-note">Atajos: <span class="kbd">A</span>–<span class="kbd">D</span> elegir · <span class="kbd">←</span> <span class="kbd">→</span> moverse · <span class="kbd">F</span> marcar.</p>
+</section>
+
+<!-- ===================== ENTRADAS ===================== -->
+<section id="entradas">
+  <h2>Entradas</h2>
+  <p>Campos rectos de borde tinta. El foco y lo que escribes como respuesta se marcan en magenta, porque es tuyo.</p>
+  <div class="grid3">
+    <div class="field"><span class="label">Código de sesión</span><div class="code-cells"><span>K</span><span>7</span><span>Q</span><span>2</span><span>X</span><span class="is-caret"></span></div><span class="field__hint">Lo ves en la pantalla del aula.</span></div>
+    <div class="field"><span class="label">Nombre y apellidos</span><input class="input input--text is-focus" value="Ana Pérez"><span class="field__hint">Como aparece en tu lista de clase.</span></div>
+    <div class="field is-error"><span class="label">Identificador</span><input class="input input--text" value="A-001"><span class="field__error"><svg class="icon"><use href="icons.svg#info"/></svg>Ese identificador ya está en el examen. Tu profesor debe aprobar la entrada.</span></div>
+  </div>
+  <div class="grid3" style="margin-top:28px">
+    <div class="field"><span class="label">Respuesta numérica</span><input class="input is-answer" value="26"><span class="field__hint">Escribe un número. Se guarda solo.</span></div>
+    <div class="field"><span class="label">Respuesta de texto</span><input class="input input--text" placeholder="Escribe una palabra"><span class="field__hint">Vacío · todavía sin responder.</span></div>
+    <div class="field"><span class="label">Desactivado</span><input class="input input--text" value="Pregunta cerrada" disabled><span class="field__hint">Se acabó el tiempo de esta pregunta.</span></div>
+  </div>
+</section>
+
+<!-- ===================== CONTENIDO ===================== -->
+<section id="contenido">
+  <h2>Contenido de la pregunta</h2>
+  <p>De uso general: texto, listas, tablas, código, fórmulas e imágenes. La hoja nunca recorta una figura.</p>
+  <div class="grid2">
+    <div class="sheet mini">
+      <div class="record">
+        <div class="record__cell"><span class="label">Pregunta</span><b class="record__num">09<em> / 12</em></b></div>
+        <div class="record__cell"><span class="label">Valor</span><b class="record__value">1 punto</b></div>
+        <div class="record__cell"><span class="label">Tipo</span><b class="record__value">Varias correctas</b></div>
+      </div>
+      <h4 class="prompt" style="font-size:26px">Complejidad de un algoritmo</h4>
+      <div class="content">
+        <p>La función <code>busca(xs, x)</code> recorre la lista una vez. Si la lista tiene <span class="math">n</span> elementos, su coste en el peor caso es <span class="math">O(n)</span>.</p>
+        <ul><li>Una búsqueda binaria necesita la lista <strong>ordenada</strong>.</li><li>Su coste es <span class="math">O(log n)</span>.</li></ul>
+        <table><thead><tr><th>Algoritmo</th><th>Mejor</th><th>Peor</th></tr></thead><tbody><tr><td>Lineal</td><td>O(1)</td><td>O(n)</td></tr><tr><td>Binaria</td><td>O(1)</td><td>O(log n)</td></tr></tbody></table>
+        <blockquote>Recuerda: el enunciado puede incluir citas o notas del profesor.</blockquote>
+        <div class="math-block">T(n) = 2·T(n/2) + n</div>
+      </div>
+    </div>
+    <div>
+      <figure class="code"><figcaption class="code__head"><span class="label">ordenar.py</span><span class="label">Python</span></figcaption>
+<pre><span class="ln">1</span><span class="tok-kw">def</span> ordenar(xs: list[int]) -&gt; list[int]:
+<span class="ln">2</span>    <span class="tok-com"># Inserción: estable, O(n²) en el peor caso</span>
+<span class="ln">3</span>    <span class="tok-kw">for</span> i <span class="tok-kw">in</span> range(<span class="tok-num">1</span>, len(xs)):
+<span class="ln">4</span>        x, j = xs[i], i - <span class="tok-num">1</span>
+<span class="ln">5</span>        <span class="tok-kw">while</span> j &gt;= <span class="tok-num">0</span> <span class="tok-kw">and</span> xs[j] &gt; x:
+<span class="ln">6</span>            xs[j + <span class="tok-num">1</span>] = xs[j]; j -= <span class="tok-num">1</span>
+<span class="ln">7</span>        xs[j + <span class="tok-num">1</span>] = x
+<span class="ln">8</span>    <span class="tok-kw">return</span> xs  <span class="tok-com"># una línea larga se desplaza en horizontal sin romper el texto</span></pre></figure>
+      <p class="cap-note">Resaltado en escala de grises: palabras clave en negrita, cadenas y comentarios en cursiva. El magenta queda libre para lo tuyo.</p>
+      <figure class="figure" style="margin-top:20px;max-width:420px"><div class="figure__print"><svg class="nn" viewBox="0 0 360 215" role="img" aria-label="Red neuronal con 3 entradas, 4 neuronas ocultas y 2 salidas"><g class="w"><line x1="60" y1="50" x2="180" y2="25"/><line x1="60" y1="50" x2="180" y2="75"/><line x1="60" y1="50" x2="180" y2="125"/><line x1="60" y1="50" x2="180" y2="175"/><line x1="60" y1="100" x2="180" y2="25"/><line x1="60" y1="100" x2="180" y2="75"/><line x1="60" y1="100" x2="180" y2="125"/><line x1="60" y1="100" x2="180" y2="175"/><line x1="60" y1="150" x2="180" y2="25"/><line x1="60" y1="150" x2="180" y2="75"/><line x1="60" y1="150" x2="180" y2="125"/><line x1="60" y1="150" x2="180" y2="175"/><line x1="180" y1="25" x2="300" y2="70"/><line x1="180" y1="25" x2="300" y2="130"/><line x1="180" y1="75" x2="300" y2="70"/><line x1="180" y1="75" x2="300" y2="130"/><line x1="180" y1="125" x2="300" y2="70"/><line x1="180" y1="125" x2="300" y2="130"/><line x1="180" y1="175" x2="300" y2="70"/><line x1="180" y1="175" x2="300" y2="130"/></g><g class="n"><circle cx="60" cy="50" r="13"/><circle cx="60" cy="100" r="13"/><circle cx="60" cy="150" r="13"/><circle cx="180" cy="25" r="13"/><circle cx="180" cy="75" r="13"/><circle cx="180" cy="125" r="13"/><circle cx="180" cy="175" r="13"/><circle cx="300" cy="70" r="13"/><circle cx="300" cy="130" r="13"/></g><g class="t"><text x="60" y="210">Entrada</text><text x="180" y="210">Oculta</text><text x="300" y="210">Salida</text></g></svg></div><figcaption class="label">Figura 1 · Red totalmente conectada</figcaption></figure>
+      <p class="cap-note">Las imágenes se apoyan en una «copia» clara también en oscuro, como una foto sobre la mesa: no se invierten ni se recortan.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ===================== RESPUESTAS ===================== -->
+<section id="respuestas">
+  <h2>Respuestas</h2>
+  <p>Una tabla con filetes, no tarjetas redondeadas. Lo elegido se raya en magenta y se nombra: «Tu respuesta».</p>
+  <div class="grid2">
+    <div>
+      <h3>Opción única · estados</h3>
+      <div class="sheet mini" style="padding-top:1px"><div class="options">
+        <div class="option"><span class="option__key">A</span><span class="option__text">Normal</span><span></span></div>
+        <div class="option is-hover"><span class="option__key">B</span><span class="option__text">Hover</span><span></span></div>
+        <div class="option is-focus"><span class="option__key">C</span><span class="option__text">Foco de teclado</span><span></span></div>
+        <div class="option is-selected"><span class="option__key">D</span><span class="option__text">Elegida</span><span class="option__mark label">Tu respuesta</span></div>
+        <div class="option is-locked"><span class="option__key">E</span><span class="option__text">Bloqueada (tiempo de pregunta agotado)</span><span class="option__mark label" style="color:var(--ink-3)"><svg class="icon"><use href="icons.svg#lock"/></svg></span></div>
+      </div></div>
+    </div>
+    <div>
+      <h3>Varias correctas</h3>
+      <div class="sheet mini" style="padding-top:1px"><div class="options">
+        <div class="option option--multi is-selected"><span class="option__key">A</span><span class="option__text"><span class="math">2x + 1 = 5</span></span><span class="option__mark label"><svg class="icon"><use href="icons.svg#check"/></svg>Elegida</span></div>
+        <div class="option option--multi is-selected"><span class="option__key">B</span><span class="option__text"><span class="math">x² = 4</span></span><span class="option__mark label"><svg class="icon"><use href="icons.svg#check"/></svg>Elegida</span></div>
+        <div class="option option--multi"><span class="option__key">C</span><span class="option__text"><span class="math">3x − 2 = 5</span></span><span></span></div>
+        <div class="option option--multi"><span class="option__key">D</span><span class="option__text"><span class="math">x / 2 = 1</span></span><span></span></div>
+      </div></div>
+      <p class="cap-note">La casilla doble distingue «varias» de «una sola» antes de tocar nada.</p>
+    </div>
+  </div>
+  <div class="grid2" style="margin-top:12px">
+    <div>
+      <h3>Verdadero o falso</h3>
+      <div class="tf"><div class="tf__opt"><span class="kbd">V</span>Verdadero</div><div class="tf__opt is-selected"><span class="kbd">F</span>Falso</div></div>
+    </div>
+    <div>
+      <h3>Opciones reveladas al pasar el ratón</h3>
+      <div class="sheet mini" style="padding-top:1px"><div class="options">
+        <div class="option is-veiled"><span class="option__key">A</span><span class="option__text">El texto no está en la página</span><span></span></div>
+        <div class="option is-hover"><span class="option__key">B</span><span class="option__text">Solo se revela la opción bajo el puntero o con foco</span><span class="option__mark label"><svg class="icon"><use href="icons.svg#eye-off"/></svg></span></div>
+        <div class="option is-veiled"><span class="option__key">C</span><span class="option__text">Las demás siguen veladas</span><span></span></div>
+      </div></div>
+    </div>
+  </div>
+  <h3>Tiempo por pregunta · exposición</h3>
+  <div class="grid2">
+    <div class="exposure"><span class="label">Esta pregunta</span><div class="exposure__track"><div class="exposure__fill" style="width:62%"></div></div><span class="exposure__time">0:42</span></div>
+    <div class="exposure is-closed"><span class="label">Esta pregunta</span><div class="exposure__track"></div><span class="label">Cerrada</span></div>
+  </div>
+</section>
+
+<!-- ===================== NAVEGACIÓN ===================== -->
+<section id="navegacion">
+  <h2>Navegación</h2>
+  <p>El recorrido revela el examen como una copia que se expone: papel en blanco al principio, tinta a medida que respondes.</p>
+  <div class="grid3">
+    <div><h3>Recorrido · escritorio</h3><ol class="rail" style="padding:0 22px">
+      <li class="rail__row"><b class="rail__num">01</b>Respondida<i class="swatch swatch--done"></i></li>
+      <li class="rail__row"><b class="rail__num">02</b>Para revisar<i class="swatch swatch--flag"></i></li>
+      <li class="rail__row is-current"><b class="rail__num">03</b>Aquí<i class="swatch"></i></li>
+      <li class="rail__row"><b class="rail__num">04</b>Pendiente<i class="swatch"></i></li>
+    </ol></div>
+    <div><h3>Tira · móvil</h3><div class="strip" style="--n:10"><i class="done"></i><i class="done"></i><i class="flag"></i><i class="done cur"></i><i></i><i></i><i></i><i></i><i></i><i></i></div>
+      <h3>Barra inferior · móvil</h3><div class="bar" style="width:366px;border:1px solid var(--rule-strong)"><button class="btn">4/10</button><button class="btn">Anterior</button><button class="btn btn--primary">Siguiente</button></div></div>
+    <div><h3>Índice · hoja inferior en móvil</h3>
+      <div class="sheet-index"><header><span class="label" style="color:var(--ink)">Preguntas · 4 de 10</span><button class="btn btn--icon btn--sm" aria-label="Cerrar"><svg class="icon"><use href="icons.svg#x"/></svg></button></header>
+        <ol class="rail"><li class="rail__row"><b class="rail__num">01</b>Respondida<i class="swatch swatch--done"></i></li><li class="rail__row"><b class="rail__num">02</b>Respondida<i class="swatch swatch--done"></i></li><li class="rail__row"><b class="rail__num">03</b>Para revisar<i class="swatch swatch--flag"></i></li><li class="rail__row is-current"><b class="rail__num">04</b>Aquí<i class="swatch swatch--done"></i></li><li class="rail__row"><b class="rail__num">05</b>Pendiente<i class="swatch"></i></li></ol></div></div>
+  </div>
+</section>
+
+<!-- ===================== ESTADO ===================== -->
+<section id="estado">
+  <h2>Estado</h2>
+  <p>El tiempo, los avisos y el guardado viven en celdas fijas: cambian los valores, nunca el sitio. Los avisos se intensifican invirtiéndose a tinta, sin rojo.</p>
+  <h3>Reloj</h3>
+  <div class="row">
+    <div class="timer"><span class="label">Tiempo restante</span><span class="clock">32:14</span></div>
+    <div class="timer timer--soon"><span class="label">Últimos 10 minutos</span><span class="clock">09:58</span></div>
+    <div class="timer timer--urgent"><span class="label">Quedan 5 minutos</span><span class="clock">04:41</span></div>
+    <div class="timer timer--last"><span class="label">Último minuto</span><span class="clock">00:47</span></div>
+    <div class="timer"><span class="timer__extra"><svg class="icon" style="width:14px;height:14px"><use href="icons.svg#plus"/></svg>5 min para ti</span><span class="clock">37:14</span></div>
+    <div class="timer timer--hidden"><span class="label">Reloj oculto</span><span class="clock">··:··</span><button class="btn btn--quiet btn--sm" style="padding:0;height:auto;justify-content:flex-start">Mostrar</button></div>
+  </div>
+  <div class="grid3" style="margin-top:8px">
+    <div><h3>Avisos</h3><div class="strikes"><i></i><i></i><i></i><span>0 de 3</span></div><div class="strikes" style="margin-top:12px"><i class="on"></i><i></i><i></i><span>1 de 3</span></div><div class="strikes" style="margin-top:12px"><i class="on"></i><i class="on"></i><i></i><span>2 de 3 · uno más anula el examen</span></div></div>
+    <div><h3>Guardado</h3><div style="display:grid;gap:12px;justify-items:start">
+      <span class="save"><svg class="icon"><use href="icons.svg#check"/></svg>Guardado hace 2 s</span>
+      <span class="save is-saving"><svg class="icon"><use href="icons.svg#loader"/></svg>Guardando…</span>
+      <span class="save save--offline"><svg class="icon"><use href="icons.svg#wifi-off"/></svg>Sin conexión · 3 cambios esperando</span>
+      <span class="save"><svg class="icon"><use href="icons.svg#check"/></svg>Conexión recuperada · todo guardado</span></div></div>
+    <div><h3>Cabecera en celdas</h3><div class="cells" style="border:1px solid var(--rule-strong);height:80px;grid-template-columns:1fr 150px">
+      <div class="cell"><span class="label">Alumno</span><b>Ana Pérez · A-001</b></div><div class="cell"><span class="label">Tiempo</span><span class="clock" style="font-size:34px">32:14</span></div></div></div>
+  </div>
+</section>
+
+<!-- ===================== AVISOS Y DIÁLOGOS ===================== -->
+<section id="avisos">
+  <h2>Avisos y diálogos</h2>
+  <p>Los avisos no interrumpen: aparecen en una esquina y se quedan marcados hasta que los ves. Solo entregar pide confirmación.</p>
+  <div class="grid2">
+    <div style="display:grid;gap:14px">
+      <div class="notice notice--yours"><i class="notice__mark"></i><div><div class="notice__title">Tienes 5 minutos más</div><div class="notice__body">Tu profesor te ha dado tiempo extra. Ahora terminas a las 10:47.</div></div><button class="btn btn--icon btn--sm btn--quiet" aria-label="Entendido"><svg class="icon"><use href="icons.svg#x"/></svg></button></div>
+      <div class="notice"><svg class="icon icon--lg"><use href="icons.svg#clock"/></svg><div><div class="notice__title">Quedan 5 minutos</div><div class="notice__body">Revisa las preguntas marcadas. Al terminar el tiempo, se entrega lo guardado.</div></div><span></span></div>
+      <div class="notice"><svg class="icon icon--lg"><use href="icons.svg#message"/></svg><div><div class="notice__title">Mensaje de tu profesor</div><div class="notice__body">«Recordad mantener esta pestaña activa.»</div></div><button class="btn btn--icon btn--sm btn--quiet" aria-label="Cerrar"><svg class="icon"><use href="icons.svg#x"/></svg></button></div>
+      <div class="notice notice--inverse"><i class="notice__mark"></i><div><div class="notice__title">Aviso 1 de 3</div><div class="notice__body">Saliste de la pestaña 22 s. Se restó 1 minuto. Tu profesor puede revisarlo.</div></div><span></span></div>
+    </div>
+    <div class="dialog" role="alertdialog" aria-labelledby="dt">
+      <div class="dialog__head"><span class="dialog__title" id="dt">¿Entregar el examen?</span></div>
+      <div class="dialog__body"><p>Después de entregar no podrás cambiar tus respuestas.</p>
+        <div class="tally"><div><span class="label">Respondidas</span><b>10</b></div><div><span class="label">Sin responder</span><b>1</b></div><div><span class="label">Para revisar</span><b>1</b></div></div></div>
+      <div class="dialog__foot"><button class="btn">Seguir revisando</button><button class="btn btn--primary">Entregar ahora</button></div>
+    </div>
+  </div>
+</section>
+
+<!-- ===================== INTEGRIDAD ===================== -->
+<section id="integridad">
+  <h2>Estados de integridad</h2>
+  <p>Las reglas se explican, no se amenazan. Cada estado dice qué pasó, qué significa y qué puedes hacer. Las penalizaciones siempre las puede revertir tu profesor.</p>
+  <div class="grid2">
+    <div><h3>Cortina de privacidad · perdiste el foco</h3><div class="screen"><div class="sheet ghost"><div class="record"><div class="record__cell"><span class="label">Pregunta</span><b class="record__num">04</b></div></div><p class="prompt">¿Qué imprime este programa?</p></div>
+      <div class="overlay"><div class="panel" style="text-align:center"><svg class="icon icon--lg"><use href="icons.svg#eye-off"/></svg><p class="panel__title">Examen oculto</p><p class="muted">Vuelve a esta ventana para seguir. Es solo una cortina: nada se ha perdido.</p></div></div></div></div>
+    <div><h3>Cuenta atrás · fuera de la pestaña</h3><div class="screen"><div class="overlay" style="background:var(--bg)"><div class="panel panel--inverse"><p class="panel__title">Vuelve al examen</p><p class="panel__count">0:08</p><p>Si no vuelves antes de que llegue a cero, contará como aviso 1 de 3.</p></div></div></div></div>
+    <div><h3>Al volver · aviso aplicado</h3><div class="screen"><div class="overlay"><div class="panel"><p class="panel__title">Aviso 1 de 3</p><p class="muted">Estuviste fuera de la pestaña 22 s y se restó 1 minuto a tu tiempo. Si fue un error, díselo a tu profesor: puede revertirlo.</p><div class="strikes" style="margin-top:14px"><i class="on"></i><i></i><i></i><span>1 de 3</span></div><div class="actions"><button class="btn btn--primary">Entendido, seguir</button></div></div></div></div></div>
+    <div><h3>Pantalla completa requerida</h3><div class="screen"><div class="overlay"><div class="panel"><svg class="icon icon--lg"><use href="icons.svg#maximize"/></svg><p class="panel__title">Pantalla completa</p><p class="muted">Este examen se hace en pantalla completa. Si sales, tendrás 10 s para volver.</p><div class="actions"><button class="btn btn--primary"><svg class="icon"><use href="icons.svg#maximize"/></svg>Activar pantalla completa</button></div></div></div></div></div>
+    <div><h3>Segunda pestaña</h3><div class="screen"><div class="overlay"><div class="panel"><svg class="icon icon--lg"><use href="icons.svg#layers"/></svg><p class="panel__title">Ya está abierto</p><p class="muted">Tu examen sigue en otra pestaña o ventana. Ciérrala aquí y vuelve a la original; tus respuestas están a salvo.</p></div></div></div></div>
+    <div><h3>Pausado por tu profesor</h3><div class="screen"><div class="overlay"><div class="panel panel--inverse"><svg class="icon icon--lg"><use href="icons.svg#pause"/></svg><p class="panel__title">Examen en pausa</p><p>Tu profesor ha pausado tu examen para hablar contigo. Tu tiempo sigue corriendo; si hace falta, te dará tiempo extra.</p></div></div></div></div>
+    <div><h3>Reconexión · esperando aprobación</h3><div class="screen"><div class="overlay"><div class="panel"><svg class="icon icon--lg"><use href="icons.svg#monitor"/></svg><p class="panel__title">Esperando a tu profesor</p><p class="muted">Entras desde otro dispositivo. Tu profesor debe aprobarlo; tus respuestas siguen guardadas.</p><p class="save is-saving" style="margin-top:14px"><svg class="icon"><use href="icons.svg#loader"/></svg>Esperando aprobación…</p></div></div></div></div>
+    <div><h3>Examen anulado</h3><div class="screen" style="background:var(--inverse)"><div class="overlay" style="background:transparent;backdrop-filter:none"><div class="panel panel--inverse" style="border:0;box-shadow:none"><p class="panel__title" style="font-size:44px">Examen anulado</p><p>Llegaste a 3 avisos de 3. Tus respuestas están guardadas. Habla con tu profesor: puede readmitirte.</p></div></div></div></div>
+    <div><h3>Tiempo agotado</h3><div class="screen"><div class="overlay"><div class="panel"><svg class="icon icon--lg"><use href="icons.svg#clock"/></svg><p class="panel__title">Se acabó el tiempo</p><p class="muted">Tu examen se entregó automáticamente con 11 respuestas guardadas. No tienes que hacer nada más.</p></div></div></div></div>
+    <div><h3>Dispositivo no permitido</h3><div class="screen"><div class="overlay"><div class="panel"><svg class="icon icon--lg"><use href="icons.svg#monitor"/></svg><p class="panel__title">Usa un ordenador</p><p class="muted">Este examen se hace desde un ordenador. Pide a tu profesor uno del aula si lo necesitas.</p></div></div></div></div>
+  </div>
+</section>
+
+<!-- ===================== FLUJO ===================== -->
+<section id="flujo">
+  <h2>Pantallas del flujo</h2>
+  <p>Entrar, aceptar las reglas, esperar, revisar y ver el resultado. Las mismas piezas, sin componentes nuevos.</p>
+  <div class="flow">
+    <div class="sheet" style="padding-top:28px">
+      <span class="wordmark">ASSESS</span>
+      <h4 class="prompt" style="font-size:30px;margin-top:22px">Entrar al examen</h4>
+      <div style="display:grid;gap:18px">
+        <div class="field"><span class="label">Código de sesión</span><div class="code-cells"><span>K</span><span>7</span><span>Q</span><span>2</span><span>X</span><span>M</span></div></div>
+        <div class="field"><span class="label">Nombre y apellidos</span><input class="input input--text" value="Ana Pérez"></div>
+        <div class="field"><span class="label">Identificador</span><input class="input input--text" value="A-001"></div>
+        <button class="btn btn--primary btn--block">Entrar<svg class="icon"><use href="icons.svg#arrow-right"/></svg></button>
+      </div>
+    </div>
+    <div class="sheet" style="padding-top:28px">
+      <h4 class="prompt" style="font-size:30px;margin-top:0">Antes de empezar: qué se registra</h4>
+      <table class="tablelike"><thead><tr><th>Se registra</th><th>Consecuencia</th></tr></thead><tbody>
+        <tr><td>Salir de la pestaña más de 15 s</td><td>Aviso y −1 min</td></tr>
+        <tr><td>Copiar o pegar</td><td>Aviso</td></tr>
+        <tr><td>3 avisos</td><td>Examen anulado</td></tr></tbody></table>
+      <p class="cap-note">No se usa la cámara ni se lee tu teclado fuera del examen.</p>
+      <div class="field" style="margin-top:18px"><span class="label">Escribe para empezar</span><div class="pledge-target">Declaro que responderé sin ayuda externa.</div><input class="input input--text is-focus" value="Declaro que responderé sin ayuda"></div>
+      <button class="btn btn--primary btn--block" style="margin-top:16px" disabled>Comenzar</button>
+    </div>
+    <div class="sheet" style="padding-top:28px">
+      <p class="panel__title" style="font-size:56px;margin:0 0 6px">Estás dentro</p>
+      <p class="muted">Tu profesor comenzará el examen en breve. No cierres esta pestaña.</p>
+      <span class="save" style="margin-top:12px"><svg class="icon"><use href="icons.svg#check"/></svg>Conectada · Ana Pérez</span>
+      <div class="record" style="margin-top:22px;border-top:1px solid var(--rule-strong)"><div class="record__cell"><span class="label">Duración</span><b class="record__value">45 min</b></div><div class="record__cell"><span class="label">Preguntas</span><b class="record__value">12</b></div><div class="record__cell"><span class="label">Puntos</span><b class="record__value">17</b></div></div>
+    </div>
+    <div class="sheet" style="padding-top:28px">
+      <h4 class="prompt" style="font-size:30px;margin-top:0">Revisar antes de entregar</h4>
+      <table class="tablelike"><thead><tr><th>Nº</th><th>Estado</th><th>Tu respuesta</th><th></th></tr></thead><tbody>
+        <tr><td class="num">03</td><td><span class="chip chip--flag"><span>Para revisar</span></span></td><td>[2, 6, 10]</td><td><button class="btn btn--sm">Ir</button></td></tr>
+        <tr><td class="num">07</td><td><span class="chip chip--empty">Sin responder</span></td><td class="muted">—</td><td><button class="btn btn--sm">Ir</button></td></tr>
+        <tr><td class="num">11</td><td><span class="chip">Respondida</span></td><td>26</td><td><button class="btn btn--sm">Ir</button></td></tr></tbody></table>
+      <button class="btn btn--primary btn--block" style="margin-top:18px">Entregar examen</button>
+    </div>
+    <div class="sheet" style="padding-top:28px">
+      <p class="score" style="margin:0 0 10px">14,5<small> / 17</small></p>
+      <p>Entregado a las 10:12 · 38 minutos.</p>
+      <p class="muted">La revisión con las respuestas correctas estará disponible cuando termine la sesión.</p>
+    </div>
+    <div class="sheet" style="padding-top:28px">
+      <p class="panel__title" style="font-size:44px;margin:0 0 8px">Examen entregado</p>
+      <p class="muted">Entregado a las 10:12. Tu profesor publicará los resultados. Ya puedes cerrar esta pestaña.</p>
+    </div>
+  </div>
+</section>
+</main>
+</body></html>

@@ -1,0 +1,64 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-10-24T21:40:00Z",
+  "title": "Design System: Assess · Mesa de luz",
+  "extensions": {
+    "colorMeta": {
+      "accent": { "role": "primary", "displayName": "Dichroic Magenta", "canonical": "#ec2a8a" },
+      "dark-accent": { "role": "primary", "displayName": "Dichroic Magenta (darkroom)", "canonical": "#ff4fa3" },
+      "table": { "role": "neutral", "displayName": "Light Table", "tonalRamp": ["#f8f7f4", "#f0efeb", "#e8e6e1", "#cdcbc5", "#8f8d88", "#5b5a56", "#141414"] },
+      "dark-room": { "role": "neutral", "displayName": "Darkroom", "tonalRamp": ["#111110", "#161615", "#1c1c1a", "#232321", "#353431", "#a7a59f", "#ecebe6"] }
+    },
+    "typographyMeta": {
+      "label": { "displayName": "Label", "purpose": "Tracked condensed caps for every field name, state and action." },
+      "clock": { "displayName": "Clock", "purpose": "Time remaining, always in a fixed cell." },
+      "prompt": { "displayName": "Prompt", "purpose": "The question; balanced wrap." },
+      "code": { "displayName": "Code", "purpose": "Code panels and code answers; ligatures off." }
+    },
+    "shadows": [
+      { "name": "sheet", "value": "0 1px 2px rgba(20,20,20,.08), 0 18px 40px -8px rgba(20,20,20,.2)", "purpose": "The top sheet only." },
+      { "name": "float", "value": "0 2px 6px rgba(20,20,20,.1), 0 24px 48px -12px rgba(20,20,20,.28)", "purpose": "Notices and dialogs." }
+    ],
+    "motion": [
+      { "name": "ease-sheet", "value": "cubic-bezier(.2,1.15,.32,1)", "purpose": "Sheet slide on next/previous: mass with a slight overshoot (280ms)." },
+      { "name": "ease-out", "value": "cubic-bezier(.16,1,.3,1)", "purpose": "Quick state changes (140ms)." }
+    ],
+    "breakpoints": [ { "name": "mobile", "value": "390px" }, { "name": "desktop", "value": "1440px" } ]
+  },
+  "components": [
+    { "name": "Primary Button", "kind": "button", "refersTo": "button-primary", "description": "One main action per zone.",
+      "html": "<button class=\"ds-btn ds-btn-primary\">SIGUIENTE</button>",
+      "css": ".ds-btn{height:50px;padding:0 20px;border:1px solid var(--rule-strong,#141414);background:var(--surface,#f8f7f4);color:var(--ink,#141414);font:700 15px/1 'Sofia Sans Extra Condensed',sans-serif;letter-spacing:.14em;text-transform:uppercase;border-radius:0;cursor:pointer;transition:background-color .14s}.ds-btn:hover{background:var(--surface-2,#f0efeb)}.ds-btn:focus-visible{outline:none;box-shadow:0 0 0 2px #f8f7f4,0 0 0 4px #ec2a8a}.ds-btn-primary{background:#141414;color:#f8f7f4;border-color:#141414}.ds-btn-primary:hover{background:#353433}" },
+    { "name": "Secondary Button", "kind": "button", "refersTo": "button-secondary", "description": "Navigation and secondary actions.",
+      "html": "<button class=\"ds-btn2\">ANTERIOR</button>",
+      "css": ".ds-btn2{height:50px;padding:0 20px;border:1px solid #141414;background:#f8f7f4;color:#141414;font:700 15px/1 'Sofia Sans Extra Condensed',sans-serif;letter-spacing:.14em;text-transform:uppercase;border-radius:0}.ds-btn2:hover{background:#f0efeb}.ds-btn2:focus-visible{outline:none;box-shadow:0 0 0 2px #f8f7f4,0 0 0 4px #ec2a8a}" },
+    { "name": "Answer Field", "kind": "input", "refersTo": "input", "description": "Short answer; magenta border once it holds your answer.",
+      "html": "<input class=\"ds-input\" value=\"26\">",
+      "css": ".ds-input{height:52px;padding:0 13px;border:2px solid #ec2a8a;background:#f8f7f4;color:#141414;font:400 20px/1 'JetBrains Mono',monospace;border-radius:0;caret-color:#ec2a8a}.ds-input:focus-visible{outline:none;box-shadow:0 0 0 1px #ec2a8a}" },
+    { "name": "Option Row (selected)", "kind": "custom", "refersTo": "option-row", "description": "Ruled answer row; selection is hatched magenta and named.",
+      "html": "<div class=\"ds-opt\"><span class=\"ds-key\">B</span><code>[2, 6, 10]</code><span class=\"ds-mark\">TU RESPUESTA</span></div>",
+      "css": ".ds-opt{display:grid;grid-template-columns:62px 1fr auto;align-items:center;min-height:56px;padding:0 24px;border-bottom:1px solid #cdcbc5;background:repeating-linear-gradient(135deg,rgba(236,42,138,.3) 0 1.5px,transparent 1.5px 7px),rgba(236,42,138,.07)}.ds-key{width:36px;height:36px;display:flex;align-items:center;justify-content:center;background:#ec2a8a;color:#fff;font:800 21px/1 'Sofia Sans Extra Condensed',sans-serif}.ds-opt code{font:400 18px/1.4 'JetBrains Mono',monospace;font-variant-ligatures:none}.ds-mark{font:700 13px/1 'Sofia Sans Extra Condensed',sans-serif;letter-spacing:.14em;color:#a30e58}" },
+    { "name": "Rail Row", "kind": "nav", "description": "Question list row with tone swatch; current row hatched magenta.",
+      "html": "<div class=\"ds-rail\"><b>04</b>Aquí<i></i></div>",
+      "css": ".ds-rail{display:grid;grid-template-columns:42px 1fr 60px;align-items:center;height:46px;padding:0 22px;border-bottom:1px solid #cdcbc5;background:repeating-linear-gradient(135deg,rgba(236,42,138,.3) 0 1.5px,transparent 1.5px 7px),rgba(236,42,138,.07);color:#a30e58;font:700 15px 'Sofia Sans',sans-serif}.ds-rail b{font:800 21px/1 'Sofia Sans Extra Condensed',sans-serif;color:#141414}.ds-rail i{height:20px;background:#141414;box-shadow:0 0 0 2px #f8f7f4,0 0 0 4px #ec2a8a}" },
+    { "name": "Submit Block", "kind": "custom", "refersTo": "submit-block", "description": "Isolated ink block, never adjacent to navigation.",
+      "html": "<div class=\"ds-submit\"><b>REVISAR Y ENTREGAR</b><span>Podrás revisar →</span></div>",
+      "css": ".ds-submit{display:flex;flex-direction:column;justify-content:space-between;gap:14px;width:194px;min-height:98px;padding:16px;background:#141414;color:#f8f7f4;cursor:pointer}.ds-submit b{font:800 23px/1 'Sofia Sans Extra Condensed',sans-serif;letter-spacing:.08em}.ds-submit span{font:400 14px 'Sofia Sans',sans-serif;color:#c9c7c1}" },
+    { "name": "Timer Cell (≤5 min)", "kind": "custom", "description": "Escalation inverts to ink; never red.",
+      "html": "<div class=\"ds-timer\"><span>QUEDAN 5 MINUTOS</span><b>04:41</b></div>",
+      "css": ".ds-timer{display:flex;flex-direction:column;gap:5px;padding:12px 18px;min-width:190px;background:#141414;color:#f8f7f4}.ds-timer span{font:700 13px/1.2 'Sofia Sans Extra Condensed',sans-serif;letter-spacing:.14em;color:#c9c7c1}.ds-timer b{font:800 46px/.85 'Sofia Sans Extra Condensed',sans-serif}" }
+  ],
+  "narrative": {
+    "northStar": "Mesa de luz — the exam as a stack of exposure-record sheets",
+    "overview": "Neutral zones carry all structure; one dichroic magenta marks only what belongs to the student. Light is the light table, dark is the darkroom. Escalation inverts to ink instead of turning red.",
+    "keyCharacteristics": ["Square sheets with one soft shadow", "Next sheet askew beneath", "Tracked condensed caps for labels and numerals", "Hatching as the only texture", "Grayscale code highlighting"],
+    "rules": [
+      { "name": "The Yours-Only Rule", "body": "Magenta marks only the student's answer, position, focus and granted time.", "section": "colors" },
+      { "name": "The Reversed-Plate Rule", "body": "Warnings, penalties and annulment invert to ink; no red or amber.", "section": "colors" },
+      { "name": "The No-Eyebrow Rule", "body": "No small label above a heading or big numeral.", "section": "typography" },
+      { "name": "The Straight-Top Rule", "body": "Only sheets beneath tilt; the reading sheet is square.", "section": "elevation" }
+    ],
+    "dos": ["Keep counters in fixed cells with tabular numerals", "Show figures on a light print matte in both themes", "Explain every penalty and that the teacher can revert it"],
+    "donts": ["Don't use red or amber for warnings", "Don't round corners or use option cards", "Don't colour code syntax", "Don't render code ligatures"]
+  }
+}

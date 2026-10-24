@@ -1,0 +1,108 @@
+/* Assess · "Mesa de luz" design tokens.
+   Light theme = the light table; dark theme = the darkroom.
+   One accent only: it marks what belongs to the student (their answer, their position).
+   Production self-hosts these families (fontsource); the prototype loads Google Fonts. */
+
+:root {
+  /* Type */
+  --font-display: "Sofia Sans Extra Condensed", "Arial Narrow", sans-serif;
+  --font-body: "Sofia Sans", system-ui, sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, monospace;
+
+  --text-label: 700 13px/1.2 var(--font-display);   /* tracked caps */
+  --tracking-label: .14em;
+  --text-body: 400 18px/1.55 var(--font-body);
+  --text-small: 400 14px/1.45 var(--font-body);
+  --text-prompt: 700 34px/1.2 var(--font-body);
+  --text-prompt-sm: 700 20px/1.35 var(--font-body);
+  --text-numeral: 800 30px/.9 var(--font-display);
+  --text-clock: 800 46px/.85 var(--font-display);
+  --text-code: 400 16px/1.75 var(--font-mono);
+
+  /* Space (4px grid) */
+  --s1: 4px; --s2: 8px; --s3: 12px; --s4: 16px; --s5: 20px; --s6: 24px; --s8: 32px; --s10: 40px; --s12: 48px;
+  --sheet-pad: 46px;
+  --row: 56px;
+  --control: 50px;
+
+  /* Motion: sheets have mass */
+  --ease-sheet: cubic-bezier(.2, 1.15, .32, 1);
+  --ease-out: cubic-bezier(.16, 1, .3, 1);
+  --dur-sheet: 280ms;
+  --dur-quick: 140ms;
+}
+
+/* Light table */
+:root,
+:root[data-theme="light"] {
+  color-scheme: light;
+  --bg: #e8e6e1;          /* zone IX: the table */
+  --surface: #f8f7f4;     /* zone X: the top sheet */
+  --surface-2: #f0efeb;   /* sheets beneath */
+  --surface-code: #efeee9;
+  --ink: #141414;         /* zone 0 */
+  --ink-2: #5b5a56;       /* secondary text, ≥5.5:1 on bg */
+  --ink-3: #8f8d88;       /* decorative only (never body text) */
+  --rule: #cdcbc5;
+  --rule-strong: #141414;
+  --accent: #ec2a8a;      /* dichroic magenta */
+  --accent-ink: #a30e58;  /* accent as text */
+  --on-accent: #ffffff;   /* large/bold text only */
+  --accent-wash: rgba(236, 42, 138, .07);
+  --accent-line: rgba(236, 42, 138, .30);
+  --inverse: #141414;     /* warnings invert to ink, never red */
+  --on-inverse: #f8f7f4;
+  --on-inverse-2: #c9c7c1;
+  --shadow-sheet: 0 1px 2px rgba(20, 20, 20, .08), 0 18px 40px -8px rgba(20, 20, 20, .2);
+  --shadow-float: 0 2px 6px rgba(20, 20, 20, .1), 0 24px 48px -12px rgba(20, 20, 20, .28);
+  --scrim: rgba(232, 230, 225, .72);
+  --watermark: rgba(20, 20, 20, .05);
+}
+
+/* Darkroom */
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --bg: #111110;
+  --surface: #1c1c1a;
+  --surface-2: #232321;
+  --surface-code: #161615;
+  --ink: #ecebe6;
+  --ink-2: #a7a59f;
+  --ink-3: #6f6d68;
+  --rule: #353431;
+  --rule-strong: #bcbab4;
+  --accent: #ff4fa3;
+  --accent-ink: #ff7ab9;
+  --on-accent: #111110;
+  --accent-wash: rgba(255, 79, 163, .08);
+  --accent-line: rgba(255, 79, 163, .36);
+  --inverse: #ecebe6;
+  --on-inverse: #141413;
+  --on-inverse-2: #4a4945;
+  --shadow-sheet: 0 0 0 1px rgba(255, 255, 255, .04), 0 18px 40px -8px rgba(0, 0, 0, .65);
+  --shadow-float: 0 0 0 1px rgba(255, 255, 255, .06), 0 24px 48px -12px rgba(0, 0, 0, .7);
+  --scrim: rgba(17, 17, 16, .72);
+  --watermark: rgba(236, 235, 230, .05);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    color-scheme: dark;
+    --bg: #111110; --surface: #1c1c1a; --surface-2: #232321; --surface-code: #161615;
+    --ink: #ecebe6; --ink-2: #a7a59f; --ink-3: #6f6d68; --rule: #353431; --rule-strong: #bcbab4;
+    --accent: #ff4fa3; --accent-ink: #ff7ab9; --on-accent: #111110;
+    --accent-wash: rgba(255, 79, 163, .08); --accent-line: rgba(255, 79, 163, .36);
+    --inverse: #ecebe6; --on-inverse: #141413; --on-inverse-2: #4a4945;
+    --shadow-sheet: 0 0 0 1px rgba(255, 255, 255, .04), 0 18px 40px -8px rgba(0, 0, 0, .65);
+    --shadow-float: 0 0 0 1px rgba(255, 255, 255, .06), 0 24px 48px -12px rgba(0, 0, 0, .7);
+    --scrim: rgba(17, 17, 16, .72); --watermark: rgba(236, 235, 230, .05);
+  }
+}
+
+/* Materials derived from the active theme */
+:root {
+  --hatch-ink: repeating-linear-gradient(135deg, var(--ink) 0 1.5px, transparent 1.5px 6px);
+  --hatch-accent: repeating-linear-gradient(135deg, var(--accent-line) 0 1.5px, transparent 1.5px 7px);
+  --dots: radial-gradient(circle, var(--ink-2) 1px, transparent 1.4px) 0 0 / 6px 6px;
+  --focus-ring: 0 0 0 2px var(--surface), 0 0 0 4px var(--accent);
+}

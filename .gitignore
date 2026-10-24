@@ -17,3 +17,9 @@
 coverage.out
 *.test
 .env
+
+# Design tooling scratch (keep the direction brief and the design sidecar)
+/.impeccable/*
+!/.impeccable/surfaces/
+!/.impeccable/design.json
+/.playwright-mcp/
