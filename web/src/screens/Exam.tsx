@@ -13,13 +13,14 @@ interface Props {
   me: MeView;
   now: () => number;
   setMe: (me: MeView) => void;
+  reportAt: (questionID: string) => void;
 }
 
 const typeKey: Record<string, Key> = { single: "t_single", multiple: "t_multiple", truefalse: "t_truefalse", short: "t_short" };
 const pad = (n: number) => String(n).padStart(2, "0");
 const answered = (r: Response | undefined) => !!r && (!!r.option || !!r.options?.length || r.value !== undefined || !!r.text?.trim());
 
-export function Exam({ me, now, setMe }: Props) {
+export function Exam({ me, now, setMe, reportAt }: Props) {
   const questions = me.questions;
   const [index, setIndex] = useState(0);
   const [view, setView] = useState<"question" | "review">("question");
@@ -109,6 +110,9 @@ export function Exam({ me, now, setMe }: Props) {
 
   const current = questions[index];
   const question = current ? cache[current.id] : undefined;
+  useEffect(() => {
+    if (current && view === "question") reportAt(current.id);
+  }, [current, view, reportAt]);
 
   const change = (r: Response) => {
     if (!current || timeUp) return;

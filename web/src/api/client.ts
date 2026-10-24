@@ -48,6 +48,8 @@ export const api = {
   answer: (id: string, seq: number, response: Response) =>
     request<AnswerResult>("PUT", `/api/answers/${encodeURIComponent(id)}`, { seq, response }),
   submit: () => request<MeView>("POST", "/api/submit"),
+  /** Polls a pending device approval: 202 while waiting, MeView once approved. */
+  joinStatus: () => request<MeView | { status: "pending" }>("GET", "/api/join/status"),
 };
 
 /** Image paths in exam Markdown ("assets/x.png") are served under /api/assets. */

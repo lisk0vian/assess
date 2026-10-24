@@ -126,7 +126,27 @@ reversed, edit it here and note why in the commit.
 - `ax results [--format csv|json] [--sep ";"]` exports one row per student
   with per-question points; CSV carries a UTF-8 BOM for Excel.
 
-## Teacher TUI (the only admin interface)
+## Teacher TUI (implemented in phase 4)
+
+- Views (Tab): **Alumnos** (live table: state, question the student is on,
+  answered, online, score, time used, extra time), **Ranking** (submitted,
+  by score then time), **Enlace** (URL, code, QR with the code pre-filled).
+- Keys: S start, + 5 min for everyone, E end (confirm); on the selected
+  student T extra time, M message, P pause/resume (their clock keeps running),
+  X annul (confirm), U readmit, D remove (withdraws if they joined; confirm);
+  N add a student; A/R approve or reject the oldest pending device request;
+  L lock; Q detach (the exam keeps running).
+- Approval requests: a student ID already in use on another device, or a
+  join after `--join-window`, waits on "Esperando a tu profesor" until the
+  teacher decides. Approved devices share the attempt.
+- `ax admin set-password` (Argon2id in `admin.json`, owner-only) protects
+  `ax attach`, `ax stop` and the panel, which locks after 5 idle minutes or with
+  L and then shows no names. Pause state and pending requests live in memory:
+  a daemon restart clears them (the attempts themselves are in SQLite).
+- Seat map: deferred (optional; planned with the collusion report in phase 6,
+  which is where seat-aware weighting is used).
+
+## Teacher TUI (design decisions)
 
 - Live: header (time left, connected, waiting, submitted, server health),
   student table (current question, progress, connection, signals, strikes),

@@ -26,6 +26,8 @@ type Options struct {
 	// who are already in keep resuming. Zero keeps joining open.
 	JoinWindow time.Duration
 	Log        *slog.Logger
+	// OnRequest is called when a device asks for the teacher's approval.
+	OnRequest func()
 }
 
 // Handler serves the student API for one session.
@@ -37,6 +39,7 @@ type Handler struct {
 	mux       *http.ServeMux
 	live      *hub
 	joins     *limiter
+	reqs      *requests
 }
 
 // New returns the student API for sessionID.
@@ -46,8 +49,9 @@ func New(svc *session.Service, sessionID string, opts Options) *Handler {
 		log = slog.New(slog.DiscardHandler)
 	}
 	h := &Handler{svc: svc, sessionID: sessionID, opts: opts, log: log, mux: http.NewServeMux(),
-		live: newHub(), joins: newLimiter(12, time.Minute)}
+		live: newHub(), joins: newLimiter(12, time.Minute), reqs: newRequests()}
 	h.mux.HandleFunc("POST /api/join", h.join)
+	h.mux.HandleFunc("GET /api/join/status", h.pendingStatus)
 	h.mux.HandleFunc("GET /api/me", h.withAttempt(h.me))
 	h.mux.HandleFunc("GET /api/questions/{id}", h.withAttempt(h.question))
 	h.mux.HandleFunc("PUT /api/answers/{id}", h.withAttempt(h.answer))
@@ -98,25 +102,30 @@ func (h *Handler) join(w http.ResponseWriter, r *http.Request) {
 		h.writeMe(w, d)
 		return
 	}
+	name := strings.Join(strings.Fields(req.Name), " ")
 	if win := h.opts.JoinWindow; win > 0 && sess.State == session.StateRunning && h.svc.Now().After(sess.StartedAt.Add(win)) {
-		writeError(w, http.StatusConflict, "join_closed", "joining closed; ask the teacher to let you in")
+		if existing, err := h.svc.AttemptOfStudent(r.Context(), h.sessionID, req.StudentID); err == nil {
+			h.askApproval(w, r, KindDevice, req.StudentID, name, existing.ID)
+		} else {
+			h.askApproval(w, r, KindLate, req.StudentID, name, "")
+		}
 		return
 	}
 	att, _, err := h.svc.Join(r.Context(), h.sessionID, req.StudentID, req.Name)
 	if errors.Is(err, session.ErrAlreadyJoined) {
-		writeError(w, http.StatusConflict, "already_joined",
-			"this student already has an attempt; ask the teacher to approve this device")
+		existing, lookupErr := h.svc.AttemptOfStudent(r.Context(), h.sessionID, req.StudentID)
+		if lookupErr != nil {
+			h.fail(w, lookupErr)
+			return
+		}
+		h.askApproval(w, r, KindDevice, req.StudentID, name, existing.ID)
 		return
 	}
 	if err != nil {
 		h.fail(w, err)
 		return
 	}
-	// Secure follows the transport: classroom LANs run plain HTTP by design (TLS is opt-in).
-	http.SetCookie(w, &http.Cookie{ //nolint:gosec // G124: see comment above
-		Name: CookieName, Value: att.ID, Path: "/", HttpOnly: true,
-		SameSite: http.SameSiteStrictMode, Secure: r.TLS != nil, MaxAge: int((24 * time.Hour).Seconds()),
-	})
+	h.setAttemptCookie(w, r, att.ID)
 	d, err := h.svc.Attempt(r.Context(), att.ID)
 	if err != nil {
 		h.fail(w, err)
@@ -124,6 +133,21 @@ func (h *Handler) join(w http.ResponseWriter, r *http.Request) {
 	}
 	h.log.Info("student joined", "attempt", att.ID, "student", d.Participant.StudentID)
 	h.writeMe(w, d)
+}
+
+// setAttemptCookie hands the device its credential. Secure follows the
+// transport: classroom LANs run plain HTTP by design (TLS is opt-in).
+func (h *Handler) setAttemptCookie(w http.ResponseWriter, r *http.Request, attemptID string) {
+	http.SetCookie(w, &http.Cookie{ //nolint:gosec // G124: see comment above
+		Name: CookieName, Value: attemptID, Path: "/", HttpOnly: true,
+		SameSite: http.SameSiteStrictMode, Secure: r.TLS != nil, MaxAge: int((24 * time.Hour).Seconds()),
+	})
+}
+
+func (h *Handler) onRequest() {
+	if h.opts.OnRequest != nil {
+		h.opts.OnRequest()
+	}
 }
 
 // ---- authenticated endpoints ----

@@ -4,9 +4,12 @@ package tui
 import (
 	"context"
 	"fmt"
+	"sort"
+	"strconv"
 	"strings"
 	"time"
 
+	"charm.land/bubbles/v2/textinput"
 	tea "charm.land/bubbletea/v2"
 	"charm.land/lipgloss/v2"
 	"github.com/mdp/qrterminal/v3"
@@ -21,29 +24,76 @@ var (
 	muted  = lipgloss.Color("#8f8d88")
 
 	brandStyle  = lipgloss.NewStyle().Bold(true)
-	labelStyle  = lipgloss.NewStyle().Foreground(muted).Width(13)
-	valueStyle  = lipgloss.NewStyle().Bold(true)
+	boldStyle   = lipgloss.NewStyle().Bold(true)
 	accentStyle = lipgloss.NewStyle().Foreground(accent).Bold(true)
 	mutedStyle  = lipgloss.NewStyle().Foreground(muted)
 	keyStyle    = lipgloss.NewStyle().Bold(true).Reverse(true).Padding(0, 1)
-	ruleStyle   = lipgloss.NewStyle().Foreground(muted)
+	selStyle    = lipgloss.NewStyle().Bold(true).Reverse(true)
+	headStyle   = lipgloss.NewStyle().Foreground(muted).Bold(true)
+	bannerStyle = lipgloss.NewStyle().Bold(true).Reverse(true).Padding(0, 1)
 )
 
-// Monitor is the live session panel. Quitting it only detaches; the exam
-// keeps running in the background.
+// Views of the panel.
+const (
+	viewStudents = iota
+	viewRanking
+	viewLink
+	viewCount
+)
+
+var viewNames = [viewCount]string{"Alumnos", "Ranking", "Enlace"}
+
+type mode int
+
+const (
+	modeNormal mode = iota
+	modePrompt
+	modeConfirm
+	modeLocked
+)
+
+type promptKind int
+
+const (
+	promptMinutes promptKind = iota
+	promptMessage
+	promptAddID
+	promptAddName
+)
+
+// Options configures the panel.
+type Options struct {
+	// CheckPassword verifies the panel password; nil means no password.
+	CheckPassword func(string) bool
+	// LockAfter locks an idle panel (only with a password). Zero disables it.
+	LockAfter time.Duration
+}
+
+// Monitor is the live session panel. Quitting only detaches; the exam keeps
+// running in the background.
 type Monitor struct {
-	client  *daemon.Client
-	status  *daemon.StatusView
-	offset  time.Duration // server clock minus local clock
-	err     error
-	notice  string
-	confirm string // pending confirmation: "end"
-	qr      string
-	width   int
+	client *daemon.Client
+	opts   Options
+	board  *daemon.Board
+	offset time.Duration
+	err    error
+	notice string
+	qr     string
+	width  int
+
+	view, sel int
+	viewSet   bool
+	mode      mode
+	prompt    promptKind
+	input     textinput.Model
+	pendingID string // student id typed in the first step of "add"
+	question  string
+	onYes     func() tea.Cmd
+	lastInput time.Time
 }
 
 // NewMonitor builds the panel for a connected daemon.
-func NewMonitor(c *daemon.Client, st *daemon.State) *Monitor {
+func NewMonitor(c *daemon.Client, st *daemon.State, opts Options) *Monitor {
 	var b strings.Builder
 	// The QR carries the code too, so scanning it pre-fills the join form.
 	qrterminal.GenerateWithConfig(st.StudentURL+"?c="+st.Code, qrterminal.Config{
@@ -51,30 +101,39 @@ func NewMonitor(c *daemon.Client, st *daemon.State) *Monitor {
 		BlackChar: qrterminal.BLACK_BLACK, BlackWhiteChar: qrterminal.BLACK_WHITE,
 		WhiteChar: qrterminal.WHITE_WHITE, WhiteBlackChar: qrterminal.WHITE_BLACK,
 	})
-	return &Monitor{client: c, qr: strings.TrimRight(b.String(), "\n"), width: 80}
+	in := textinput.New()
+	in.CharLimit = 300
+	in.SetWidth(50)
+	return &Monitor{client: c, opts: opts, qr: strings.TrimRight(b.String(), "\n"), width: 100, input: in, lastInput: time.Now()}
 }
 
 type tickMsg time.Time
 
-type statusMsg struct {
-	status *daemon.StatusView
+type boardMsg struct {
+	board  *daemon.Board
 	err    error
 	notice string
 }
 
 func tick() tea.Cmd { return tea.Tick(time.Second, func(t time.Time) tea.Msg { return tickMsg(t) }) }
 
-func (m *Monitor) fetch(action func(context.Context) (*daemon.StatusView, error), notice string) tea.Cmd {
+// call runs a control action off the UI goroutine.
+func (m *Monitor) call(notice string, fn func(context.Context) (*daemon.Board, error)) tea.Cmd {
 	return func() tea.Msg {
-		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		ctx, cancel := context.WithTimeout(context.Background(), 8*time.Second)
 		defer cancel()
-		st, err := action(ctx)
-		return statusMsg{status: st, err: err, notice: notice}
+		b, err := fn(ctx)
+		if err != nil {
+			notice = ""
+		}
+		return boardMsg{board: b, err: err, notice: notice}
 	}
 }
 
+func (m *Monitor) refresh() tea.Cmd { return m.call("", m.client.Board) }
+
 // Init implements tea.Model.
-func (m *Monitor) Init() tea.Cmd { return tea.Batch(m.fetch(m.client.Status, ""), tick()) }
+func (m *Monitor) Init() tea.Cmd { return tea.Batch(m.refresh(), tick()) }
 
 // Update implements tea.Model.
 func (m *Monitor) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
@@ -82,63 +141,310 @@ func (m *Monitor) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case tea.WindowSizeMsg:
 		m.width = msg.Width
 	case tickMsg:
-		return m, tea.Batch(m.fetch(m.client.Status, ""), tick())
-	case statusMsg:
+		if m.opts.CheckPassword != nil && m.opts.LockAfter > 0 && m.mode != modeLocked && time.Since(m.lastInput) > m.opts.LockAfter {
+			m.lock()
+		}
+		return m, tea.Batch(m.refresh(), tick())
+	case boardMsg:
 		m.err = msg.err
-		if msg.status != nil {
-			m.status = msg.status
-			m.offset = time.Duration(msg.status.ServerNow-time.Now().UnixMilli()) * time.Millisecond
+		if msg.board != nil {
+			m.board = msg.board
+			m.offset = time.Duration(msg.board.Status.ServerNow-time.Now().UnixMilli()) * time.Millisecond
+			if !m.viewSet {
+				m.viewSet = true
+				if m.board.Status.State == session.StateLobby {
+					m.view = viewLink
+				}
+			}
+			m.clampSel()
 		}
 		if msg.notice != "" {
 			m.notice = msg.notice
 		}
 	case tea.KeyPressMsg:
-		return m.key(msg.String())
+		m.lastInput = time.Now()
+		return m.key(msg)
 	}
 	return m, nil
 }
 
-func (m *Monitor) key(k string) (tea.Model, tea.Cmd) {
-	if m.confirm != "" {
-		confirmed := k == "y" || k == "s"
-		pending := m.confirm
-		m.confirm = ""
-		if confirmed && pending == "end" {
-			return m, m.fetch(m.client.End, "Examen terminado: todas las entregas están guardadas.")
+func (m *Monitor) lock() {
+	m.mode = modeLocked
+	m.input.Reset()
+	m.input.EchoMode = textinput.EchoPassword
+	m.input.Placeholder = "contraseña"
+	m.input.Focus()
+}
+
+func (m *Monitor) startPrompt(kind promptKind, question, placeholder string) tea.Cmd {
+	m.mode, m.prompt, m.question = modePrompt, kind, question
+	m.input.Reset()
+	m.input.EchoMode = textinput.EchoNormal
+	m.input.Placeholder = placeholder
+	return m.input.Focus()
+}
+
+func (m *Monitor) confirm(question string, yes func() tea.Cmd) {
+	m.mode, m.question, m.onYes = modeConfirm, question, yes
+}
+
+func (m *Monitor) key(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
+	k := msg.String()
+	switch m.mode {
+	case modeLocked:
+		if k == "enter" {
+			if m.opts.CheckPassword == nil || m.opts.CheckPassword(m.input.Value()) {
+				m.mode, m.notice = modeNormal, "Panel desbloqueado."
+				m.input.Blur()
+			} else {
+				m.notice = "Contraseña incorrecta."
+			}
+			m.input.Reset()
+			return m, nil
+		}
+		var cmd tea.Cmd
+		m.input, cmd = m.input.Update(msg)
+		return m, cmd
+	case modeConfirm:
+		m.mode = modeNormal
+		if k == "y" || k == "s" {
+			return m, m.onYes()
 		}
 		m.notice = "Cancelado."
 		return m, nil
+	case modePrompt:
+		switch k {
+		case "esc":
+			m.mode, m.notice = modeNormal, "Cancelado."
+			return m, nil
+		case "enter":
+			return m, m.submitPrompt(strings.TrimSpace(m.input.Value()))
+		}
+		var cmd tea.Cmd
+		m.input, cmd = m.input.Update(msg)
+		return m, cmd
+	}
+	return m.normalKey(k)
+}
+
+func (m *Monitor) submitPrompt(v string) tea.Cmd {
+	m.mode = modeNormal
+	row := m.selected()
+	switch m.prompt {
+	case promptMinutes:
+		mins, err := strconv.ParseFloat(strings.ReplaceAll(v, ",", "."), 64)
+		if err != nil || mins <= 0 || mins > 600 || row == nil {
+			m.notice = "Escribe un número de minutos mayor que 0."
+			return nil
+		}
+		return m.call(fmt.Sprintf("%s minutos más para %s.", v, row.Name), func(ctx context.Context) (*daemon.Board, error) {
+			return m.client.AttemptAction(ctx, row.AttemptID, "extend", map[string]any{"minutes": mins})
+		})
+	case promptMessage:
+		if v == "" || row == nil {
+			return nil
+		}
+		return m.call("Mensaje enviado a "+row.Name+".", func(ctx context.Context) (*daemon.Board, error) {
+			return m.client.AttemptAction(ctx, row.AttemptID, "message", map[string]any{"text": v})
+		})
+	case promptAddID:
+		if v == "" {
+			return nil
+		}
+		m.pendingID = v
+		return m.startPrompt(promptAddName, "Nombre y apellidos de "+v+":", "Nombre Apellido")
+	case promptAddName:
+		id := m.pendingID
+		return m.call("Alumno añadido: "+v+".", func(ctx context.Context) (*daemon.Board, error) {
+			return m.client.AddStudent(ctx, id, v)
+		})
+	}
+	return nil
+}
+
+func (m *Monitor) normalKey(k string) (tea.Model, tea.Cmd) {
+	st := m.status()
+	row := m.selected()
+	attempt := func(action, notice string, body map[string]any) tea.Cmd {
+		return m.call(notice, func(ctx context.Context) (*daemon.Board, error) {
+			return m.client.AttemptAction(ctx, row.AttemptID, action, body)
+		})
 	}
 	switch k {
-	case "q", "ctrl+c", "esc":
+	case "q", "ctrl+c":
 		return m, tea.Quit
+	case "tab":
+		m.view = (m.view + 1) % viewCount
+		m.sel = 0
+	case "shift+tab":
+		m.view = (m.view + viewCount - 1) % viewCount
+		m.sel = 0
+	case "up", "k":
+		if m.sel > 0 {
+			m.sel--
+		}
+	case "down", "j":
+		m.sel++
+		m.clampSel()
+	case "l", "L":
+		if m.opts.CheckPassword == nil {
+			m.notice = "Configura una contraseña con `ax admin set-password` para poder bloquear."
+		} else {
+			m.lock()
+		}
 	case "s", "S":
-		if m.status != nil && m.status.State == session.StateLobby {
-			return m, m.fetch(m.client.Start, "Examen iniciado.")
+		if st != nil && st.State == session.StateLobby {
+			m.view, m.sel = viewStudents, 0
+			return m, m.call("Examen iniciado.", m.startExam)
 		}
 	case "+":
-		if m.status != nil && m.status.State == session.StateRunning {
-			return m, m.fetch(func(ctx context.Context) (*daemon.StatusView, error) { return m.client.Extend(ctx, 5) }, "Se añadieron 5 minutos para todos.")
+		if st != nil && st.State == session.StateRunning {
+			return m, m.call("5 minutos más para todos.", func(ctx context.Context) (*daemon.Board, error) {
+				if _, err := m.client.Extend(ctx, 5); err != nil {
+					return nil, err
+				}
+				return m.client.Board(ctx)
+			})
 		}
 	case "e", "E":
-		if m.status != nil && m.status.State != session.StateEnded {
-			m.confirm = "end"
+		if st != nil && st.State != session.StateEnded {
+			m.confirm("¿Terminar el examen para todos y entregar lo guardado?", func() tea.Cmd {
+				return m.call("Examen terminado: entregas guardadas.", func(ctx context.Context) (*daemon.Board, error) {
+					if _, err := m.client.End(ctx); err != nil {
+						return nil, err
+					}
+					return m.client.Board(ctx)
+				})
+			})
 		}
+	case "a", "A", "r", "R":
+		if req := m.firstRequest(); req != nil {
+			approve := k == "a" || k == "A"
+			verb := "Rechazado"
+			if approve {
+				verb = "Aprobado"
+			}
+			return m, m.call(fmt.Sprintf("%s: %s (%s).", verb, req.Name, req.StudentID), func(ctx context.Context) (*daemon.Board, error) {
+				return m.client.DecideRequest(ctx, req.ID, approve)
+			})
+		}
+	case "n", "N":
+		return m, m.startPrompt(promptAddID, "Identificador del nuevo alumno:", "A-123")
+	}
+	if row == nil || m.view != viewStudents {
+		return m, nil
+	}
+	switch k {
+	case "d", "D":
+		label := "¿Quitar a " + row.Name + " de la lista?"
+		if row.AttemptID != "" {
+			label = "¿Dar de baja a " + row.Name + "? Sus respuestas se guardan y puedes readmitirlo."
+		}
+		m.confirm(label, func() tea.Cmd {
+			return m.call(row.Name+" quitado.", func(ctx context.Context) (*daemon.Board, error) {
+				return m.client.RemoveParticipant(ctx, row.ParticipantID)
+			})
+		})
+		return m, nil
+	}
+	if row.AttemptID == "" {
+		return m, nil
+	}
+	switch k {
+	case "t", "T":
+		return m, m.startPrompt(promptMinutes, "Minutos extra para "+row.Name+":", "5")
+	case "m", "M":
+		return m, m.startPrompt(promptMessage, "Mensaje para "+row.Name+":", "Recuerda mantener esta pestaña activa")
+	case "p", "P":
+		if row.Paused {
+			return m, attempt("pause", row.Name+" puede continuar.", map[string]any{"on": false})
+		}
+		return m, attempt("pause", row.Name+" está en pausa (su tiempo sigue).", map[string]any{"on": true})
+	case "u", "U":
+		return m, attempt("readmit", row.Name+" readmitido.", nil)
+	case "x", "X":
+		m.confirm("¿Anular el examen de "+row.Name+"? Se guarda todo y puedes readmitirlo.", func() tea.Cmd {
+			return attempt("annul", "Examen de "+row.Name+" anulado.", nil)
+		})
 	}
 	return m, nil
 }
+
+func (m *Monitor) startExam(ctx context.Context) (*daemon.Board, error) {
+	if _, err := m.client.Start(ctx); err != nil {
+		return nil, err
+	}
+	return m.client.Board(ctx)
+}
+
+func (m *Monitor) status() *daemon.StatusView {
+	if m.board == nil {
+		return nil
+	}
+	return &m.board.Status
+}
+
+func (m *Monitor) firstRequest() *daemonRequest {
+	if m.board == nil || len(m.board.Requests) == 0 {
+		return nil
+	}
+	r := m.board.Requests[len(m.board.Requests)-1] // oldest first
+	return &daemonRequest{ID: r.ID, Name: r.Name, StudentID: r.StudentID, Kind: string(r.Kind)}
+}
+
+type daemonRequest struct{ ID, Name, StudentID, Kind string }
+
+func (m *Monitor) rows() []daemon.StudentRow {
+	if m.board == nil {
+		return nil
+	}
+	if m.view != viewRanking {
+		return m.board.Students
+	}
+	var done []daemon.StudentRow
+	for _, r := range m.board.Students {
+		if r.State == session.AttemptSubmitted && r.Score != nil {
+			done = append(done, r)
+		}
+	}
+	sort.SliceStable(done, func(i, j int) bool {
+		if *done[i].Score != *done[j].Score {
+			return *done[i].Score > *done[j].Score
+		}
+		return done[i].UsedMs < done[j].UsedMs
+	})
+	return done
+}
+
+func (m *Monitor) selected() *daemon.StudentRow {
+	rows := m.rows()
+	if m.sel < 0 || m.sel >= len(rows) {
+		return nil
+	}
+	r := rows[m.sel]
+	return &r
+}
+
+func (m *Monitor) clampSel() {
+	if n := len(m.rows()); m.sel >= n {
+		m.sel = max(n-1, 0)
+	}
+}
+
+// ---------------- view ----------------
 
 // View implements tea.Model.
 func (m *Monitor) View() tea.View {
 	var b strings.Builder
-	w := max(60, min(m.width, 100))
+	w := max(72, min(m.width, 140))
+	st := m.status()
 	b.WriteString(brandStyle.Render("ASSESS"))
-	if m.status != nil {
-		b.WriteString(mutedStyle.Render("  ·  ") + m.status.ExamTitle)
+	if st != nil {
+		b.WriteString(mutedStyle.Render("  ·  ") + st.ExamTitle + "   " + m.stateLine())
 	}
-	b.WriteString("\n" + ruleStyle.Render(strings.Repeat("─", w)) + "\n\n")
+	b.WriteString("\n" + mutedStyle.Render(strings.Repeat("─", w)) + "\n")
 
-	if m.status == nil {
+	if st == nil {
 		if m.err != nil {
 			b.WriteString(accentStyle.Render("Sin conexión con el servidor: ") + m.err.Error() + "\n")
 		} else {
@@ -146,52 +452,147 @@ func (m *Monitor) View() tea.View {
 		}
 		return m.finish(&b)
 	}
-	s := m.status
-	row := func(label, value string) { b.WriteString(labelStyle.Render(label) + value + "\n") }
-	row("Estado", m.stateLine())
-	row("Código", accentStyle.Render(s.Code))
-	row("Enlace", valueStyle.Render(s.StudentURL))
-	for _, u := range s.OtherURLs {
-		row("", mutedStyle.Render(u))
+
+	if m.mode == modeLocked {
+		b.WriteString("\n" + boldStyle.Render("Sesión en curso — panel bloqueado") + "\n")
+		b.WriteString(mutedStyle.Render(fmt.Sprintf("%d en línea · %d entregados", st.Online, st.Submitted)) + "\n\n")
+		b.WriteString("Escribe la contraseña y pulsa Enter:  " + m.input.View() + "\n")
+		return m.finish(&b)
 	}
-	if s.State == session.StateLobby {
-		row("Alumnos", fmt.Sprintf("%s en la sala de espera · %s en línea",
-			valueStyle.Render(fmt.Sprint(s.Joined)), valueStyle.Render(fmt.Sprint(s.Online))))
-	} else {
-		row("Alumnos", fmt.Sprintf("%s en línea · %s respondiendo · %s entregados · %s en total",
-			valueStyle.Render(fmt.Sprint(s.Online)), valueStyle.Render(fmt.Sprint(s.Active)),
-			valueStyle.Render(fmt.Sprint(s.Submitted)), valueStyle.Render(fmt.Sprint(s.Joined))))
+
+	fmt.Fprintf(&b, "%s  %s   %s\n", mutedStyle.Render("Código"), accentStyle.Render(st.Code), boldStyle.Render(st.StudentURL))
+	b.WriteString(mutedStyle.Render(fmt.Sprintf("%d en línea · %d respondiendo · %d entregados · %d en total", st.Online, st.Active, st.Submitted, st.Joined)) + "\n")
+	if st.LastError != "" {
+		b.WriteString(accentStyle.Render("Error del servidor: ") + st.LastError + "\n")
 	}
-	if s.LastError != "" {
-		row("Error", accentStyle.Render(s.LastError))
+	if n := len(m.board.Requests); n > 0 {
+		r := m.firstRequest()
+		what := "quiere entrar desde otro dispositivo"
+		if r.Kind == "late" {
+			what = "quiere entrar con la entrada cerrada"
+		}
+		more := ""
+		if n > 1 {
+			more = fmt.Sprintf(" (+%d más)", n-1)
+		}
+		b.WriteString("\n" + bannerStyle.Render(fmt.Sprintf("%s (%s) %s%s", r.Name, r.StudentID, what, more)) + "  " +
+			keyStyle.Render("A") + " aprobar  " + keyStyle.Render("R") + " rechazar\n")
 	}
-	if m.err != nil {
-		row("Aviso", accentStyle.Render(m.err.Error()))
+
+	tabs := make([]string, viewCount)
+	for i, name := range viewNames {
+		if i == m.view {
+			tabs[i] = selStyle.Render(" " + name + " ")
+		} else {
+			tabs[i] = mutedStyle.Render(" " + name + " ")
+		}
 	}
-	b.WriteString("\n" + m.qr + "\n")
+	b.WriteString("\n" + strings.Join(tabs, " ") + mutedStyle.Render("   Tab cambia de vista") + "\n\n")
+
+	switch m.view {
+	case viewLink:
+		b.WriteString(m.qr + "\n")
+		for _, u := range st.OtherURLs {
+			b.WriteString(mutedStyle.Render("También: "+u) + "\n")
+		}
+	case viewRanking:
+		rows := m.rows()
+		if len(rows) == 0 {
+			b.WriteString(mutedStyle.Render("Todavía nadie ha entregado.") + "\n")
+		}
+		for i, r := range rows {
+			line := fmt.Sprintf("%2d. %-28s %8s   %s", i+1, cut(r.Name, 28), score(r), clock(time.Duration(r.UsedMs)*time.Millisecond))
+			b.WriteString(m.line(i, line) + "\n")
+		}
+	default:
+		b.WriteString(headStyle.Render(fmt.Sprintf("  %-24s %-9s %-13s %-6s %-9s %-7s %-8s %s", "ALUMNO", "ID", "ESTADO", "PREG.", "RESP.", "CONEX.", "NOTA", "TIEMPO")) + "\n")
+		rows := m.rows()
+		if len(rows) == 0 {
+			b.WriteString(mutedStyle.Render("  Nadie ha entrado todavía. Comparte el código o el QR (vista Enlace).") + "\n")
+		}
+		for i, r := range rows {
+			b.WriteString(m.line(i, m.studentLine(r)) + "\n")
+		}
+	}
 	return m.finish(&b)
+}
+
+func (m *Monitor) line(i int, s string) string {
+	if i == m.sel {
+		return selStyle.Render("▸ " + s)
+	}
+	return "  " + s
+}
+
+func (m *Monitor) studentLine(r daemon.StudentRow) string {
+	state := map[session.AttemptState]string{
+		session.AttemptActive: "respondiendo", session.AttemptSubmitted: "entregado",
+		session.AttemptWithdrawn: "retirado", session.AttemptAnnulled: "anulado",
+	}[r.State]
+	switch {
+	case r.AttemptID == "":
+		state = "sin entrar"
+	case r.State == session.AttemptActive && m.board.Status.State == session.StateLobby:
+		state = "en la sala"
+	case r.Paused:
+		state = "en pausa"
+	}
+	q := "—"
+	if r.Question > 0 && r.State == session.AttemptActive {
+		q = fmt.Sprintf("%d/%d", r.Question, r.Total)
+	}
+	resp := "—"
+	if r.AttemptID != "" {
+		resp = fmt.Sprintf("%d/%d", r.Answered, r.Total)
+	}
+	conn := "○"
+	if r.Online {
+		conn = "● sí"
+	}
+	used := ""
+	if r.UsedMs > 0 {
+		used = clock(time.Duration(r.UsedMs) * time.Millisecond)
+	}
+	if r.ExtraMs > 0 {
+		used += fmt.Sprintf(" +%dm", r.ExtraMs/60000)
+	}
+	return fmt.Sprintf("%-24s %-9s %-13s %-6s %-9s %-7s %-8s %s", cut(r.Name, 24), cut(r.StudentID, 9), state, q, resp, conn, score(r), used)
+}
+
+func score(r daemon.StudentRow) string {
+	if r.Score == nil {
+		return "—"
+	}
+	f := func(v float64) string { return strconv.FormatFloat(v, 'f', -1, 64) }
+	return f(*r.Score) + "/" + f(r.MaxScore)
+}
+
+func cut(s string, n int) string {
+	rs := []rune(s)
+	if len(rs) <= n {
+		return s
+	}
+	return string(rs[:n-1]) + "…"
 }
 
 func (m *Monitor) finish(b *strings.Builder) tea.View {
 	b.WriteString("\n")
-	if m.notice != "" {
-		b.WriteString(m.notice + "\n\n")
+	if m.err != nil && m.board != nil {
+		b.WriteString(accentStyle.Render("Aviso: ") + m.err.Error() + "\n")
 	}
-	if m.confirm == "end" {
-		b.WriteString(accentStyle.Render("¿Terminar el examen para todos y entregar lo guardado? ") + keyStyle.Render("Y") + " sí  " + keyStyle.Render("N") + " no\n")
-	} else {
-		var keys []string
-		if m.status != nil && m.status.State == session.StateLobby {
-			keys = append(keys, keyStyle.Render("S")+" comenzar")
-		}
-		if m.status != nil && m.status.State == session.StateRunning {
-			keys = append(keys, keyStyle.Render("+")+" 5 min a todos")
-		}
-		if m.status != nil && m.status.State != session.StateEnded {
-			keys = append(keys, keyStyle.Render("E")+" terminar")
-		}
-		keys = append(keys, keyStyle.Render("Q")+" salir (el examen sigue)")
-		b.WriteString(strings.Join(keys, "   ") + "\n")
+	if m.notice != "" {
+		b.WriteString(m.notice + "\n")
+	}
+	b.WriteString("\n")
+	switch m.mode {
+	case modeConfirm:
+		b.WriteString(accentStyle.Render(m.question) + "  " + keyStyle.Render("Y") + " sí  " + keyStyle.Render("N") + " no\n")
+	case modePrompt:
+		b.WriteString(boldStyle.Render(m.question) + "  " + m.input.View() + "\n" + mutedStyle.Render("Enter confirma · Esc cancela") + "\n")
+	case modeLocked:
+		b.WriteString(mutedStyle.Render("Q salir (el examen sigue)") + "\n")
+	default:
+		b.WriteString(m.keys() + "\n")
 	}
 	v := tea.NewView(b.String())
 	v.AltScreen = true
@@ -199,17 +600,52 @@ func (m *Monitor) finish(b *strings.Builder) tea.View {
 	return v
 }
 
+func (m *Monitor) keys() string {
+	k := func(key, label string) string { return keyStyle.Render(key) + " " + label }
+	var top, bottom []string
+	st := m.status()
+	if m.view == viewStudents {
+		if r := m.selected(); r != nil {
+			if r.AttemptID != "" {
+				top = append(top, k("T", "tiempo"), k("M", "mensaje"), k("P", "pausa"))
+				switch r.State {
+				case session.AttemptActive:
+					top = append(top, k("X", "anular"))
+				case session.AttemptWithdrawn, session.AttemptAnnulled:
+					top = append(top, k("U", "readmitir"))
+				}
+			}
+			top = append(top, k("D", "dar de baja"))
+		}
+		top = append(top, k("N", "nuevo alumno"))
+	}
+	if st != nil && st.State == session.StateLobby {
+		bottom = append(bottom, k("S", "comenzar"))
+	}
+	if st != nil && st.State == session.StateRunning {
+		bottom = append(bottom, k("+", "5 min a todos"))
+	}
+	if st != nil && st.State != session.StateEnded {
+		bottom = append(bottom, k("E", "terminar"))
+	}
+	bottom = append(bottom, k("L", "bloquear"), k("Q", "salir (el examen sigue)"))
+	if len(top) == 0 {
+		return strings.Join(bottom, "  ")
+	}
+	return strings.Join(top, "  ") + "\n" + strings.Join(bottom, "  ")
+}
+
 func (m *Monitor) stateLine() string {
-	s := m.status
+	s := m.status()
 	switch s.State {
 	case session.StateLobby:
-		return accentStyle.Render("Sala de espera") + mutedStyle.Render("  · pulsa S para comenzar")
+		return accentStyle.Render("Sala de espera")
 	case session.StateRunning:
 		now := time.Now().Add(m.offset).UnixMilli()
 		left := max(time.Duration(s.EndsAt-now)*time.Millisecond, 0)
-		return valueStyle.Render("En curso") + "  " + accentStyle.Render(clock(left)) + mutedStyle.Render(" restantes")
+		return boldStyle.Render("En curso ") + accentStyle.Render(clock(left))
 	default:
-		return valueStyle.Render("Terminado") + mutedStyle.Render("  · resultados guardados")
+		return boldStyle.Render("Terminado")
 	}
 }
 

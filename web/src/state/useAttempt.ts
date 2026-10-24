@@ -5,6 +5,12 @@ import { setLanguage } from "../i18n";
 
 export type Phase = "loading" | "anonymous" | "ready" | "error";
 
+/** A message pushed by the teacher. */
+export interface TeacherMessage {
+  id: string;
+  text: string;
+}
+
 /**
  * useAttempt loads the caller's attempt and keeps it fresh. A WebSocket tells
  * us when the session or attempt changes (start, extra time, end); a slow poll
@@ -15,6 +21,10 @@ export function useAttempt() {
   const [phase, setPhase] = useState<Phase>("loading");
   const [me, setMeState] = useState<MeView | null>(null);
   const [live, setLive] = useState(false);
+  const [paused, setPaused] = useState(false);
+  const [messages, setMessages] = useState<TeacherMessage[]>([]);
+  const socket = useRef<WebSocket | null>(null);
+  const lastAt = useRef("");
   const offset = useRef(0);
 
   const setMe = useCallback((next: MeView) => {
@@ -50,12 +60,24 @@ export function useAttempt() {
     const connect = () => {
       const proto = location.protocol === "https:" ? "wss:" : "ws:";
       ws = new WebSocket(`${proto}//${location.host}/api/ws`);
+      socket.current = ws;
       ws.onopen = () => {
         delay = 1000;
         setLive(true);
+        if (lastAt.current) ws?.send(JSON.stringify({ type: "at", question: lastAt.current }));
         void reload(); // catch up on anything missed while disconnected
       };
-      ws.onmessage = () => void reload();
+      ws.onmessage = (e: MessageEvent<string>) => {
+        let msg: { type?: string; text?: string; on?: boolean } = {};
+        try {
+          msg = JSON.parse(e.data);
+        } catch {
+          return;
+        }
+        if (msg.type === "message" && msg.text) setMessages((m) => [...m, { id: crypto.randomUUID(), text: msg.text! }]);
+        else if (msg.type === "pause") setPaused(!!msg.on);
+        else void reload();
+      };
       ws.onclose = () => {
         setLive(false);
         if (stopped) return;
@@ -82,5 +104,14 @@ export function useAttempt() {
   /** Server time now, in Unix ms. */
   const now = useCallback(() => Date.now() + offset.current, []);
 
-  return { phase, me, setMe, reload, now, live };
+  /** Tells the teacher's panel which question the student is on. */
+  const reportAt = useCallback((questionID: string) => {
+    lastAt.current = questionID;
+    const ws = socket.current;
+    if (ws && ws.readyState === WebSocket.OPEN) ws.send(JSON.stringify({ type: "at", question: questionID }));
+  }, []);
+
+  const dismiss = useCallback((id: string) => setMessages((m) => m.filter((x) => x.id !== id)), []);
+
+  return { phase, me, setMe, reload, now, live, paused, messages, dismiss, reportAt };
 }

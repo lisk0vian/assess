@@ -37,6 +37,7 @@ linters:
     misspell:
       ignore-rules:
         - nto # Spanish ("Cuánto")
+        - comparte # Spanish ("Comparte el código")
   exclusions:
     rules:
       - path: _test\.go

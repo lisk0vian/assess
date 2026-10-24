@@ -188,6 +188,11 @@ func (t *tx) InsertParticipant(p *session.Participant) error {
 	return err
 }
 
+func (t *tx) DeleteParticipant(id string) error {
+	_, err := t.exec(`DELETE FROM participants WHERE id = ?`, id)
+	return err
+}
+
 func (t *tx) GetParticipant(id string) (*session.Participant, error) {
 	p, err := scanParticipant(t.row(`SELECT `+participantCols+` FROM participants WHERE id = ?`, id))
 	return p, notFound(err, "participant "+id)

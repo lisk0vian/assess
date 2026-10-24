@@ -242,6 +242,9 @@ func newStopCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
+			if err := requirePassword(cmd, dir); err != nil {
+				return err
+			}
 			if !suspend && !yes && !confirm(cmd, "End the exam for everyone and submit all attempts?") {
 				return errors.New("cancelled")
 			}

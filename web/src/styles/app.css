@@ -72,8 +72,9 @@ button { cursor: pointer; }
 }
 
 /* ---------- Toasts ---------- */
-.toasts { position: fixed; right: 20px; bottom: 20px; z-index: 20; display: grid; gap: 12px; justify-items: end; }
-@media (max-width: 960px) { .toasts { left: 12px; right: 12px; bottom: 88px; justify-items: stretch; } .toasts .notice { max-width: none; } }
+/* Top right, under the header: never over the submit block or the actions. */
+.toasts { position: fixed; right: 20px; top: 96px; z-index: 20; display: grid; gap: 12px; justify-items: end; }
+@media (max-width: 960px) { .toasts { left: 12px; right: 12px; top: auto; bottom: 88px; justify-items: stretch; } .toasts .notice { max-width: none; } }
 
 /* ---------- Dialog (Radix) ---------- */
 .dialog-overlay { position: fixed; inset: 0; z-index: 30; background: var(--scrim); backdrop-filter: blur(6px); }

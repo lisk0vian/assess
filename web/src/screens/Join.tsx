@@ -1,5 +1,5 @@
-import { useState, type FormEvent } from "react";
-import { ArrowRight, Info } from "lucide-react";
+import { useEffect, useState, type FormEvent } from "react";
+import { ArrowRight, Info, LoaderCircle, Monitor } from "lucide-react";
 import { api, ApiError } from "../api/client";
 import type { MeView } from "../api/types";
 import { t, type Key } from "../i18n";
@@ -14,6 +14,7 @@ const errorKeys: Record<string, Key> = {
   join_closed: "err_join_closed",
   too_many_attempts: "err_too_many",
   outside_network: "err_network",
+  rejected: "err_rejected",
 };
 
 export function Join({ onJoined }: { onJoined: (me: MeView) => void }) {
@@ -23,6 +24,24 @@ export function Join({ onJoined }: { onJoined: (me: MeView) => void }) {
   const [studentID, setStudentID] = useState("");
   const [error, setError] = useState<Key | null>(null);
   const [busy, setBusy] = useState(false);
+  const [waiting, setWaiting] = useState(false);
+
+  // While the teacher decides, poll the request every two seconds.
+  useEffect(() => {
+    if (!waiting) return;
+    const id = window.setInterval(async () => {
+      try {
+        const res = await api.joinStatus();
+        if ("exam" in res) onJoined(res);
+      } catch (err) {
+        if (err instanceof ApiError && !err.retryable) {
+          setWaiting(false);
+          setError(errorKeys[err.code] ?? "err_generic");
+        }
+      }
+    }, 2000);
+    return () => window.clearInterval(id);
+  }, [waiting, onJoined]);
 
   const submit = async (e: FormEvent) => {
     e.preventDefault();
@@ -31,11 +50,28 @@ export function Join({ onJoined }: { onJoined: (me: MeView) => void }) {
     try {
       onJoined(await api.join(code.trim(), name.trim(), studentID.trim()));
     } catch (err) {
-      setError(err instanceof ApiError ? (errorKeys[err.code] ?? "err_generic") : "err_generic");
+      if (err instanceof ApiError && err.code === "pending_approval") setWaiting(true);
+      else setError(err instanceof ApiError ? (errorKeys[err.code] ?? "err_generic") : "err_generic");
     } finally {
       setBusy(false);
     }
   };
+
+  if (waiting) {
+    return (
+      <main className="solo">
+        <section className="panel" aria-live="polite">
+          <Monitor size={28} strokeWidth={2} strokeLinecap="square" />
+          <h1 className="panel__title">{t("wait_title")}</h1>
+          <p className="muted">{t("wait_body")}</p>
+          <p className="save is-saving" style={{ marginTop: 14 }}>
+            <LoaderCircle {...iconProps} />
+            {name} · {studentID}
+          </p>
+        </section>
+      </main>
+    );
+  }
 
   const ready = code.trim().length === 6 && name.trim() && studentID.trim();
   return (

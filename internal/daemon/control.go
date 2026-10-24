@@ -11,6 +11,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/lisk0vian/assess/internal/server/student"
 	"github.com/lisk0vian/assess/internal/session"
 )
 
@@ -66,6 +67,7 @@ func (c *controlServer) routes() http.Handler {
 		c.d.requestStop()
 		return nil
 	}))
+	c.studentRoutes(mux)
 	return c.auth(mux)
 }
 
@@ -104,7 +106,8 @@ func (c *controlServer) action(fn func(context.Context, map[string]any) error) h
 
 func writeControlError(w http.ResponseWriter, err error) {
 	status := http.StatusInternalServerError
-	for _, e := range []error{session.ErrAlreadyStarted, session.ErrNotStarted, session.ErrSessionClosed, session.ErrInvalidInput} {
+	for _, e := range []error{session.ErrAlreadyStarted, session.ErrNotStarted, session.ErrSessionClosed, session.ErrInvalidInput,
+		session.ErrNotClosable, session.ErrDuplicate, session.ErrAttemptClosed, session.ErrNotFound, student.ErrUnknownRequest} {
 		if errors.Is(err, e) {
 			status = http.StatusConflict
 		}
@@ -162,31 +165,32 @@ func Dial(dir string) (*Client, *State, error) {
 	return &Client{addr: st.ControlAddr, token: st.Token, hc: &http.Client{Timeout: 10 * time.Second}}, st, nil
 }
 
-func (c *Client) call(ctx context.Context, method, path string, body any) (*StatusView, error) {
-	var rd *strings.Reader
+func (c *Client) do(ctx context.Context, method, path string, body, out any) error {
+	payload := []byte("{}")
 	if body != nil {
-		b, _ := json.Marshal(body)
-		rd = strings.NewReader(string(b))
-	} else {
-		rd = strings.NewReader("{}")
+		payload, _ = json.Marshal(body)
 	}
-	req, err := http.NewRequestWithContext(ctx, method, "http://"+c.addr+path, rd)
+	req, err := http.NewRequestWithContext(ctx, method, "http://"+c.addr+path, strings.NewReader(string(payload)))
 	if err != nil {
-		return nil, err
+		return err
 	}
 	req.Header.Set("Authorization", "Bearer "+c.token)
 	resp, err := c.hc.Do(req)
 	if err != nil {
-		return nil, err
+		return err
 	}
 	defer resp.Body.Close()
 	if resp.StatusCode != http.StatusOK {
 		var e struct{ Error string }
 		_ = json.NewDecoder(resp.Body).Decode(&e)
-		return nil, fmt.Errorf("%s", e.Error)
+		return errors.New(e.Error)
 	}
+	return json.NewDecoder(resp.Body).Decode(out)
+}
+
+func (c *Client) call(ctx context.Context, method, path string, body any) (*StatusView, error) {
 	var v StatusView
-	if err := json.NewDecoder(resp.Body).Decode(&v); err != nil {
+	if err := c.do(ctx, method, path, body, &v); err != nil {
 		return nil, err
 	}
 	return &v, nil

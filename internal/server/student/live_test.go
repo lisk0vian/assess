@@ -22,7 +22,7 @@ func TestJoinWindowAndResume(t *testing.T) {
 
 	late := e.browser()
 	raw := late.mustStatus(http.StatusConflict, "POST", "/api/join", map[string]string{"code": e.sess.Code, "name": "Tarde", "student_id": "T9"}, nil)
-	if !strings.Contains(raw, "join_closed") {
+	if !strings.Contains(raw, "pending_approval") || e.h.Requests()[0].Kind != KindLate {
 		t.Fatalf("unexpected body %s", raw)
 	}
 	// Someone already in can reload the page and keep going.

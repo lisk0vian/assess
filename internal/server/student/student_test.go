@@ -179,7 +179,7 @@ func TestRejoinNeedsSameBrowser(t *testing.T) {
 
 	other := e.browser()
 	raw := other.mustStatus(http.StatusConflict, "POST", "/api/join", join, nil)
-	if !strings.Contains(raw, "already_joined") {
+	if !strings.Contains(raw, "pending_approval") {
 		t.Fatalf("unexpected body %s", raw)
 	}
 }

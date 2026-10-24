@@ -30,6 +30,7 @@ type Tx interface {
 	UpdateSession(s *Session) error
 
 	InsertParticipant(p *Participant) error
+	DeleteParticipant(id string) error // only for participants without an attempt
 	GetParticipant(id string) (*Participant, error)
 	GetParticipantByStudent(sessionID, studentID string) (*Participant, error)
 	ListParticipants(sessionID string) ([]*Participant, error)
