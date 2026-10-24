@@ -1,0 +1,5 @@
+format: assess/v1
+exam: broken
+answers:
+  q001: { option: c, points: 1 }
+  q003: { value: true, number: 3, points: 2 }

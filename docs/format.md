@@ -1,7 +1,8 @@
-# Exam format `assess/v1` (draft)
+# Exam format `assess/v1`
 
-Status: **draft** — finalized and enforced by `ax validate` in phase 1.
+Status: **v1**, enforced by `ax validate`.
 Reference example: [`examples/algebra-01`](../examples/algebra-01).
+Create a new exam from a template with `ax new <folder>`.
 
 An exam is a plain folder. It can live anywhere and be versioned with git;
 `ax` always refers to exams by folder path.
@@ -30,8 +31,12 @@ read it. Encryption applies only to exported `.examx` packages.
 - Text fields marked *Markdown* accept CommonMark plus `$inline$` and
   `$$block$$` KaTeX math. HTML is stripped. Images may only reference files
   under `assets/` (e.g. `![diagram](assets/diagram.png)`).
-- Limits (initial): 500 questions per exam, 10 options per question,
-  64 KiB per Markdown field, 20 MiB total for `assets/`.
+- Limits: 500 questions per exam, 2–10 options per question, 64 KiB per
+  Markdown field, 1 MiB per YAML file, 1000 files and 20 MiB total in
+  `assets/`. Served image types: png, jpg, gif, webp, svg.
+- Question files use the `.yaml` extension (`.yml` is rejected). Symbolic
+  links are rejected everywhere. Unexpected files are reported as warnings and
+  ignored (dotfiles and `README*` are allowed).
 
 ## `manifest.yaml`
 
@@ -109,6 +114,24 @@ answers:
   `points × max(0, (correct_selected − wrong_selected) / total_correct)`.
 - `number` compares `|given − number| <= tolerance` (default `0`).
 - `accept` lists accepted texts after applying `normalize` steps to both sides.
+
+## Validation
+
+```sh
+ax validate ./exams/algebra-01          # human-readable, exit status 1 on errors
+ax validate --strict exams/*            # warnings fail too (useful in CI)
+ax validate --json ./exams/algebra-01   # machine-readable report
+```
+
+Problems are reported as `file:line: severity: field: message`, for example:
+
+```
+algebra-01/manifest.yaml:11: error: items[2].pool.pick: must be 1 (a pool must leave at least one question out)
+algebra-01/private/answer-key.yaml:4: error: answers.q001.option: unknown option "c" in questions/q001.yaml
+```
+
+Warnings (unused questions, folder name mismatch, ignored files) never block
+publication; errors do.
 
 ## Publication
 

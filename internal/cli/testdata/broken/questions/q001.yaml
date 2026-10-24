@@ -1,0 +1,8 @@
+id: q001
+type: single
+prompt: "![diagram](https://example.com/d.png) Pick one."
+options:
+  - id: a
+    text: "One"
+  - id: a
+    text: "Two"

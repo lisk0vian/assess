@@ -233,6 +233,7 @@ be detected; mitigated by time pressure, variation and the teacher's presence.
 `spf13/cobra`, `charm.land/bubbletea/v2`, `charm.land/bubbles/v2`,
 `charm.land/lipgloss/v2`, `charm.land/huh/v2`,
 `github.com/NimbleMarkets/ntcharts/v2` (needs Go ≥ 1.26.8),
-`github.com/coder/websocket`, `modernc.org/sqlite`, `gopkg.in/yaml.v3`,
+`github.com/coder/websocket`, `modernc.org/sqlite`, `go.yaml.in/yaml/v3`
+(maintained fork of the archived `gopkg.in/yaml.v3`),
 `filippo.io/age`, `golang.org/x/crypto/argon2`, a terminal QR library.
 Each is added in the phase that first needs it.

@@ -1,0 +1,24 @@
+# Assess exam manifest — format assess/v1
+# Reference: https://github.com/lisk0vian/assess/blob/main/docs/format.md
+format: assess/v1
+id: {{.ID}}
+title: {{yamlstr .Title}}
+language: {{.Lang}}
+duration: 30m
+result_visibility: score
+
+instructions: |
+  {{.T.instructions}}
+
+order:
+  shuffle_questions: true
+  shuffle_options: true
+
+proctoring:
+  profile: standard
+
+items:
+  - question: q001
+  - question: q002
+  - question: q003
+  - question: q004

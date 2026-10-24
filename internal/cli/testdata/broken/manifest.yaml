@@ -1,0 +1,12 @@
+format: assess/v1
+id: broken
+title: "Broken exam"
+duration: 45 minutes
+colour: red
+items:
+  - question: q001
+  - question: q404
+  - pool:
+      id: p
+      pick: 2
+      from: [q002, q003]

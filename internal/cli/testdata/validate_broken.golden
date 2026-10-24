@@ -1,0 +1,11 @@
+testdata/broken/manifest.yaml:4: error: invalid duration "45 minutes" (use e.g. 90s, 45m, 1h30m)
+testdata/broken/manifest.yaml:5: error: unknown field "colour"
+testdata/broken/manifest.yaml:8: error: items[1].question: unknown question "q404" (expected questions/q404.yaml)
+testdata/broken/manifest.yaml:11: error: items[2].pool.pick: must be 1 (a pool must leave at least one question out)
+testdata/broken/questions/q001.yaml:3: error: prompt: external image "https://example.com/d.png" is not allowed; copy the file into assets/ and reference it as assets/<name>
+testdata/broken/questions/q001.yaml:7: error: options[1].id: duplicate option id "a" (also options[0])
+testdata/broken/questions/q002.yaml:1: error: input: required for short questions; use number or text
+testdata/broken/private/answer-key.yaml:3: error: answers: missing entry for question "q002"
+testdata/broken/private/answer-key.yaml:4: error: answers.q001.option: unknown option "c" in questions/q001.yaml
+testdata/broken/private/answer-key.yaml:5: error: answers.q003.number: does not apply to truefalse questions (use value)
+FAIL broken: 10 errors, 0 warnings

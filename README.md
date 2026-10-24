@@ -3,7 +3,7 @@
 Create, run and proctor exams from the terminal. Students answer from any
 browser on the classroom network — nothing to install.
 
-> **Status: pre-alpha (phase 0).** The design is settled; features are being
+> **Status: pre-alpha (phase 1).** The design is settled; features are being
 > built phase by phase. See [docs/design.md](docs/design.md).
 
 ## What it will do
@@ -24,7 +24,10 @@ Requirements: Go 1.26.8+ (Node.js 24 and pnpm arrive with the web app in phase 3
 ```sh
 go build ./cmd/ax
 go test ./...
-./ax version
+
+./ax new ./my-exam --title "Álgebra 1"   # scaffold a valid exam
+./ax validate ./my-exam                  # check it
+./ax validate examples/algebra-01
 ```
 
 ## License

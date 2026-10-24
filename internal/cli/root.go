@@ -2,6 +2,7 @@
 package cli
 
 import (
+	"errors"
 	"fmt"
 	"os"
 
@@ -13,7 +14,9 @@ import (
 // Execute runs the root command and returns the process exit code.
 func Execute() int {
 	if err := newRootCmd().Execute(); err != nil {
-		fmt.Fprintln(os.Stderr, "error:", err)
+		if !errors.Is(err, errSilent) {
+			fmt.Fprintln(os.Stderr, "error:", err)
+		}
 		return 1
 	}
 	return 0
@@ -28,7 +31,7 @@ func newRootCmd() *cobra.Command {
 		SilenceErrors: true,
 	}
 	root.SetVersionTemplate("ax {{.Version}}\n")
-	root.AddCommand(newVersionCmd())
+	root.AddCommand(newVersionCmd(), newNewCmd(), newValidateCmd())
 	return root
 }
 

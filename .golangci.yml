@@ -9,6 +9,26 @@ linters:
     - misspell
     - revive
     - unconvert
+  settings:
+    errcheck:
+      exclude-functions:
+        - fmt.Fprint
+        - fmt.Fprintf
+        - fmt.Fprintln
+    gosec:
+      excludes:
+        # ax reads and writes user-chosen exam folders by design; exam files are
+        # meant to be shared, so 0644/0755 is intended (private/ uses 0600/0700).
+        - G301
+        - G304
+        - G306
+    misspell:
+      ignore-rules:
+        - nto # Spanish ("Cuánto")
+  exclusions:
+    rules:
+      - path: _test\.go
+        linters: [gosec, errcheck]
 
 formatters:
   enable:
