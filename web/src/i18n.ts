@@ -96,6 +96,10 @@ const es = {
   index: "Índice de preguntas",
   loading: "Cargando…",
   figure: "Figura",
+  tab_title: "Ya está abierto",
+  tab_body: "Tu examen sigue en otra pestaña de este navegador. Cierra esta y vuelve a la original; tus respuestas están a salvo.",
+  err_join_closed: "La entrada a este examen ya se cerró. Pide a tu profesor que te deje entrar.",
+  err_too_many: "Demasiados intentos seguidos. Espera un minuto y vuelve a probar.",
 };
 
 type Dict = typeof es;
@@ -198,6 +202,10 @@ const en: Dict = {
   index: "Question index",
   loading: "Loading…",
   figure: "Figure",
+  tab_title: "Already open",
+  tab_body: "Your exam is open in another tab of this browser. Close this one and go back to it; your answers are safe.",
+  err_join_closed: "Joining this exam has closed. Ask your teacher to let you in.",
+  err_too_many: "Too many attempts in a row. Wait a minute and try again.",
 };
 
 const dicts: Record<string, Dict> = { es, en };

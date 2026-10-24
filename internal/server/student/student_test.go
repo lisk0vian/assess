@@ -33,6 +33,7 @@ type env struct {
 	sess *session.Session
 	srv  *httptest.Server
 	clk  *clock
+	h    *Handler
 }
 
 func newEnv(t *testing.T, visibility string) *env {
@@ -51,14 +52,20 @@ func newEnv(t *testing.T, visibility string) *env {
 		pub.Exam.Manifest.ResultVisibility = visibility
 	}
 	clk := &clock{t: time.Date(2026, 10, 24, 9, 0, 0, 0, time.UTC)}
-	svc := session.NewService(db, session.WithClock(clk.Now))
+	var h *Handler
+	svc := session.NewService(db, session.WithClock(clk.Now), session.WithNotify(func(id string) {
+		if h != nil {
+			h.Notify(id)
+		}
+	}))
 	sess, err := svc.CreateSession(ctx, pub, session.CreateOptions{})
 	if err != nil {
 		t.Fatal(err)
 	}
-	srv := httptest.NewServer(New(svc, sess.ID, nil))
+	h = New(svc, sess.ID, Options{JoinWindow: 10 * time.Minute})
+	srv := httptest.NewServer(h)
 	t.Cleanup(srv.Close)
-	return &env{t: t, svc: svc, sess: sess, srv: srv, clk: clk}
+	return &env{t: t, svc: svc, sess: sess, srv: srv, clk: clk, h: h}
 }
 
 // client is one browser with its own cookie jar.

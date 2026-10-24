@@ -105,6 +105,27 @@ reversed, edit it here and note why in the commit.
   (idempotent); the server accepts what it **receives** before the end plus a
   30 s grace period (configurable).
 
+## Student channel and join control (implemented in phase 3)
+
+- Browsers keep a WebSocket (`/api/ws`, same-origin, attempt cookie) that
+  receives `{"type":"changed"}` whenever the session or attempt changes
+  (start, extra time, submission, end); they then reload `/api/me`. Pings every
+  15 s keep the teacher's "online" count accurate. A slow poll covers socket
+  outages.
+- Answers stay on idempotent HTTP `PUT`s with sequence numbers. Moving answers
+  and integrity signals into one HMAC-signed channel (`telemetry_tampered`)
+  lands with the anti-cheat signals in phase 5, when there is telemetry to
+  protect.
+- Only private, loopback and link-local addresses reach the student server
+  (`--allow-public` opts out, for teachers using their own tunnel).
+- Joining closes `--join-window` after the start (default 15 min); students
+  already in keep resuming. Join attempts are rate-limited per IP (12/min).
+- A second tab of the same browser shows "already open". Classroom HTTP is not
+  a secure context, so tabs negotiate over `BroadcastChannel` (Web Locks is
+  HTTPS-only).
+- `ax results [--format csv|json] [--sep ";"]` exports one row per student
+  with per-question points; CSV carries a UTF-8 BOM for Excel.
+
 ## Teacher TUI (the only admin interface)
 
 - Live: header (time left, connected, waiting, submitted, server health),

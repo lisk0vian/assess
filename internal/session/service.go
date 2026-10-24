@@ -36,8 +36,9 @@ const DefaultGrace = 30 * time.Second
 // Service enforces session rules on top of a Store. Time always comes from
 // the server clock.
 type Service struct {
-	store Store
-	now   func() time.Time
+	store  Store
+	now    func() time.Time
+	notify func(sessionID string)
 
 	mu   sync.Mutex
 	pubs map[string]*exam.Published // immutable, so safe to cache by hash
@@ -48,6 +49,16 @@ type Option func(*Service)
 
 // WithClock overrides the clock, for tests.
 func WithClock(now func() time.Time) Option { return func(s *Service) { s.now = now } }
+
+// WithNotify registers fn to be called (outside any transaction) after a
+// change that clients should see: start, extra time, submissions, end.
+func WithNotify(fn func(sessionID string)) Option { return func(s *Service) { s.notify = fn } }
+
+func (s *Service) changed(sessionID string) {
+	if s.notify != nil && sessionID != "" {
+		s.notify(sessionID)
+	}
+}
 
 // NewService returns a Service backed by store.
 func NewService(store Store, opts ...Option) *Service {
@@ -249,6 +260,7 @@ func (s *Service) Join(ctx context.Context, sessionID, studentID, name string) (
 	if err != nil {
 		return nil, nil, err
 	}
+	s.changed(sessionID)
 	return att, part, nil
 }
 
@@ -271,6 +283,9 @@ func (s *Service) Start(ctx context.Context, sessionID string) (*Session, error)
 		return tx.InsertEvent(&Event{SessionID: sessionID, Kind: "session.started", Severity: SeverityInfo,
 			Data: map[string]any{"ends_at": sess.EndsAt.UnixMilli()}, ReceivedAt: now})
 	})
+	if err == nil {
+		s.changed(sessionID)
+	}
 	return sess, err
 }
 
@@ -295,6 +310,9 @@ func (s *Service) ExtendSession(ctx context.Context, sessionID string, d time.Du
 		return tx.InsertEvent(&Event{SessionID: sessionID, Kind: "session.extended", Severity: SeverityInfo,
 			Data: map[string]any{"extra_ms": d.Milliseconds(), "ends_at": sess.EndsAt.UnixMilli()}, ReceivedAt: s.clock()})
 	})
+	if err == nil {
+		s.changed(sessionID)
+	}
 	return sess, err
 }
 
@@ -319,6 +337,9 @@ func (s *Service) ExtendAttempt(ctx context.Context, attemptID string, d time.Du
 		return tx.InsertEvent(&Event{SessionID: att.SessionID, AttemptID: att.ID, Kind: "attempt.extended", Severity: SeverityInfo,
 			Data: map[string]any{"extra_ms": d.Milliseconds()}, ReceivedAt: s.clock()})
 	})
+	if err == nil {
+		s.changed(att.SessionID)
+	}
 	return att, err
 }
 
@@ -415,6 +436,9 @@ func (s *Service) Submit(ctx context.Context, attemptID string) (*Attempt, error
 		}
 		return s.close(tx, sess, att, reason)
 	})
+	if err == nil {
+		s.changed(att.SessionID)
+	}
 	return att, err
 }
 
@@ -458,13 +482,17 @@ func roundScore(v float64) float64 { return float64(int64(v*1e4+0.5)) / 1e4 }
 
 // End closes the session now and submits every active attempt.
 func (s *Service) End(ctx context.Context, sessionID string) error {
-	return s.store.Update(ctx, func(tx Tx) error {
+	err := s.store.Update(ctx, func(tx Tx) error {
 		sess, err := openSession(tx, sessionID)
 		if err != nil {
 			return err
 		}
 		return s.end(tx, sess, SubmitEnded, "session.ended")
 	})
+	if err == nil {
+		s.changed(sessionID)
+	}
+	return err
 }
 
 func (s *Service) end(tx Tx, sess *Session, reason SubmitReason, kind string) error {
@@ -493,6 +521,7 @@ func (s *Service) end(tx Tx, sess *Session, reason SubmitReason, kind string) er
 // down. It returns the number of attempts submitted.
 func (s *Service) FinalizeExpired(ctx context.Context) (int, error) {
 	n := 0
+	touched := map[string]bool{}
 	err := s.store.Update(ctx, func(tx Tx) error {
 		sessions, err := tx.ListOpenSessions()
 		if err != nil {
@@ -517,6 +546,7 @@ func (s *Service) FinalizeExpired(ctx context.Context) (int, error) {
 						return err
 					}
 					n++
+					touched[sess.ID] = true
 				} else {
 					remaining = true
 				}
@@ -525,10 +555,16 @@ func (s *Service) FinalizeExpired(ctx context.Context) (int, error) {
 				if err := s.end(tx, sess, SubmitTimeout, "session.expired"); err != nil {
 					return err
 				}
+				touched[sess.ID] = true
 			}
 		}
 		return nil
 	})
+	if err == nil {
+		for id := range touched {
+			s.changed(id)
+		}
+	}
 	return n, err
 }
 

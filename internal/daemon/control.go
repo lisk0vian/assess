@@ -30,6 +30,7 @@ type StatusView struct {
 	StudentURL string        `json:"student_url"`
 	OtherURLs  []string      `json:"other_urls,omitempty"`
 	Joined     int           `json:"joined"`
+	Online     int           `json:"online"` // students with the exam open right now
 	Active     int           `json:"active"`
 	Submitted  int           `json:"submitted"`
 	UptimeMs   int64         `json:"uptime_ms"`
@@ -122,7 +123,7 @@ func (d *daemon) status(ctx context.Context) (*StatusView, error) {
 		PID: os.Getpid(), Version: d.cfg.Version, SessionID: d.sessionID, ExamID: d.examID, ExamTitle: d.examTitle,
 		Code: snap.Session.Code, State: snap.Session.State, Duration: snap.Session.Duration.Milliseconds(),
 		StartedAt: msOrZero(snap.Session.StartedAt), EndsAt: msOrZero(snap.Session.EndsAt), ServerNow: d.svc.Now().UnixMilli(),
-		StudentURL: d.studentURL, OtherURLs: d.otherURLs, Joined: len(snap.Attempts),
+		StudentURL: d.studentURL, OtherURLs: d.otherURLs, Joined: len(snap.Attempts), Online: d.students.Online(),
 		UptimeMs: time.Since(d.startedAt).Milliseconds(), LastError: d.lastError(),
 	}
 	for _, a := range snap.Attempts {

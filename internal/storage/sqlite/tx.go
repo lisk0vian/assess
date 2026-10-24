@@ -145,7 +145,13 @@ func (t *tx) GetOpenSessionByCode(code string) (*session.Session, error) {
 }
 
 func (t *tx) ListOpenSessions() ([]*session.Session, error) {
-	rows, err := t.query(`SELECT ` + sessionCols + ` FROM sessions WHERE state <> 'ended' ORDER BY created_at`)
+	return t.listSessions(`WHERE state <> 'ended'`)
+}
+
+func (t *tx) ListSessions() ([]*session.Session, error) { return t.listSessions("") }
+
+func (t *tx) listSessions(where string) ([]*session.Session, error) {
+	rows, err := t.query(`SELECT ` + sessionCols + ` FROM sessions ` + where + ` ORDER BY created_at, id`)
 	if err != nil {
 		return nil, err
 	}

@@ -29,7 +29,9 @@ type Config struct {
 	DataDir      string
 	Host         string // listen address for students; "" means all interfaces
 	Port         int
-	PortFallback bool // try the next ports when Port is busy
+	PortFallback bool          // try the next ports when Port is busy
+	JoinWindow   time.Duration // close joining this long after the start; 0 keeps it open
+	AllowPublic  bool          // accept students from non-private addresses
 	Version      string
 	Log          *slog.Logger
 }
@@ -37,6 +39,7 @@ type Config struct {
 type daemon struct {
 	cfg        Config
 	svc        *session.Service
+	students   *student.Handler
 	sessionID  string
 	examID     string
 	examTitle  string
@@ -76,7 +79,13 @@ func Run(ctx context.Context, cfg Config) error {
 		return err
 	}
 	defer db.Close()
-	svc := session.NewService(db)
+	// Changes reach the browsers through the student handler, created below.
+	var students *student.Handler
+	svc := session.NewService(db, session.WithNotify(func(id string) {
+		if students != nil {
+			students.Notify(id)
+		}
+	}))
 
 	sess, err := svc.OpenSession(ctx)
 	if err != nil {
@@ -108,10 +117,16 @@ func Run(ctx context.Context, cfg Config) error {
 	}
 	d.studentURL, d.otherURLs = urlsFor(cfg.Host, port)
 
+	students = student.New(svc, sess.ID, student.Options{JoinWindow: cfg.JoinWindow, Log: cfg.Log})
+	d.students = students
 	mux := http.NewServeMux()
-	mux.Handle("/api/", student.New(svc, sess.ID, cfg.Log))
+	mux.Handle("/api/", students)
 	mux.Handle("/", web.Handler())
-	studentSrv := &http.Server{Handler: mux, ReadHeaderTimeout: 10 * time.Second}
+	var root http.Handler = mux
+	if !cfg.AllowPublic {
+		root = student.PrivateNetworksOnly(mux)
+	}
+	studentSrv := &http.Server{Handler: root, ReadHeaderTimeout: 10 * time.Second}
 
 	token := randomToken()
 	controlSrv := &http.Server{Handler: (&controlServer{d: d, token: token}).routes(), ReadHeaderTimeout: 5 * time.Second}

@@ -45,7 +45,8 @@ type Monitor struct {
 // NewMonitor builds the panel for a connected daemon.
 func NewMonitor(c *daemon.Client, st *daemon.State) *Monitor {
 	var b strings.Builder
-	qrterminal.GenerateWithConfig(st.StudentURL, qrterminal.Config{
+	// The QR carries the code too, so scanning it pre-fills the join form.
+	qrterminal.GenerateWithConfig(st.StudentURL+"?c="+st.Code, qrterminal.Config{
 		Level: qrterminal.L, Writer: &b, HalfBlocks: true, QuietZone: 1,
 		BlackChar: qrterminal.BLACK_BLACK, BlackWhiteChar: qrterminal.BLACK_WHITE,
 		WhiteChar: qrterminal.WHITE_WHITE, WhiteBlackChar: qrterminal.WHITE_BLACK,
@@ -154,10 +155,12 @@ func (m *Monitor) View() tea.View {
 		row("", mutedStyle.Render(u))
 	}
 	if s.State == session.StateLobby {
-		row("Alumnos", valueStyle.Render(fmt.Sprint(s.Joined))+" en la sala de espera")
+		row("Alumnos", fmt.Sprintf("%s en la sala de espera · %s en línea",
+			valueStyle.Render(fmt.Sprint(s.Joined)), valueStyle.Render(fmt.Sprint(s.Online))))
 	} else {
-		row("Alumnos", fmt.Sprintf("%s conectados · %s respondiendo · %s entregados",
-			valueStyle.Render(fmt.Sprint(s.Joined)), valueStyle.Render(fmt.Sprint(s.Active)), valueStyle.Render(fmt.Sprint(s.Submitted))))
+		row("Alumnos", fmt.Sprintf("%s en línea · %s respondiendo · %s entregados · %s en total",
+			valueStyle.Render(fmt.Sprint(s.Online)), valueStyle.Render(fmt.Sprint(s.Active)),
+			valueStyle.Render(fmt.Sprint(s.Submitted)), valueStyle.Render(fmt.Sprint(s.Joined))))
 	}
 	if s.LastError != "" {
 		row("Error", accentStyle.Render(s.LastError))

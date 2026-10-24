@@ -11,6 +11,9 @@ const errorKeys: Record<string, Key> = {
   session_closed: "err_session_closed",
   invalid_input: "err_invalid_input",
   network: "err_network",
+  join_closed: "err_join_closed",
+  too_many_attempts: "err_too_many",
+  outside_network: "err_network",
 };
 
 export function Join({ onJoined }: { onJoined: (me: MeView) => void }) {

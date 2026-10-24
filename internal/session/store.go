@@ -26,6 +26,7 @@ type Tx interface {
 	GetSession(id string) (*Session, error)
 	GetOpenSessionByCode(code string) (*Session, error) // lobby or running
 	ListOpenSessions() ([]*Session, error)
+	ListSessions() ([]*Session, error) // all sessions, oldest first
 	UpdateSession(s *Session) error
 
 	InsertParticipant(p *Participant) error

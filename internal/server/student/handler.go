@@ -20,26 +20,40 @@ const CookieName = "ax_attempt"
 
 const maxBody = 16 << 10
 
+// Options tunes the student API.
+type Options struct {
+	// JoinWindow closes the door this long after the exam starts; students
+	// who are already in keep resuming. Zero keeps joining open.
+	JoinWindow time.Duration
+	Log        *slog.Logger
+}
+
 // Handler serves the student API for one session.
 type Handler struct {
 	svc       *session.Service
 	sessionID string
+	opts      Options
 	log       *slog.Logger
 	mux       *http.ServeMux
+	live      *hub
+	joins     *limiter
 }
 
-// New returns the student API for sessionID. A nil logger discards logs.
-func New(svc *session.Service, sessionID string, log *slog.Logger) *Handler {
+// New returns the student API for sessionID.
+func New(svc *session.Service, sessionID string, opts Options) *Handler {
+	log := opts.Log
 	if log == nil {
 		log = slog.New(slog.DiscardHandler)
 	}
-	h := &Handler{svc: svc, sessionID: sessionID, log: log, mux: http.NewServeMux()}
+	h := &Handler{svc: svc, sessionID: sessionID, opts: opts, log: log, mux: http.NewServeMux(),
+		live: newHub(), joins: newLimiter(12, time.Minute)}
 	h.mux.HandleFunc("POST /api/join", h.join)
 	h.mux.HandleFunc("GET /api/me", h.withAttempt(h.me))
 	h.mux.HandleFunc("GET /api/questions/{id}", h.withAttempt(h.question))
 	h.mux.HandleFunc("PUT /api/answers/{id}", h.withAttempt(h.answer))
 	h.mux.HandleFunc("POST /api/submit", h.withAttempt(h.submit))
 	h.mux.HandleFunc("GET /api/assets/{path...}", h.withAttempt(h.asset))
+	h.mux.HandleFunc("GET /api/ws", h.withAttempt(h.liveSocket))
 	h.mux.HandleFunc("/api/", func(w http.ResponseWriter, _ *http.Request) {
 		writeError(w, http.StatusNotFound, "not_found", "unknown endpoint")
 	})
@@ -61,6 +75,10 @@ type joinRequest struct {
 }
 
 func (h *Handler) join(w http.ResponseWriter, r *http.Request) {
+	if !h.joins.allow(clientIP(r), time.Now()) {
+		writeError(w, http.StatusTooManyRequests, "too_many_attempts", "too many attempts; wait a minute")
+		return
+	}
 	var req joinRequest
 	if !decode(w, r, &req) {
 		return
@@ -78,6 +96,10 @@ func (h *Handler) join(w http.ResponseWriter, r *http.Request) {
 	// A browser that already holds this student's attempt resumes it.
 	if d := h.cookieAttempt(r); d != nil && d.Participant.StudentID == session.NormalizeStudentID(req.StudentID) {
 		h.writeMe(w, d)
+		return
+	}
+	if win := h.opts.JoinWindow; win > 0 && sess.State == session.StateRunning && h.svc.Now().After(sess.StartedAt.Add(win)) {
+		writeError(w, http.StatusConflict, "join_closed", "joining closed; ask the teacher to let you in")
 		return
 	}
 	att, _, err := h.svc.Join(r.Context(), h.sessionID, req.StudentID, req.Name)

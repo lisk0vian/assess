@@ -32,17 +32,24 @@ var dataDirFlag string
 func dataDir() (string, error) { return datadir.Resolve(dataDirFlag) }
 
 type serveFlags struct {
-	host string
-	port int
+	host        string
+	port        int
+	joinWindow  time.Duration
+	allowPublic bool
 }
 
 func (f *serveFlags) register(cmd *cobra.Command) {
 	cmd.Flags().StringVar(&f.host, "host", "", "address students connect to (default: all interfaces, LAN address advertised)")
 	cmd.Flags().IntVar(&f.port, "port", netutil.DefaultPort, "port for students")
+	cmd.Flags().DurationVar(&f.joinWindow, "join-window", 15*time.Minute, "close joining this long after the start (0 keeps it open)")
+	cmd.Flags().BoolVar(&f.allowPublic, "allow-public", false, "accept students from outside private networks (behind your own tunnel)")
 }
 
 func (f *serveFlags) daemonArgs(cmd *cobra.Command) []string {
-	args := []string{"--port", strconv.Itoa(f.port)}
+	args := []string{"--port", strconv.Itoa(f.port), "--join-window", f.joinWindow.String()}
+	if f.allowPublic {
+		args = append(args, "--allow-public")
+	}
 	if f.host != "" {
 		args = append(args, "--host", f.host)
 	}
@@ -200,7 +207,7 @@ func printStatus(w io.Writer, sv *daemon.StatusView) {
 	if sv.State == session.StateLobby {
 		fmt.Fprintf(w, "  Joined %d · waiting in the lobby\n", sv.Joined)
 	} else {
-		fmt.Fprintf(w, "  Joined %d · answering %d · submitted %d\n", sv.Joined, sv.Active, sv.Submitted)
+		fmt.Fprintf(w, "  Joined %d · online %d · answering %d · submitted %d\n", sv.Joined, sv.Online, sv.Active, sv.Submitted)
 	}
 	fmt.Fprintf(w, "  PID %d · up %s\n", sv.PID, (time.Duration(sv.UptimeMs) * time.Millisecond).Truncate(time.Second))
 	if sv.LastError != "" {
@@ -420,7 +427,8 @@ func followLog(ctx context.Context, w io.Writer, path string) error {
 func newDaemonCmd() *cobra.Command {
 	var host string
 	var port int
-	var fallback bool
+	var fallback, allowPublic bool
+	var joinWindow time.Duration
 	cmd := &cobra.Command{
 		Use:    "daemon",
 		Short:  "Run the exam server in the foreground (used by start/resume)",
@@ -434,7 +442,8 @@ func newDaemonCmd() *cobra.Command {
 			log := slog.New(slog.NewJSONHandler(os.Stderr, &slog.HandlerOptions{Level: slog.LevelInfo}))
 			ctx, stop := signal.NotifyContext(cmd.Context(), os.Interrupt, syscall.SIGTERM)
 			defer stop()
-			err = daemon.Run(ctx, daemon.Config{DataDir: dir, Host: host, Port: port, PortFallback: fallback, Version: version.String(), Log: log})
+			err = daemon.Run(ctx, daemon.Config{DataDir: dir, Host: host, Port: port, PortFallback: fallback,
+				JoinWindow: joinWindow, AllowPublic: allowPublic, Version: version.String(), Log: log})
 			if err != nil {
 				log.Error("daemon stopped with an error", "err", err)
 			}
@@ -444,6 +453,8 @@ func newDaemonCmd() *cobra.Command {
 	cmd.Flags().StringVar(&host, "host", "", "listen address")
 	cmd.Flags().IntVar(&port, "port", netutil.DefaultPort, "student port")
 	cmd.Flags().BoolVar(&fallback, "port-fallback", false, "use the next free port when busy")
+	cmd.Flags().DurationVar(&joinWindow, "join-window", 0, "close joining this long after the start")
+	cmd.Flags().BoolVar(&allowPublic, "allow-public", false, "accept non-private addresses")
 	return cmd
 }
 
