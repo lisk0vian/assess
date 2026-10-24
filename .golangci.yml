@@ -19,6 +19,11 @@ linters:
         - (*database/sql.Tx).Rollback
         - (*database/sql.Rows).Close
         - (*database/sql.DB).Close
+        - (*github.com/lisk0vian/assess/internal/storage/sqlite.DB).Close
+        - (*os.File).Close
+        - (io.Closer).Close
+        - (net.Listener).Close
+        - syscall.CloseHandle
     gosec:
       excludes:
         # ax reads and writes user-chosen exam folders by design; exam files are
@@ -26,6 +31,7 @@ linters:
         - G301
         - G304
         - G306
+        - G703 # data/exam paths come from the user's own flags by design
         # Unchecked errors are errcheck's job (with its exclusions above).
         - G104
     misspell:

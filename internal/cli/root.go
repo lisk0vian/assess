@@ -8,6 +8,7 @@ import (
 
 	"github.com/spf13/cobra"
 
+	"github.com/lisk0vian/assess/internal/daemon"
 	"github.com/lisk0vian/assess/internal/version"
 )
 
@@ -31,7 +32,18 @@ func newRootCmd() *cobra.Command {
 		SilenceErrors: true,
 	}
 	root.SetVersionTemplate("ax {{.Version}}\n")
-	root.AddCommand(newVersionCmd(), newNewCmd(), newValidateCmd())
+	root.PersistentFlags().StringVar(&dataDirFlag, "data-dir", "", "data directory (default: $AX_DATA_DIR or the OS user data folder)")
+	// Bare `ax` opens the panel of a running exam, or shows help.
+	root.RunE = func(cmd *cobra.Command, _ []string) error {
+		if dir, err := dataDir(); err == nil {
+			if h, _, _ := daemon.Check(dir); h == daemon.Running {
+				return attach(cmd, dir)
+			}
+		}
+		return cmd.Help()
+	}
+	root.AddCommand(newVersionCmd(), newNewCmd(), newValidateCmd(),
+		newStartCmd(), newAttachCmd(), newStatusCmd(), newStopCmd(), newResumeCmd(), newLogsCmd(), newDaemonCmd())
 	return root
 }
 

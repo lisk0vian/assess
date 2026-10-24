@@ -606,6 +606,24 @@ func (s *Service) Attempt(ctx context.Context, attemptID string) (*AttemptDetail
 	return d, nil
 }
 
+// OpenSession returns the session that is still in the lobby or running.
+// A data directory holds at most one; ErrNotFound when there is none.
+func (s *Service) OpenSession(ctx context.Context) (*Session, error) {
+	var sess *Session
+	err := s.store.View(ctx, func(tx Tx) error {
+		open, err := tx.ListOpenSessions()
+		if err != nil {
+			return err
+		}
+		if len(open) == 0 {
+			return ErrNotFound
+		}
+		sess = open[len(open)-1]
+		return nil
+	})
+	return sess, err
+}
+
 // Session loads a session and its published exam.
 func (s *Service) Session(ctx context.Context, sessionID string) (*Session, *exam.Published, error) {
 	var sess *Session
