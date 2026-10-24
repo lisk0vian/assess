@@ -15,6 +15,10 @@ linters:
         - fmt.Fprint
         - fmt.Fprintf
         - fmt.Fprintln
+        # Cleanup on paths that already return an error (or after a successful read).
+        - (*database/sql.Tx).Rollback
+        - (*database/sql.Rows).Close
+        - (*database/sql.DB).Close
     gosec:
       excludes:
         # ax reads and writes user-chosen exam folders by design; exam files are
@@ -22,6 +26,8 @@ linters:
         - G301
         - G304
         - G306
+        # Unchecked errors are errcheck's job (with its exclusions above).
+        - G104
     misspell:
       ignore-rules:
         - nto # Spanish ("Cuánto")

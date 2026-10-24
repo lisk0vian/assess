@@ -1,0 +1,605 @@
+package session
+
+import (
+	"context"
+	"crypto/rand"
+	"encoding/base32"
+	"encoding/binary"
+	"errors"
+	"fmt"
+	"strings"
+	"sync"
+	"time"
+	"unicode/utf8"
+
+	"github.com/lisk0vian/assess/internal/exam"
+	"github.com/lisk0vian/assess/internal/grading"
+)
+
+// Domain errors returned by Service.
+var (
+	ErrSessionClosed   = errors.New("session is closed")
+	ErrNotStarted      = errors.New("session has not started")
+	ErrAlreadyStarted  = errors.New("session has already started")
+	ErrAttemptClosed   = errors.New("attempt is closed")
+	ErrTimeUp          = errors.New("time is up")
+	ErrAlreadyJoined   = errors.New("student already has an attempt in this session")
+	ErrDuplicate       = errors.New("student is already registered in this session")
+	ErrUnknownQuestion = errors.New("question is not part of this attempt")
+	ErrInvalidInput    = errors.New("invalid input")
+)
+
+// DefaultGrace is how long after the deadline answers are still accepted, to
+// absorb network latency and queued offline changes.
+const DefaultGrace = 30 * time.Second
+
+// Service enforces session rules on top of a Store. Time always comes from
+// the server clock.
+type Service struct {
+	store Store
+	now   func() time.Time
+
+	mu   sync.Mutex
+	pubs map[string]*exam.Published // immutable, so safe to cache by hash
+}
+
+// Option configures a Service.
+type Option func(*Service)
+
+// WithClock overrides the clock, for tests.
+func WithClock(now func() time.Time) Option { return func(s *Service) { s.now = now } }
+
+// NewService returns a Service backed by store.
+func NewService(store Store, opts ...Option) *Service {
+	s := &Service{store: store, now: time.Now, pubs: map[string]*exam.Published{}}
+	for _, o := range opts {
+		o(s)
+	}
+	return s
+}
+
+func (s *Service) clock() time.Time { return s.now().UTC().Truncate(time.Millisecond) }
+
+func (s *Service) published(tx Tx, hash string) (*exam.Published, error) {
+	s.mu.Lock()
+	p, ok := s.pubs[hash]
+	s.mu.Unlock()
+	if ok {
+		return p, nil
+	}
+	p, err := tx.GetPublished(hash)
+	if err != nil {
+		return nil, err
+	}
+	s.mu.Lock()
+	s.pubs[hash] = p
+	s.mu.Unlock()
+	return p, nil
+}
+
+// CreateOptions configures a new session.
+type CreateOptions struct {
+	Duration time.Duration // default: the manifest duration
+	Grace    time.Duration // default: DefaultGrace; negative means none
+}
+
+// CreateSession stores pub (if new) and opens a session in the lobby.
+func (s *Service) CreateSession(ctx context.Context, pub *exam.Published, opts CreateOptions) (*Session, error) {
+	if opts.Duration == 0 {
+		opts.Duration = pub.Exam.Manifest.Duration.D()
+	}
+	if opts.Duration <= 0 || opts.Duration > exam.MaxDuration {
+		return nil, fmt.Errorf("%w: duration must be between 1s and %s", ErrInvalidInput, exam.MaxDuration)
+	}
+	switch {
+	case opts.Grace == 0:
+		opts.Grace = DefaultGrace
+	case opts.Grace < 0:
+		opts.Grace = 0
+	}
+	now := s.clock()
+	sess := &Session{
+		ID:        newID(),
+		ExamHash:  pub.Hash,
+		State:     StateLobby,
+		Duration:  opts.Duration,
+		Grace:     opts.Grace,
+		CreatedAt: now,
+	}
+	err := s.store.Update(ctx, func(tx Tx) error {
+		if err := tx.PutPublished(pub); err != nil {
+			return err
+		}
+		code, err := uniqueCode(tx)
+		if err != nil {
+			return err
+		}
+		sess.Code = code
+		if err := tx.InsertSession(sess); err != nil {
+			return err
+		}
+		return tx.InsertEvent(&Event{SessionID: sess.ID, Kind: "session.created", Severity: SeverityInfo,
+			Data: map[string]any{"exam": pub.Exam.Manifest.ID, "hash": pub.Hash, "duration_ms": opts.Duration.Milliseconds()}, ReceivedAt: now})
+	})
+	if err != nil {
+		return nil, err
+	}
+	s.mu.Lock()
+	s.pubs[pub.Hash] = pub
+	s.mu.Unlock()
+	return sess, nil
+}
+
+func uniqueCode(tx Tx) (string, error) {
+	for range 20 {
+		code := newCode()
+		if _, err := tx.GetOpenSessionByCode(code); errors.Is(err, ErrNotFound) {
+			return code, nil
+		} else if err != nil {
+			return "", err
+		}
+	}
+	return "", errors.New("could not allocate a session code")
+}
+
+// NormalizeStudentID trims, uppercases and removes inner spaces so "a 123"
+// and "A123" identify the same student.
+func NormalizeStudentID(id string) string {
+	return strings.ToUpper(strings.Join(strings.Fields(id), ""))
+}
+
+func checkIdentity(studentID, name string) (string, string, error) {
+	studentID = NormalizeStudentID(studentID)
+	name = strings.Join(strings.Fields(name), " ")
+	switch {
+	case studentID == "" || utf8.RuneCountInString(studentID) > 64:
+		return "", "", fmt.Errorf("%w: student id must have 1 to 64 characters", ErrInvalidInput)
+	case name == "" || utf8.RuneCountInString(name) > 100:
+		return "", "", fmt.Errorf("%w: name must have 1 to 100 characters", ErrInvalidInput)
+	}
+	return studentID, name, nil
+}
+
+func openSession(tx Tx, id string) (*Session, error) {
+	sess, err := tx.GetSession(id)
+	if err != nil {
+		return nil, err
+	}
+	if sess.State == StateEnded {
+		return nil, ErrSessionClosed
+	}
+	return sess, nil
+}
+
+// AddParticipant pre-registers a student (roster import or teacher action).
+func (s *Service) AddParticipant(ctx context.Context, sessionID, studentID, name string, src ParticipantSource) (*Participant, error) {
+	studentID, name, err := checkIdentity(studentID, name)
+	if err != nil {
+		return nil, err
+	}
+	var p *Participant
+	err = s.store.Update(ctx, func(tx Tx) error {
+		if _, err := openSession(tx, sessionID); err != nil {
+			return err
+		}
+		if _, err := tx.GetParticipantByStudent(sessionID, studentID); err == nil {
+			return ErrDuplicate
+		} else if !errors.Is(err, ErrNotFound) {
+			return err
+		}
+		p = &Participant{ID: newID(), SessionID: sessionID, StudentID: studentID, Name: name, Source: src, CreatedAt: s.clock()}
+		return tx.InsertParticipant(p)
+	})
+	return p, err
+}
+
+// Join registers the student if needed and creates their attempt. A student
+// who already has an attempt gets ErrAlreadyJoined; resuming it is the
+// caller's decision (same device cookie, or teacher approval).
+func (s *Service) Join(ctx context.Context, sessionID, studentID, name string) (*Attempt, *Participant, error) {
+	studentID, name, err := checkIdentity(studentID, name)
+	if err != nil {
+		return nil, nil, err
+	}
+	var att *Attempt
+	var part *Participant
+	err = s.store.Update(ctx, func(tx Tx) error {
+		sess, err := openSession(tx, sessionID)
+		if err != nil {
+			return err
+		}
+		now := s.clock()
+		part, err = tx.GetParticipantByStudent(sessionID, studentID)
+		switch {
+		case errors.Is(err, ErrNotFound):
+			part = &Participant{ID: newID(), SessionID: sessionID, StudentID: studentID, Name: name, Source: SourceSelf, CreatedAt: now}
+			if err := tx.InsertParticipant(part); err != nil {
+				return err
+			}
+		case err != nil:
+			return err
+		default:
+			if _, err := tx.GetAttemptByParticipant(part.ID); err == nil {
+				return ErrAlreadyJoined
+			} else if !errors.Is(err, ErrNotFound) {
+				return err
+			}
+		}
+
+		pub, err := s.published(tx, sess.ExamHash)
+		if err != nil {
+			return err
+		}
+		seed := randomUint64()
+		layout := pub.Exam.Assemble(seed)
+		var maxScore float64
+		for _, sl := range layout {
+			maxScore += sl.Points
+		}
+		att = &Attempt{
+			ID: newID(), SessionID: sessionID, ParticipantID: part.ID,
+			Seed: seed, Layout: layout, State: AttemptActive, CreatedAt: now, MaxScore: maxScore,
+		}
+		if err := tx.InsertAttempt(att); err != nil {
+			return err
+		}
+		return tx.InsertEvent(&Event{SessionID: sessionID, AttemptID: att.ID, Kind: "attempt.joined", Severity: SeverityInfo,
+			Data: map[string]any{"student_id": studentID}, ReceivedAt: now})
+	})
+	if err != nil {
+		return nil, nil, err
+	}
+	return att, part, nil
+}
+
+// Start moves the session from the lobby to running; everyone's clock starts now.
+func (s *Service) Start(ctx context.Context, sessionID string) (*Session, error) {
+	var sess *Session
+	err := s.store.Update(ctx, func(tx Tx) error {
+		var err error
+		if sess, err = openSession(tx, sessionID); err != nil {
+			return err
+		}
+		if sess.State != StateLobby {
+			return ErrAlreadyStarted
+		}
+		now := s.clock()
+		sess.State, sess.StartedAt, sess.EndsAt = StateRunning, now, now.Add(sess.Duration)
+		if err := tx.UpdateSession(sess); err != nil {
+			return err
+		}
+		return tx.InsertEvent(&Event{SessionID: sessionID, Kind: "session.started", Severity: SeverityInfo,
+			Data: map[string]any{"ends_at": sess.EndsAt.UnixMilli()}, ReceivedAt: now})
+	})
+	return sess, err
+}
+
+// ExtendSession adds d to everyone's time.
+func (s *Service) ExtendSession(ctx context.Context, sessionID string, d time.Duration) (*Session, error) {
+	if d <= 0 {
+		return nil, fmt.Errorf("%w: extra time must be positive", ErrInvalidInput)
+	}
+	var sess *Session
+	err := s.store.Update(ctx, func(tx Tx) error {
+		var err error
+		if sess, err = openSession(tx, sessionID); err != nil {
+			return err
+		}
+		if sess.State != StateRunning {
+			return ErrNotStarted
+		}
+		sess.EndsAt = sess.EndsAt.Add(d)
+		if err := tx.UpdateSession(sess); err != nil {
+			return err
+		}
+		return tx.InsertEvent(&Event{SessionID: sessionID, Kind: "session.extended", Severity: SeverityInfo,
+			Data: map[string]any{"extra_ms": d.Milliseconds(), "ends_at": sess.EndsAt.UnixMilli()}, ReceivedAt: s.clock()})
+	})
+	return sess, err
+}
+
+// ExtendAttempt adds d to one student's time.
+func (s *Service) ExtendAttempt(ctx context.Context, attemptID string, d time.Duration) (*Attempt, error) {
+	if d <= 0 {
+		return nil, fmt.Errorf("%w: extra time must be positive", ErrInvalidInput)
+	}
+	var att *Attempt
+	err := s.store.Update(ctx, func(tx Tx) error {
+		var err error
+		if att, err = tx.GetAttempt(attemptID); err != nil {
+			return err
+		}
+		if att.State != AttemptActive {
+			return ErrAttemptClosed
+		}
+		att.Extra += d
+		if err := tx.UpdateAttempt(att); err != nil {
+			return err
+		}
+		return tx.InsertEvent(&Event{SessionID: att.SessionID, AttemptID: att.ID, Kind: "attempt.extended", Severity: SeverityInfo,
+			Data: map[string]any{"extra_ms": d.Milliseconds()}, ReceivedAt: s.clock()})
+	})
+	return att, err
+}
+
+// SaveAnswer records a response change. Changes carry a client sequence
+// number so retries and out-of-order deliveries are harmless: an older or
+// repeated seq is ignored (applied=false, no error).
+func (s *Service) SaveAnswer(ctx context.Context, attemptID, questionID string, seq int64, r grading.Response) (applied bool, err error) {
+	if seq <= 0 {
+		return false, fmt.Errorf("%w: sequence number must be positive", ErrInvalidInput)
+	}
+	err = s.store.Update(ctx, func(tx Tx) error {
+		att, sess, err := s.activeAttempt(tx, attemptID)
+		if err != nil {
+			return err
+		}
+		if !inLayout(att, questionID) {
+			return ErrUnknownQuestion
+		}
+		pub, err := s.published(tx, sess.ExamHash)
+		if err != nil {
+			return err
+		}
+		if err := grading.Validate(pub.Exam.Questions[questionID], r); err != nil {
+			return fmt.Errorf("%w: %w", ErrInvalidInput, err)
+		}
+		applied, err = tx.UpsertAnswer(&Answer{AttemptID: attemptID, QuestionID: questionID, Response: r, Seq: seq, UpdatedAt: s.clock()})
+		if err != nil {
+			return err
+		}
+		if seq > att.LastSeq {
+			att.LastSeq = seq
+			return tx.UpdateAttempt(att)
+		}
+		return nil
+	})
+	return applied, err
+}
+
+// activeAttempt loads an attempt that may still receive answers.
+func (s *Service) activeAttempt(tx Tx, attemptID string) (*Attempt, *Session, error) {
+	att, err := tx.GetAttempt(attemptID)
+	if err != nil {
+		return nil, nil, err
+	}
+	if att.State != AttemptActive {
+		return nil, nil, ErrAttemptClosed
+	}
+	sess, err := tx.GetSession(att.SessionID)
+	if err != nil {
+		return nil, nil, err
+	}
+	switch sess.State {
+	case StateLobby:
+		return nil, nil, ErrNotStarted
+	case StateEnded:
+		return nil, nil, ErrSessionClosed
+	}
+	if s.clock().After(att.Deadline(sess).Add(sess.Grace)) {
+		return nil, nil, ErrTimeUp
+	}
+	return att, sess, nil
+}
+
+func inLayout(att *Attempt, questionID string) bool {
+	for _, sl := range att.Layout {
+		if sl.QuestionID == questionID {
+			return true
+		}
+	}
+	return false
+}
+
+// Submit closes an attempt at the student's request and grades it.
+func (s *Service) Submit(ctx context.Context, attemptID string) (*Attempt, error) {
+	var att *Attempt
+	err := s.store.Update(ctx, func(tx Tx) error {
+		var err error
+		if att, err = tx.GetAttempt(attemptID); err != nil {
+			return err
+		}
+		if att.State != AttemptActive {
+			return ErrAttemptClosed
+		}
+		sess, err := tx.GetSession(att.SessionID)
+		if err != nil {
+			return err
+		}
+		if sess.State == StateLobby {
+			return ErrNotStarted
+		}
+		reason := SubmitManual
+		if s.clock().After(att.Deadline(sess).Add(sess.Grace)) {
+			reason = SubmitTimeout
+		}
+		return s.close(tx, sess, att, reason)
+	})
+	return att, err
+}
+
+// close grades every slot of att and marks it submitted.
+func (s *Service) close(tx Tx, sess *Session, att *Attempt, reason SubmitReason) error {
+	pub, err := s.published(tx, sess.ExamHash)
+	if err != nil {
+		return err
+	}
+	answers, err := tx.ListAnswers(att.ID)
+	if err != nil {
+		return err
+	}
+	byQ := make(map[string]*Answer, len(answers))
+	for _, a := range answers {
+		byQ[a.QuestionID] = a
+	}
+	var score float64
+	for _, sl := range att.Layout {
+		a, ok := byQ[sl.QuestionID]
+		if !ok {
+			continue
+		}
+		res := grading.Grade(pub.Exam.Questions[sl.QuestionID], pub.Exam.Key.Answers[sl.QuestionID], a.Response)
+		if err := tx.SetAnswerGrade(att.ID, sl.QuestionID, res.Points, res.Correct); err != nil {
+			return err
+		}
+		score += res.Points
+	}
+	now := s.clock()
+	att.State, att.SubmittedAt, att.SubmitReason = AttemptSubmitted, now, reason
+	att.Score = roundScore(score)
+	if err := tx.UpdateAttempt(att); err != nil {
+		return err
+	}
+	return tx.InsertEvent(&Event{SessionID: att.SessionID, AttemptID: att.ID, Kind: "attempt.submitted", Severity: SeverityInfo,
+		Data: map[string]any{"reason": string(reason), "score": att.Score, "max": att.MaxScore}, ReceivedAt: now})
+}
+
+func roundScore(v float64) float64 { return float64(int64(v*1e4+0.5)) / 1e4 }
+
+// End closes the session now and submits every active attempt.
+func (s *Service) End(ctx context.Context, sessionID string) error {
+	return s.store.Update(ctx, func(tx Tx) error {
+		sess, err := openSession(tx, sessionID)
+		if err != nil {
+			return err
+		}
+		return s.end(tx, sess, SubmitEnded, "session.ended")
+	})
+}
+
+func (s *Service) end(tx Tx, sess *Session, reason SubmitReason, kind string) error {
+	attempts, err := tx.ListAttempts(sess.ID)
+	if err != nil {
+		return err
+	}
+	for _, a := range attempts {
+		if a.State == AttemptActive {
+			if err := s.close(tx, sess, a, reason); err != nil {
+				return err
+			}
+		}
+	}
+	now := s.clock()
+	sess.State, sess.EndedAt = StateEnded, now
+	if err := tx.UpdateSession(sess); err != nil {
+		return err
+	}
+	return tx.InsertEvent(&Event{SessionID: sess.ID, Kind: kind, Severity: SeverityInfo, ReceivedAt: now})
+}
+
+// FinalizeExpired submits attempts whose time (plus grace) is over and ends
+// running sessions once nobody has time left. Call it periodically and on
+// startup, which also recovers sessions that expired while the server was
+// down. It returns the number of attempts submitted.
+func (s *Service) FinalizeExpired(ctx context.Context) (int, error) {
+	n := 0
+	err := s.store.Update(ctx, func(tx Tx) error {
+		sessions, err := tx.ListOpenSessions()
+		if err != nil {
+			return err
+		}
+		now := s.clock()
+		for _, sess := range sessions {
+			if sess.State != StateRunning {
+				continue
+			}
+			attempts, err := tx.ListAttempts(sess.ID)
+			if err != nil {
+				return err
+			}
+			remaining := false
+			for _, a := range attempts {
+				if a.State != AttemptActive {
+					continue
+				}
+				if now.After(a.Deadline(sess).Add(sess.Grace)) {
+					if err := s.close(tx, sess, a, SubmitTimeout); err != nil {
+						return err
+					}
+					n++
+				} else {
+					remaining = true
+				}
+			}
+			if !remaining && now.After(sess.EndsAt.Add(sess.Grace)) {
+				if err := s.end(tx, sess, SubmitTimeout, "session.expired"); err != nil {
+					return err
+				}
+			}
+		}
+		return nil
+	})
+	return n, err
+}
+
+// Snapshot is a consistent view of a session for displays and exports.
+type Snapshot struct {
+	Session      *Session
+	Participants map[string]*Participant // by participant id
+	Attempts     []*Attempt
+	Answers      map[string][]*Answer // by attempt id
+}
+
+// Snapshot reads the whole state of a session in one transaction.
+func (s *Service) Snapshot(ctx context.Context, sessionID string) (*Snapshot, error) {
+	snap := &Snapshot{Participants: map[string]*Participant{}, Answers: map[string][]*Answer{}}
+	err := s.store.View(ctx, func(tx Tx) error {
+		var err error
+		if snap.Session, err = tx.GetSession(sessionID); err != nil {
+			return err
+		}
+		parts, err := tx.ListParticipants(sessionID)
+		if err != nil {
+			return err
+		}
+		for _, p := range parts {
+			snap.Participants[p.ID] = p
+		}
+		if snap.Attempts, err = tx.ListAttempts(sessionID); err != nil {
+			return err
+		}
+		for _, a := range snap.Attempts {
+			if snap.Answers[a.ID], err = tx.ListAnswers(a.ID); err != nil {
+				return err
+			}
+		}
+		return nil
+	})
+	return snap, err
+}
+
+// Session code alphabet: no 0/O, 1/I/L, so codes can be dictated.
+const codeAlphabet = "ABCDEFGHJKMNPQRSTUVWXYZ23456789"
+
+// CodeLength is the number of characters of a session code.
+const CodeLength = 6
+
+func newCode() string {
+	b := make([]byte, CodeLength)
+	if _, err := rand.Read(b); err != nil {
+		panic(err) // crypto/rand never fails on supported platforms
+	}
+	for i := range b {
+		b[i] = codeAlphabet[int(b[i])%len(codeAlphabet)]
+	}
+	return string(b)
+}
+
+var idEncoding = base32.NewEncoding("abcdefghijklmnopqrstuvwxyz234567").WithPadding(base32.NoPadding)
+
+// newID returns a random 128-bit identifier as 26 lowercase base32 characters.
+func newID() string {
+	b := make([]byte, 16)
+	if _, err := rand.Read(b); err != nil {
+		panic(err)
+	}
+	return idEncoding.EncodeToString(b)
+}
+
+func randomUint64() uint64 {
+	var b [8]byte
+	if _, err := rand.Read(b[:]); err != nil {
+		panic(err)
+	}
+	return binary.LittleEndian.Uint64(b[:])
+}

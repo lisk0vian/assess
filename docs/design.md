@@ -77,7 +77,15 @@ reversed, edit it here and note why in the commit.
 - Scoring: per-question points, optional partial credit for `multiple`, no
   negative marking; computed server-side and tied to the published hash.
 - SQLite via `modernc.org/sqlite` (no CGO), WAL mode, a single writer
-  goroutine, `database/sql` with explicit SQL and embedded migrations.
+  connection plus a read-only pool, `database/sql` with explicit SQL and
+  migrations embedded from `internal/storage/sqlite/migrations/`. A database
+  written by a newer `ax` is refused instead of being silently downgraded.
+- Published exams (content, answer key and asset bytes) are stored in SQLite
+  by hash, so a session never depends on the exam folder after it starts.
+- Answers are upserted only when their client sequence number is higher than
+  the stored one: retries and out-of-order deliveries are harmless.
+- Student IDs are normalized (trimmed, uppercased, inner spaces removed) so
+  "a 123" and "A123" are the same student.
 - Results: `ax results <session> --format csv|json`.
 - Backups: `ax backup` (`VACUUM INTO`, works while running), `ax restore`, and
   an automatic backup when each session ends.

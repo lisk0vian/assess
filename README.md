@@ -3,7 +3,7 @@
 Create, run and proctor exams from the terminal. Students answer from any
 browser on the classroom network — nothing to install.
 
-> **Status: pre-alpha (phase 1).** The design is settled; features are being
+> **Status: pre-alpha (phase 2).** The design is settled; features are being
 > built phase by phase. See [docs/design.md](docs/design.md).
 
 ## What it will do
