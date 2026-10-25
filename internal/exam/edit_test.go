@@ -171,3 +171,21 @@ func TestFormatDuration(t *testing.T) {
 }
 
 func parseDur(s string) (d time.Duration, err error) { return time.ParseDuration(s) }
+
+func TestCreate(t *testing.T) {
+	src := openDraft(t, copyExampleNamed(t, "algebra-01")).Exam
+	dir := filepath.Join(t.TempDir(), "algebra-01")
+	if err := Create(dir, src); err != nil {
+		t.Fatal(err)
+	}
+	d := openDraft(t, dir)
+	if len(d.Exam.Questions) != len(src.Questions) || d.Exam.Manifest.Title != src.Manifest.Title {
+		t.Fatalf("created exam differs: %+v", d.Exam.Manifest)
+	}
+	if !strings.HasPrefix(read(t, dir, ManifestFile), "# Assess exam manifest") || !strings.HasPrefix(read(t, dir, AnswerKeyFile), "# Answer key") {
+		t.Fatal("files should start with their comment")
+	}
+	if err := Create(dir, src); err == nil {
+		t.Fatal("Create must refuse a folder that is not empty")
+	}
+}

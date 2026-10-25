@@ -265,7 +265,8 @@ func (v *questionValues) optionChoices() []huh.Option[int] {
 	return out
 }
 
-// form builds the question form. taken reports ids already in use.
+// form builds the question form. taken reports ids already in use; nil
+// means the id is assigned by the caller and not asked.
 func (v *questionValues) form(taken func(string) bool) *huh.Form {
 	isNew := v.old == nil
 	is := func(types ...string) func() bool {
@@ -273,8 +274,10 @@ func (v *questionValues) form(taken func(string) bool) *huh.Form {
 	}
 	var head []huh.Field
 	if isNew {
+		head = append(head, huh.NewSelect[string]().Title("Tipo de pregunta").Options(typeOptions...).Value(&v.Type))
+	}
+	if isNew && taken != nil {
 		head = append(head,
-			huh.NewSelect[string]().Title("Tipo de pregunta").Options(typeOptions...).Value(&v.Type),
 			huh.NewInput().Title("Identificador").Description("También es el nombre del archivo: questions/<id>.yaml").Value(&v.ID).
 				Validate(func(s string) error {
 					s = strings.TrimSpace(s)
@@ -286,7 +289,8 @@ func (v *questionValues) form(taken func(string) bool) *huh.Form {
 					}
 					return nil
 				}))
-	} else {
+	}
+	if !isNew {
 		head = append(head, huh.NewNote().Title(v.ID+" · "+typeName(v.Type)).Description("El tipo y el identificador no se cambian aquí; usa E para editar el archivo."))
 	}
 	head = append(head,

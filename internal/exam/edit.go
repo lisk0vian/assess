@@ -610,3 +610,25 @@ func keyNode(k *AnswerKey, order []string) *yaml.Node {
 	}
 	return mapping("format", str(k.Format), "exam", str(k.Exam), "answers", answers)
 }
+
+// Create writes a new exam folder from ex: the manifest, one file per
+// question and the answer key. dir must not exist or must be empty.
+func Create(dir string, ex *Exam) error {
+	if entries, err := os.ReadDir(dir); err == nil && len(entries) > 0 {
+		return fmt.Errorf("%s already exists and is not empty", dir)
+	}
+	d := &Draft{Dir: dir, Exam: ex}
+	man := manifestNode(&ex.Manifest)
+	man.HeadComment = "# Assess exam manifest — format assess/v1 (`ax format` describes it)"
+	if err := d.write(ManifestFile, man); err != nil {
+		return err
+	}
+	for _, id := range d.QuestionOrder() {
+		if err := d.write(QuestionsDir+"/"+id+".yaml", questionNode(ex.Questions[id])); err != nil {
+			return err
+		}
+	}
+	key := keyNode(&ex.Key, d.QuestionOrder())
+	key.HeadComment = "# Answer key — never sent to the browser."
+	return d.write(AnswerKeyFile, key)
+}

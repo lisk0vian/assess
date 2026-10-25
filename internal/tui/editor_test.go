@@ -64,6 +64,14 @@ func TestQuestionFormKeepsOptionIDs(t *testing.T) {
 // drive feeds msgs to m and runs the commands they return, dropping the
 // ones that wait (cursor blinks and the like).
 func drive(m tea.Model, msgs ...tea.Msg) {
+	for _, msg := range msgs {
+		_, cmd := m.Update(msg)
+		runCmd(m, cmd)
+	}
+}
+
+// runCmd runs cmd and feeds what it returns back to m, recursively.
+func runCmd(m tea.Model, first tea.Cmd) {
 	var run func(cmd tea.Cmd, depth int)
 	feed := func(msg tea.Msg, depth int) {
 		_, cmd := m.Update(msg)
@@ -95,9 +103,7 @@ func drive(m tea.Model, msgs ...tea.Msg) {
 		}
 		feed(msg, depth)
 	}
-	for _, msg := range msgs {
-		feed(msg, 0)
-	}
+	run(first, 0)
 }
 
 func keys(s ...string) []tea.Msg {
@@ -114,6 +120,12 @@ func keys(s ...string) []tea.Msg {
 			out = append(out, tea.KeyPressMsg{Code: tea.KeyDown})
 		case "up":
 			out = append(out, tea.KeyPressMsg{Code: tea.KeyUp})
+		case "tab":
+			out = append(out, tea.KeyPressMsg{Code: tea.KeyTab})
+		case "left":
+			out = append(out, tea.KeyPressMsg{Code: tea.KeyLeft})
+		case "right":
+			out = append(out, tea.KeyPressMsg{Code: tea.KeyRight})
 		case "space":
 			out = append(out, tea.KeyPressMsg{Code: tea.KeySpace, Text: " "})
 		case "shift+down":

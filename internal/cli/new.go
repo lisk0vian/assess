@@ -1,23 +1,36 @@
 package cli
 
 import (
+	"errors"
 	"fmt"
 	"strings"
 
+	tea "charm.land/bubbletea/v2"
 	"github.com/spf13/cobra"
 
 	"github.com/lisk0vian/assess/internal/exam"
+	"github.com/lisk0vian/assess/internal/tui"
 )
 
 func newNewCmd() *cobra.Command {
 	var opts exam.ScaffoldOptions
 	cmd := &cobra.Command{
-		Use:     "new <exam-folder>",
-		Short:   "Create a new exam folder from a template",
-		Long:    "New creates a valid exam folder with one sample question of each type,\nready to edit and check with `ax validate`.",
-		Example: "  ax new ./exams/algebra-01 --title \"Álgebra 1\"\n  ax new quiz --lang en",
-		Args:    cobra.ExactArgs(1),
+		Use:   "new [exam-folder]",
+		Short: "Create a new exam: a guided wizard, or a folder from a template",
+		Long: "Without a folder, new opens a wizard in the terminal that asks for the\n" +
+			"details, the questions (with a live preview and the answer marked), how it\n" +
+			"is proctored, and checks everything before writing the folder.\n\n" +
+			"With a folder, it writes a valid exam with one sample question of each type,\n" +
+			"ready to edit by hand, with `ax edit`, or by an AI (see `ax format`).",
+		Example: "  ax new                                   # wizard\n  ax new ./exams/algebra-01 --title \"Álgebra 1\"\n  ax new quiz --lang en",
+		Args:    cobra.MaximumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
+			if len(args) == 0 {
+				if !isTerminal() {
+					return errors.New("the wizard needs a terminal; pass a folder to create one from the template")
+				}
+				return newExamWizard(cmd)
+			}
 			dir := args[0]
 			if err := exam.Scaffold(dir, opts); err != nil {
 				return err
@@ -44,4 +57,23 @@ func shellQuote(s string) string {
 		return `"` + s + `"`
 	}
 	return s
+}
+
+// newExamWizard runs the new-exam wizard and what the teacher picks after.
+func newExamWizard(cmd *cobra.Command) error {
+	w := tui.NewWizard()
+	if _, err := tea.NewProgram(w).Run(); err != nil {
+		return err
+	}
+	if w.Dir == "" {
+		return nil
+	}
+	switch w.Next {
+	case tui.NextStart:
+		return startExam(cmd, defaultServeFlags(), w.Dir, 0, false)
+	case tui.NextEdit:
+		return editExam(cmd, defaultServeFlags(), w.Dir, 0)
+	}
+	fmt.Fprintf(cmd.OutOrStdout(), "Created %s. `ax start %s` runs it; `ax edit %s` changes it.\n", w.Dir, shellQuote(w.Dir), shellQuote(w.Dir))
+	return nil
 }

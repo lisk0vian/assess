@@ -66,7 +66,7 @@ func homeOptions(st homeState) []huh.Option[string] {
 	}
 	out = append(out,
 		huh.NewOption("Editar un examen", actEdit),
-		huh.NewOption("Crear un examen nuevo", actNew))
+		huh.NewOption("Crear un examen nuevo, paso a paso", actNew))
 	if st.open == nil {
 		out = append(out, huh.NewOption("Iniciar un examen", actStart))
 	}
@@ -109,17 +109,7 @@ func home(cmd *cobra.Command, dir string) error {
 				return err
 			}
 		case actNew:
-			folder, err := askNewExam()
-			if errors.Is(err, huh.ErrUserAborted) {
-				continue
-			}
-			if err != nil {
-				return err
-			}
-			if err := editExam(cmd, defaultServeFlags(), folder, 0); err != nil {
-				return err
-			}
-			return nil
+			return newExamWizard(cmd)
 		case actEdit, actStart:
 			folder, err := askExamFolder(choice == actStart)
 			if errors.Is(err, huh.ErrUserAborted) {
@@ -171,36 +161,6 @@ func askExamFolder(starting bool) (string, error) {
 		return nil
 	}))))
 	return strings.TrimSpace(path), err
-}
-
-// askNewExam creates an exam folder from the template and returns it.
-func askNewExam() (string, error) {
-	var folder, title string
-	lang := "es"
-	err := runForm(huh.NewForm(huh.NewGroup(
-		huh.NewInput().Title("Carpeta del examen nuevo").Description("Se crea con una pregunta de ejemplo de cada tipo.").
-			Placeholder("examenes/algebra-01").Value(&folder).Validate(func(s string) error {
-			s = strings.TrimSpace(s)
-			if s == "" {
-				return errors.New("escribe una carpeta")
-			}
-			if entries, err := os.ReadDir(s); err == nil && len(entries) > 0 {
-				return errors.New("esa carpeta ya existe y no está vacía")
-			}
-			if id := exam.Slug(filepath.Base(filepath.Clean(s))); !exam.ValidID(id) {
-				return errors.New("usa un nombre con letras o números")
-			}
-			return nil
-		}),
-		huh.NewInput().Title("Título").Placeholder("Álgebra 1 — Ecuaciones").Value(&title),
-		huh.NewSelect[string]().Title("Idioma de la página del alumno").Options(
-			huh.NewOption("Español", "es"), huh.NewOption("English", "en")).Value(&lang),
-	)))
-	if err != nil {
-		return "", err
-	}
-	folder = strings.TrimSpace(folder)
-	return folder, exam.Scaffold(folder, exam.ScaffoldOptions{Title: strings.TrimSpace(title), Language: lang})
 }
 
 type foundExam struct{ dir, title string }
