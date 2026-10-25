@@ -33,12 +33,18 @@ func newRootCmd() *cobra.Command {
 	}
 	root.SetVersionTemplate("ax {{.Version}}\n")
 	root.PersistentFlags().StringVar(&dataDirFlag, "data-dir", "", "data directory (default: $AX_DATA_DIR or the OS user data folder)")
-	// Bare `ax` opens the panel of a running exam, or shows help.
+	// Bare `ax` opens the panel of a running exam, or the menu in a
+	// terminal, or shows help.
 	root.RunE = func(cmd *cobra.Command, _ []string) error {
-		if dir, err := dataDir(); err == nil {
-			if h, _, _ := daemon.Check(dir); h == daemon.Running {
-				return attach(cmd, dir)
-			}
+		dir, err := dataDir()
+		if err != nil {
+			return cmd.Help()
+		}
+		if h, _, _ := daemon.Check(dir); h == daemon.Running {
+			return attach(cmd, dir)
+		}
+		if isTerminal() {
+			return home(cmd, dir)
 		}
 		return cmd.Help()
 	}

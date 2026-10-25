@@ -41,8 +41,13 @@ type serveFlags struct {
 func (f *serveFlags) register(cmd *cobra.Command) {
 	cmd.Flags().StringVar(&f.host, "host", "", "address students connect to (default: all interfaces, LAN address advertised)")
 	cmd.Flags().IntVar(&f.port, "port", netutil.DefaultPort, "port for students")
-	cmd.Flags().DurationVar(&f.joinWindow, "join-window", 15*time.Minute, "close joining this long after the start (0 keeps it open)")
+	cmd.Flags().DurationVar(&f.joinWindow, "join-window", defaultServeFlags().joinWindow, "close joining this long after the start (0 keeps it open)")
 	cmd.Flags().BoolVar(&f.allowPublic, "allow-public", false, "accept students from outside private networks (behind your own tunnel)")
+}
+
+// defaultServeFlags are the flag defaults, for actions started from the menu.
+func defaultServeFlags() *serveFlags {
+	return &serveFlags{port: netutil.DefaultPort, joinWindow: 15 * time.Minute}
 }
 
 func (f *serveFlags) daemonArgs(cmd *cobra.Command) []string {
@@ -329,38 +334,43 @@ func newResumeCmd() *cobra.Command {
 		Short: "Restart the server for a session that is still open",
 		Args:  cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
-			ctx := cmd.Context()
-			dir, err := dataDir()
-			if err != nil {
-				return err
-			}
-			if h, _, _ := daemon.Check(dir); h == daemon.Running {
-				return errors.New("the exam server is already running; use `ax attach`")
-			}
-			err = withService(ctx, dir, func(svc *session.Service) error {
-				_, err := svc.OpenSession(ctx)
-				if errors.Is(err, session.ErrNotFound) {
-					return errors.New("there is no open session to resume; use `ax start <exam-folder>`")
-				}
-				return err
-			})
-			if err != nil {
-				return err
-			}
-			st, err := daemon.Spawn(dir, sf.daemonArgs(cmd))
-			if err != nil {
-				return err
-			}
-			printStarted(cmd.OutOrStdout(), st, true)
-			if noAttach {
-				return nil
-			}
-			return attach(cmd, dir)
+			return resumeSession(cmd, &sf, noAttach)
 		},
 	}
 	sf.register(cmd)
 	cmd.Flags().BoolVar(&noAttach, "no-attach", false, "do not open the session panel")
 	return cmd
+}
+
+// resumeSession restarts the server of the open session.
+func resumeSession(cmd *cobra.Command, sf *serveFlags, noAttach bool) error {
+	ctx := cmd.Context()
+	dir, err := dataDir()
+	if err != nil {
+		return err
+	}
+	if h, _, _ := daemon.Check(dir); h == daemon.Running {
+		return errors.New("the exam server is already running; use `ax attach`")
+	}
+	err = withService(ctx, dir, func(svc *session.Service) error {
+		_, err := svc.OpenSession(ctx)
+		if errors.Is(err, session.ErrNotFound) {
+			return errors.New("there is no open session to resume; use `ax start <exam-folder>`")
+		}
+		return err
+	})
+	if err != nil {
+		return err
+	}
+	st, err := daemon.Spawn(dir, sf.daemonArgs(cmd))
+	if err != nil {
+		return err
+	}
+	printStarted(cmd.OutOrStdout(), st, true)
+	if noAttach {
+		return nil
+	}
+	return attach(cmd, dir)
 }
 
 // ---------------- logs ----------------

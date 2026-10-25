@@ -123,7 +123,9 @@ with its points.
 ## 4. Make your own
 
 ```sh
+ax                    # menu: create, edit or start an exam
 ax new mi-examen      # template with every question type
+ax edit mi-examen     # forms for settings, questions and answers; E opens $EDITOR
 ax validate mi-examen
 ```
 

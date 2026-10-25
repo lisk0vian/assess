@@ -28,7 +28,7 @@ func newNewCmd() *cobra.Command {
 			fmt.Fprintln(out, "  questions/q00N.yaml      one file per question")
 			fmt.Fprintln(out, "  private/answer-key.yaml  correct answers and points (never sent to students)")
 			fmt.Fprintln(out, "  assets/                  images used in questions")
-			fmt.Fprintf(out, "\nNext: edit the files, then run `ax validate %s`\n", shellQuote(dir))
+			fmt.Fprintf(out, "\nNext: `ax edit %s` to write your questions (or edit the files and run `ax validate`)\n", shellQuote(dir))
 			return nil
 		},
 	}

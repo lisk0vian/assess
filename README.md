@@ -3,7 +3,7 @@
 Create, run and proctor exams from the terminal. Students answer from any
 browser on the classroom network — nothing to install.
 
-> **Status: pre-alpha (phase 6).** The design is settled; features are being
+> **Status: pre-alpha (phase 7).** The design is settled; features are being
 > built phase by phase. See [docs/design.md](docs/design.md).
 
 ## What it will do
@@ -30,7 +30,9 @@ web app you also need Node.js 24 and pnpm.
 go build ./cmd/ax
 go test ./...
 
+./ax                                     # menu: create, edit, start, report
 ./ax new ./my-exam --title "Álgebra 1"   # scaffold a valid exam
+./ax edit ./my-exam                      # edit questions and answers in the terminal
 ./ax validate ./my-exam                  # check it
 ./ax validate examples/algebra-01
 

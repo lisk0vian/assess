@@ -48,7 +48,7 @@ reversed, edit it here and note why in the commit.
 - The TUI is a client: `Ctrl+C`/`q` only detaches. The exam ends only when time
   runs out, the teacher ends it, or `ax stop` is run.
 - Commands: `ax start <dir>`, `ax attach` (or bare `ax` when a session is
-  active), `ax status [--json]`, `ax logs [-f]`, `ax stop`, `ax stop --suspend`,
+  active; with none, bare `ax` in a terminal opens the menu), `ax status [--json]`, `ax logs [-f]`, `ax stop`, `ax stop --suspend`,
   `ax resume`.
 - **Absolute end time** stored in SQLite: the clock keeps running while the
   server is down; on resume the TUI offers global extra time to compensate.
@@ -177,6 +177,38 @@ reversed, edit it here and note why in the commit.
   session history, collusion analysis (identical wrong answers, synchronized
   answering, weighted by seating), "left-and-got-it-right" correlation, leaked
   question detection across sessions.
+
+## Editor and menu (implemented in phase 7)
+
+- `ax edit <dir>` opens the exam in the terminal: the settings row, the items
+  in order (pools grouped with their questions, questions no item names
+  marked) and the validation result, refreshed after every change.
+- Huh forms, styled like the panel and with Spanish key help:
+  - **Settings**: title, duration, language, what students see on turning in,
+    instructions, shuffling, proctoring profile and strike limit. The exam id
+    is shown but not editable (it links the session history).
+  - **Question with its answer**: type and id (new questions only), prompt,
+    points; options one per line (the line at a position keeps that option's
+    id and pin, new lines take the next free letter) and the right ones
+    picked from them; true/false; short number with tolerance, or short text
+    with accepted answers (normalization kept, or the usual defaults); time
+    limit and option reveal. Decimal commas are accepted.
+- Keys: Enter edit, N new, D delete (with its answer and references; pools
+  keep leaving one question out and become a plain item with one left),
+  Shift+↑↓ move an item, E open the question (or the manifest) in
+  `$VISUAL`/`$EDITOR` (notepad or vi by default; `code -w` works), C open the
+  answer key, R reread, S start the exam (refused while there are errors),
+  Q quit. Esc discards a form.
+- Saving (`exam.Draft`): every confirmed form writes at once. New content is
+  merged into the existing YAML nodes, so comments, key order, quoting of
+  unchanged values, block style of unchanged text and the blank lines between
+  top-level sections survive; files are replaced atomically. A file with
+  YAML syntax errors is never overwritten: open it with E. Saving unchanged
+  content leaves every example byte for byte identical (tested).
+- Menu (bare `ax`, no exam running, in a terminal): resume the open session
+  (when its server stopped), edit, create (folder, title, language, then the
+  editor), start (exam folders found up to three levels below the current
+  one, or any path), report of the last ended session, quit.
 
 ## Reports (implemented in phase 6)
 

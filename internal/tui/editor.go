@@ -195,7 +195,7 @@ func (m *Editor) updateForm(msg tea.Msg) tea.Cmd {
 
 // open shows a form; apply runs when it completes.
 func (m *Editor) open(f *huh.Form, apply func() error) tea.Cmd {
-	m.form = f.WithTheme(huh.ThemeFunc(formTheme)).WithKeyMap(formKeys()).WithShowHelp(true).WithWidth(min(m.w()-4, 100))
+	m.form = StyleForm(f).WithShowHelp(true).WithWidth(min(m.w()-4, 100))
 	m.onSubmit = apply
 	m.notice = ""
 	return m.form.Init()

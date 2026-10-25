@@ -509,3 +509,8 @@ func formKeys() *huh.KeyMap {
 	k.Confirm.Reject.SetHelp("n", "no")
 	return k
 }
+
+// StyleForm gives a form the panel's colours and Spanish key help.
+func StyleForm(f *huh.Form) *huh.Form {
+	return f.WithTheme(huh.ThemeFunc(formTheme)).WithKeyMap(formKeys())
+}
