@@ -1,6 +1,7 @@
 # Build output
 /ax
 /ax.exe
+/ax.exe~
 /dist/
 
 # Local runtime data

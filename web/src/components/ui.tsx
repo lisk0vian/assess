@@ -2,13 +2,16 @@ import type { ReactNode } from "react";
 import { Check, Clock, LoaderCircle, WifiOff, X } from "lucide-react";
 import { t, type Key } from "../i18n";
 import type { SaveState } from "../state/answerQueue";
+import { brandLogo } from "../brand";
 
 /** Lucide icons with the system's square stroke ends. */
 export const iconProps = { size: 18, strokeWidth: 2, strokeLinecap: "square", strokeLinejoin: "miter" } as const;
 
 export function Wordmark({ small = false }: { small?: boolean }) {
+  const logo = brandLogo();
   return (
     <span className="wordmark" style={small ? { fontSize: 24 } : undefined}>
+      {logo && <img className="wordmark__logo" src={logo} alt="" />}
       ASSESS
     </span>
   );

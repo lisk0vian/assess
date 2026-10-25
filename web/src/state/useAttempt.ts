@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { api, ApiError } from "../api/client";
 import type { MeView } from "../api/types";
 import { setLanguage } from "../i18n";
+import { applyBrand } from "../brand";
 import { telemetry, type Verdict } from "../proctor/telemetry";
 
 export type Phase = "loading" | "anonymous" | "ready" | "error";
@@ -33,6 +34,7 @@ export function useAttempt() {
     offset.current = next.server_now - Date.now();
     telemetry.configure(next.proctoring.key, next.proctoring.signal_seq);
     setLanguage(next.exam.language);
+    applyBrand(next.exam);
     setMeState(next);
     setPhase("ready");
   }, []);

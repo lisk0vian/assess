@@ -158,3 +158,29 @@ button.tf__opt { border: 0; background: transparent; color: inherit; }
   .exam > header .strikes i { width: 12px; height: 12px; }
   .exam > header .strikes span { margin-left: 4px; font-size: 13px; }
 }
+
+/* ---------- Exam branding (manifest branding.accent / branding.logo) ---------- */
+/* The exam's accent replaces the magenta; text and wash tones are derived. */
+:root[data-brand] {
+  --accent: var(--brand);
+  --accent-ink: color-mix(in oklab, var(--brand) 72%, #000);
+  --on-accent: #ffffff;
+  --accent-wash: color-mix(in srgb, var(--brand) 8%, transparent);
+  --accent-line: color-mix(in srgb, var(--brand) 32%, transparent);
+}
+@media (prefers-color-scheme: dark) {
+  :root[data-brand]:not([data-theme="light"]) {
+    --accent: color-mix(in oklab, var(--brand) 78%, #fff);
+    --accent-ink: color-mix(in oklab, var(--brand) 55%, #fff);
+    --on-accent: #111110;
+    --accent-line: color-mix(in srgb, var(--brand) 40%, transparent);
+  }
+}
+:root[data-brand][data-theme="dark"] {
+  --accent: color-mix(in oklab, var(--brand) 78%, #fff);
+  --accent-ink: color-mix(in oklab, var(--brand) 55%, #fff);
+  --on-accent: #111110;
+  --accent-line: color-mix(in srgb, var(--brand) 40%, transparent);
+}
+.wordmark { display: inline-flex; align-items: center; gap: 10px; }
+.wordmark__logo { height: .9em; width: auto; max-width: 3em; object-fit: contain; }
