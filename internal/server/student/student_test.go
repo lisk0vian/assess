@@ -38,6 +38,16 @@ type env struct {
 
 func newEnv(t *testing.T, visibility string) *env {
 	t.Helper()
+	return newEnvWith(t, func(pub *exam.Published) {
+		if visibility != "" {
+			pub.Exam.Manifest.ResultVisibility = visibility
+		}
+	})
+}
+
+// newEnvWith lets a test adjust the published exam before the session opens.
+func newEnvWith(t *testing.T, adjust func(*exam.Published)) *env {
+	t.Helper()
 	ctx := context.Background()
 	db, err := sqlite.Open(ctx, filepath.Join(t.TempDir(), "a.db"))
 	if err != nil {
@@ -48,9 +58,7 @@ func newEnv(t *testing.T, visibility string) *env {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if visibility != "" {
-		pub.Exam.Manifest.ResultVisibility = visibility
-	}
+	adjust(pub)
 	clk := &clock{t: time.Date(2026, 10, 24, 9, 0, 0, 0, time.UTC)}
 	var h *Handler
 	svc := session.NewService(db, session.WithClock(clk.Now), session.WithNotify(func(id string) {

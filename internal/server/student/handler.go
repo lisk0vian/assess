@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"path"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/lisk0vian/assess/internal/grading"
@@ -40,6 +41,10 @@ type Handler struct {
 	live      *hub
 	joins     *limiter
 	reqs      *requests
+	away      away
+
+	gapMu sync.Mutex
+	gaps  map[string]time.Time // last telemetry gap reported per attempt
 }
 
 // New returns the student API for sessionID.
@@ -49,13 +54,14 @@ func New(svc *session.Service, sessionID string, opts Options) *Handler {
 		log = slog.New(slog.DiscardHandler)
 	}
 	h := &Handler{svc: svc, sessionID: sessionID, opts: opts, log: log, mux: http.NewServeMux(),
-		live: newHub(), joins: newLimiter(12, time.Minute), reqs: newRequests()}
+		live: newHub(), joins: newLimiter(12, time.Minute), reqs: newRequests(), gaps: map[string]time.Time{}}
 	h.mux.HandleFunc("POST /api/join", h.join)
 	h.mux.HandleFunc("GET /api/join/status", h.pendingStatus)
 	h.mux.HandleFunc("GET /api/me", h.withAttempt(h.me))
 	h.mux.HandleFunc("GET /api/questions/{id}", h.withAttempt(h.question))
 	h.mux.HandleFunc("PUT /api/answers/{id}", h.withAttempt(h.answer))
 	h.mux.HandleFunc("POST /api/submit", h.withAttempt(h.submit))
+	h.mux.HandleFunc("POST /api/pledge", h.withAttempt(h.pledge))
 	h.mux.HandleFunc("GET /api/assets/{path...}", h.withAttempt(h.asset))
 	h.mux.HandleFunc("GET /api/ws", h.withAttempt(h.liveSocket))
 	h.mux.HandleFunc("/api/", func(w http.ResponseWriter, _ *http.Request) {
@@ -190,11 +196,23 @@ func (h *Handler) question(w http.ResponseWriter, r *http.Request, d *session.At
 		writeError(w, http.StatusConflict, "not_started", "the exam has not started")
 		return
 	}
-	q, ok := buildQuestion(d, r.PathValue("id"))
-	if !ok {
+	id := r.PathValue("id")
+	if !inLayout(d, id) {
 		writeError(w, http.StatusNotFound, "unknown_question", "question is not part of this attempt")
 		return
 	}
+	// Opening a timed question starts its clock, once.
+	if d.Exam.Exam.Questions[id].TimeLimit.D() > 0 && d.Attempt.State == session.AttemptActive {
+		if _, ok := d.Opened[id]; !ok {
+			closes, err := h.svc.OpenQuestion(r.Context(), d.Attempt.ID, id)
+			if err != nil {
+				h.fail(w, err)
+				return
+			}
+			d.Opened[id] = closes.Add(-d.Exam.Exam.Questions[id].TimeLimit.D())
+		}
+	}
+	q, _ := buildQuestion(d, id)
 	writeJSON(w, http.StatusOK, q)
 }
 
@@ -218,6 +236,7 @@ func (h *Handler) answer(w http.ResponseWriter, r *http.Request, d *session.Atte
 		h.fail(w, err)
 		return
 	}
+	h.checkGap(r.Context(), d)
 	writeJSON(w, http.StatusOK, answerResponse{Applied: applied, ServerNow: h.svc.Now().UnixMilli()})
 }
 
@@ -296,6 +315,7 @@ func (h *Handler) fail(w http.ResponseWriter, err error) {
 		{session.ErrAttemptClosed, http.StatusConflict, "attempt_closed"},
 		{session.ErrTimeUp, http.StatusConflict, "time_up"},
 		{session.ErrDuplicate, http.StatusConflict, "duplicate"},
+		{session.ErrQuestionClosed, http.StatusConflict, "question_closed"},
 	} {
 		if errors.Is(err, m.target) {
 			writeError(w, m.status, m.code, err.Error())

@@ -56,7 +56,7 @@ function Choice({ question, value, disabled, onChange }: AnswerProps) {
           >
             <span className="option__key">{KEYS[i]}</span>
             <span className="option__text">
-              <Markdown text={o.text} inline />
+              <Markdown text={o.text ?? ""} inline />
             </span>
             {on ? (
               <span className="option__mark label">

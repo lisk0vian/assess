@@ -22,6 +22,8 @@ var (
 	visibilities  = []string{"none", "score", "review"}
 	profiles      = []string{"off", "standard", "strict"}
 	reveals       = []string{"always", "hover"}
+	fullscreens   = []string{"off", "suggested", "required"}
+	devices       = []string{"any", "desktop"}
 	inputs        = []string{"number", "text"}
 	normalizers   = []string{"trim", "casefold", "collapse_spaces", "strip_accents"}
 	questionTypes = []string{TypeSingle, TypeMultiple, TypeTrueFalse, TypeShort}
@@ -100,6 +102,12 @@ func (l *loader) validateManifest() {
 	l.checkEnum(f, fieldPath{"language"}, m.Language, languages)
 	l.checkEnum(f, fieldPath{"result_visibility"}, m.ResultVisibility, visibilities)
 	l.checkEnum(f, fieldPath{"proctoring", "profile"}, m.Proctoring.Profile, profiles)
+	l.checkEnum(f, fieldPath{"proctoring", "fullscreen"}, m.Proctoring.Fullscreen, fullscreens)
+	l.checkEnum(f, fieldPath{"proctoring", "devices"}, m.Proctoring.Devices, devices)
+	l.checkEnum(f, fieldPath{"proctoring", "reveal"}, m.Proctoring.Reveal, reveals)
+	if n := m.Proctoring.StrikeLimit; n < 0 || n > 10 {
+		l.errorf(f, fieldPath{"proctoring", "strike_limit"}, "must be between 1 and 10")
+	}
 
 	switch d := m.Duration.D(); {
 	case d == 0:

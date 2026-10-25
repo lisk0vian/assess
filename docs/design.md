@@ -165,6 +165,38 @@ reversed, edit it here and note why in the commit.
   answering, weighted by seating), "left-and-got-it-right" correlation, leaked
   question detection across sessions.
 
+## Anti-cheat engine (implemented in phase 5)
+
+- `internal/proctor` maps a signal to a decision (warn, strike, lost time,
+  voided question) by profile. `strict`: away > 15 s = strike and 1 min lost,
+  focus loss > 10 s = strike, copy = strike (the second one also voids the
+  question), paste = strike. `standard` is gentler: away > 30 s or focus loss
+  > 20 s = strike, the first copy and pastes only warn. Short glances (< 3–5 s)
+  record nothing; nothing counts during the first 15 s of an attempt except
+  automation and forged telemetry. Extensions, typing bursts and a second tab
+  only warn.
+- Manifest: `proctoring.fullscreen`, `devices`, `reveal` and `strike_limit`
+  override the profile defaults.
+- Penalties live in their own table and are never deleted: reverting one keeps
+  it with a note, gives lost time back and regrades a closed attempt. Reaching
+  the strike limit annuls the attempt on the spot; readmitting is a separate,
+  explicit teacher action.
+- Integrity signals travel on the live socket, numbered and signed with
+  HMAC-SHA256 under a per-attempt key (HMAC of a per-session secret and the
+  attempt id). A bad signature is itself a `telemetry` signal (strike); a
+  repeated number is ignored. The browser ships its own SHA-256 because
+  `crypto.subtle` needs a secure context. Timed signals (away, focus,
+  fullscreen) send a start and an end; the server keeps the longer of its
+  own measurement and the browser's. Answers stay on HTTP: when they arrive
+  while the socket has been silent for a minute, a `telemetry_gap` warning is
+  recorded.
+- `reveal: hover` options are sent sealed (XOR with an HMAC keystream bound to
+  question and option, base64): they never appear in the DOM or in plain
+  network responses until revealed. It is obfuscation, not encryption.
+- `time_limit` is enforced by the server from the first opening of the
+  question (plus 5 s grace); voided questions reject answers and score 0.
+- The honour pledge is recorded once per attempt (`POST /api/pledge`).
+
 ## Anti-cheat (browser APIs only — no installs, no Safe Exam Browser)
 
 **Deter**

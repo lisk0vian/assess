@@ -15,14 +15,39 @@ import (
 
 // MeView is the state of the caller's attempt.
 type MeView struct {
-	ServerNow int64                       `json:"server_now"` // Unix ms, to align the client clock
-	Exam      ExamView                    `json:"exam"`
-	Session   SessionView                 `json:"session"`
-	Student   ParticipantView             `json:"student"`
-	Attempt   AttemptView                 `json:"attempt"`
-	Questions []QuestionSummary           `json:"questions"`
-	Answers   map[string]grading.Response `json:"answers"`
-	Review    []ReviewItem                `json:"review,omitempty"`
+	ServerNow  int64                       `json:"server_now"` // Unix ms, to align the client clock
+	Exam       ExamView                    `json:"exam"`
+	Session    SessionView                 `json:"session"`
+	Student    ParticipantView             `json:"student"`
+	Attempt    AttemptView                 `json:"attempt"`
+	Questions  []QuestionSummary           `json:"questions"`
+	Answers    map[string]grading.Response `json:"answers"`
+	Review     []ReviewItem                `json:"review,omitempty"`
+	Proctoring ProctoringView              `json:"proctoring"`
+	Penalties  []PenaltyView               `json:"penalties"`
+}
+
+// ProctoringView tells the browser which signals to collect and how to sign
+// them. The key is only sent while the attempt is active.
+type ProctoringView struct {
+	Profile     string `json:"profile"` // off | standard | strict
+	Fullscreen  string `json:"fullscreen"`
+	Devices     string `json:"devices"`
+	StrikeLimit int    `json:"strike_limit"`
+	GraceMs     int64  `json:"grace_ms"`
+	Key         string `json:"key,omitempty"` // hex telemetry key
+	SignalSeq   int64  `json:"signal_seq"`
+	Pledged     bool   `json:"pledged"`
+	Strikes     int    `json:"strikes"`
+}
+
+// PenaltyView is an active penalty, shown to the student for transparency.
+type PenaltyView struct {
+	Kind       session.PenaltyKind `json:"kind"`
+	Signal     string              `json:"signal"`
+	QuestionID string              `json:"question_id,omitempty"`
+	Amount     float64             `json:"amount,omitempty"`
+	At         int64               `json:"at"`
 }
 
 // ExamView is the public part of the manifest.
@@ -68,6 +93,8 @@ type QuestionSummary struct {
 	Type     string  `json:"type"`
 	Points   float64 `json:"points"`
 	Answered bool    `json:"answered"`
+	Voided   bool    `json:"voided,omitempty"`
+	ClosesAt int64   `json:"closes_at,omitempty"` // Unix ms, timed questions once opened
 }
 
 // QuestionView is a full question without any scoring information.
@@ -81,12 +108,17 @@ type QuestionView struct {
 	Placeholder string       `json:"placeholder,omitempty"`
 	Points      float64      `json:"points"`
 	TimeLimitMs int64        `json:"time_limit_ms,omitempty"`
+	ClosesAt    int64        `json:"closes_at,omitempty"`
+	Voided      bool         `json:"voided,omitempty"`
+	Reveal      string       `json:"reveal"` // always | hover
 }
 
-// OptionView is an option in the order this attempt sees it.
+// OptionView is an option in the order this attempt sees it. With reveal
+// "hover", Text is empty and Sealed carries it (see seal).
 type OptionView struct {
-	ID   string `json:"id"`
-	Text string `json:"text"`
+	ID     string `json:"id"`
+	Text   string `json:"text,omitempty"`
+	Sealed string `json:"sealed,omitempty"`
 }
 
 // ReviewItem is a per-question correction, shown only after the session ends
@@ -139,10 +171,31 @@ func buildMe(d *session.AttemptDetail, now time.Time) MeView {
 			v.Answers[ans.QuestionID] = ans.Response
 		}
 	}
+	void := voidedQuestions(d.Penalties)
 	for i, sl := range a.Layout {
 		q := d.Exam.Exam.Questions[sl.QuestionID]
 		_, answered := v.Answers[sl.QuestionID]
-		v.Questions = append(v.Questions, QuestionSummary{ID: q.ID, Number: i + 1, Type: q.Type, Points: sl.Points, Answered: answered})
+		v.Questions = append(v.Questions, QuestionSummary{ID: q.ID, Number: i + 1, Type: q.Type, Points: sl.Points,
+			Answered: answered, Voided: void[q.ID], ClosesAt: closesAt(d, q.ID)})
+	}
+
+	set := session.ProctorSettings(&m)
+	v.Proctoring = ProctoringView{
+		Profile: set.Profile, Fullscreen: set.Fullscreen, Devices: set.Devices, StrikeLimit: set.StrikeLimit,
+		GraceMs: set.Grace.Milliseconds(), SignalSeq: a.SignalSeq, Pledged: !a.PledgedAt.IsZero(),
+	}
+	if a.State == session.AttemptActive && set.Enabled() {
+		v.Proctoring.Key = session.TelemetryKey(d.Session, a.ID)
+	}
+	v.Penalties = []PenaltyView{}
+	for _, p := range d.Penalties {
+		if !p.Active() {
+			continue
+		}
+		if p.Kind == session.PenaltyStrike {
+			v.Proctoring.Strikes++
+		}
+		v.Penalties = append(v.Penalties, PenaltyView{Kind: p.Kind, Signal: p.Signal, QuestionID: p.QuestionID, Amount: p.Amount, At: ms(p.CreatedAt)})
 	}
 
 	graded := a.State == session.AttemptSubmitted
@@ -178,15 +231,60 @@ func buildQuestion(d *session.AttemptDetail, id string) (QuestionView, bool) {
 		v := QuestionView{
 			ID: q.ID, Number: i + 1, Type: q.Type, Prompt: q.Prompt, Input: q.Input,
 			Placeholder: q.Placeholder, Points: sl.Points, TimeLimitMs: q.TimeLimit.D().Milliseconds(),
+			ClosesAt: closesAt(d, id), Voided: voidedQuestions(d.Penalties)[id], Reveal: revealOf(d, q),
+		}
+		key := session.TelemetryKey(d.Session, d.Attempt.ID)
+		if v.Reveal == "hover" && key == "" {
+			v.Reveal = "always" // nothing to seal with (pre-phase-5 session)
 		}
 		text := make(map[string]string, len(q.Options))
 		for _, o := range q.Options {
 			text[o.ID] = o.Text
 		}
 		for _, oid := range sl.Options {
-			v.Options = append(v.Options, OptionView{ID: oid, Text: text[oid]})
+			if v.Reveal == "hover" {
+				v.Options = append(v.Options, OptionView{ID: oid, Sealed: seal(key, id, oid, text[oid])})
+			} else {
+				v.Options = append(v.Options, OptionView{ID: oid, Text: text[oid]})
+			}
 		}
 		return v, true
 	}
 	return QuestionView{}, false
+}
+
+func inLayout(d *session.AttemptDetail, id string) bool {
+	for _, sl := range d.Attempt.Layout {
+		if sl.QuestionID == id {
+			return true
+		}
+	}
+	return false
+}
+
+// revealOf is the question's reveal mode: its own setting, else the exam's.
+func revealOf(d *session.AttemptDetail, q *exam.Question) string {
+	if q.Reveal != "" {
+		return q.Reveal
+	}
+	return session.ProctorSettings(&d.Exam.Exam.Manifest).Reveal
+}
+
+func closesAt(d *session.AttemptDetail, id string) int64 {
+	opened, ok := d.Opened[id]
+	limit := d.Exam.Exam.Questions[id].TimeLimit.D()
+	if !ok || limit <= 0 {
+		return 0
+	}
+	return ms(opened.Add(limit))
+}
+
+func voidedQuestions(ps []*session.Penalty) map[string]bool {
+	out := map[string]bool{}
+	for _, p := range ps {
+		if p.Kind == session.PenaltyVoid && p.Active() {
+			out[p.QuestionID] = true
+		}
+	}
+	return out
 }

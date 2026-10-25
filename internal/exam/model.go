@@ -75,9 +75,14 @@ type Order struct {
 	ShuffleOptions   *bool `yaml:"shuffle_options"`
 }
 
-// Proctoring selects the anti-cheat profile.
+// Proctoring selects the anti-cheat profile. Empty fields take the
+// profile's defaults (see internal/proctor).
 type Proctoring struct {
-	Profile string `yaml:"profile"`
+	Profile     string `yaml:"profile"`      // off | standard | strict
+	Fullscreen  string `yaml:"fullscreen"`   // off | suggested | required
+	Devices     string `yaml:"devices"`      // any | desktop
+	Reveal      string `yaml:"reveal"`       // always | hover, default for questions
+	StrikeLimit int    `yaml:"strike_limit"` // strikes that annul the attempt
 }
 
 // Item is one entry of manifest.items: either a fixed question or a pool.

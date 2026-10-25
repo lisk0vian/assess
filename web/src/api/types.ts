@@ -23,6 +23,33 @@ export interface MeView {
   questions: QuestionSummary[];
   answers: { [key: string]: Response};
   review?: ReviewItem[];
+  proctoring: ProctoringView;
+  penalties: PenaltyView[];
+}
+/**
+ * ProctoringView tells the browser which signals to collect and how to sign
+ * them. The key is only sent while the attempt is active.
+ */
+export interface ProctoringView {
+  profile: string; // off | standard | strict
+  fullscreen: string;
+  devices: string;
+  strike_limit: number /* int */;
+  grace_ms: number /* int64 */;
+  key?: string; // hex telemetry key
+  signal_seq: number /* int64 */;
+  pledged: boolean;
+  strikes: number /* int */;
+}
+/**
+ * PenaltyView is an active penalty, shown to the student for transparency.
+ */
+export interface PenaltyView {
+  kind: "strike" | "time" | "void" | "points";
+  signal: string;
+  question_id?: string;
+  amount?: number /* float64 */;
+  at: number /* int64 */;
 }
 /**
  * ExamView is the public part of the manifest.
@@ -73,6 +100,8 @@ export interface QuestionSummary {
   type: string;
   points: number /* float64 */;
   answered: boolean;
+  voided?: boolean;
+  closes_at?: number /* int64 */; // Unix ms, timed questions once opened
 }
 /**
  * QuestionView is a full question without any scoring information.
@@ -87,13 +116,18 @@ export interface QuestionView {
   placeholder?: string;
   points: number /* float64 */;
   time_limit_ms?: number /* int64 */;
+  closes_at?: number /* int64 */;
+  voided?: boolean;
+  reveal: string; // always | hover
 }
 /**
- * OptionView is an option in the order this attempt sees it.
+ * OptionView is an option in the order this attempt sees it. With reveal
+ * "hover", Text is empty and Sealed carries it (see seal).
  */
 export interface OptionView {
   id: string;
-  text: string;
+  text?: string;
+  sealed?: string;
 }
 /**
  * ReviewItem is a per-question correction, shown only after the session ends

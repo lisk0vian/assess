@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"io/fs"
 	"path/filepath"
 	"sync"
 	"testing"
@@ -380,7 +381,8 @@ func TestMigrationsAreIdempotent(t *testing.T) {
 	e.reopen()
 	e.reopen()
 	var n int
-	if err := e.db.r.QueryRow(`SELECT COUNT(*) FROM schema_migrations`).Scan(&n); err != nil || n != 1 {
+	files, _ := fs.Glob(migrations, "migrations/*.sql")
+	if err := e.db.r.QueryRow(`SELECT COUNT(*) FROM schema_migrations`).Scan(&n); err != nil || n != len(files) {
 		t.Fatalf("schema_migrations rows = %d, err %v", n, err)
 	}
 	if _, err := e.db.w.Exec(`INSERT INTO schema_migrations VALUES (999, 0)`); err != nil {
@@ -399,4 +401,155 @@ func (db *DB) listEvents(ctx context.Context, sessionID string) (out []*session.
 		return err
 	})
 	return out, err
+}
+
+func (e *env) signal(a *session.Attempt, r session.SignalReport) *session.SignalOutcome {
+	e.t.Helper()
+	out, err := e.svc.ReportSignal(e.ctx, a.ID, r)
+	if err != nil {
+		e.t.Fatalf("signal %s: %v", r.Kind, err)
+	}
+	return out
+}
+
+func TestStrikesAnnulAndRevert(t *testing.T) {
+	e := newEnv(t)
+	e.create()
+	a := e.join("A1", "Ana")
+	if _, err := e.svc.Start(e.ctx, e.sess.ID); err != nil {
+		t.Fatal(err)
+	}
+	if out := e.signal(a, session.SignalReport{Kind: "hidden", DurationMs: 60000}); !out.Decision.Ignore {
+		t.Fatal("signals during the start grace must be ignored")
+	}
+	e.clk.Advance(20 * time.Second)
+
+	out := e.signal(a, session.SignalReport{Kind: "hidden", DurationMs: 40000, Seq: 1})
+	if out.Strikes != 1 || out.Limit != 3 || len(out.Penalties) != 1 {
+		t.Fatalf("first strike: %+v", out)
+	}
+	if dup := e.signal(a, session.SignalReport{Kind: "hidden", DurationMs: 40000, Seq: 1}); !dup.Duplicate {
+		t.Fatal("repeated seq must be ignored")
+	}
+	if w := e.signal(a, session.SignalReport{Kind: "blur", DurationMs: 5000, Seq: 2}); w.Strikes != 1 || w.Decision.Strike || !w.Decision.Warn {
+		t.Fatalf("short blur should only warn: %+v", w)
+	}
+	e.signal(a, session.SignalReport{Kind: "blur", DurationMs: 25000, Seq: 3})
+	if _, err := e.svc.RevertPenalty(e.ctx, out.Penalties[0].ID, "fue al baño con permiso"); err != nil {
+		t.Fatal(err)
+	}
+	_, err := e.svc.RevertPenalty(e.ctx, out.Penalties[0].ID, "")
+	expectErr(t, err, session.ErrNotClosable)
+
+	if s := e.signal(a, session.SignalReport{Kind: "untrusted", Seq: 4}); s.Strikes != 2 || s.Annulled {
+		t.Fatalf("after revert: %+v", s)
+	}
+	last := e.signal(a, session.SignalReport{Kind: "webdriver", Seq: 5})
+	if !last.Annulled || last.Strikes != 3 {
+		t.Fatalf("third strike must annul: %+v", last)
+	}
+	d, err := e.svc.Attempt(e.ctx, a.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if d.Attempt.State != session.AttemptAnnulled || len(d.Penalties) != 4 {
+		t.Fatalf("attempt %s with %d penalties", d.Attempt.State, len(d.Penalties))
+	}
+	_, err = e.svc.ReportSignal(e.ctx, a.ID, session.SignalReport{Kind: "copy", Seq: 6})
+	expectErr(t, err, session.ErrAttemptClosed)
+}
+
+func TestStrictPenalties(t *testing.T) {
+	e := newEnv(t)
+	e.pub.Exam.Manifest.Proctoring.Profile = "strict"
+	e.create()
+	a := e.join("A1", "Ana")
+	if _, err := e.svc.Start(e.ctx, e.sess.ID); err != nil {
+		t.Fatal(err)
+	}
+	e.clk.Advance(time.Minute)
+
+	lost := e.signal(a, session.SignalReport{Kind: "hidden", DurationMs: 22000})
+	d, _ := e.svc.Attempt(e.ctx, a.ID)
+	if d.Attempt.Extra != -time.Minute {
+		t.Fatalf("extra = %s after a time penalty", d.Attempt.Extra)
+	}
+	if len(lost.Penalties) != 2 {
+		t.Fatalf("22 s away in strict: %+v", lost)
+	}
+	for _, p := range lost.Penalties {
+		if _, err := e.svc.RevertPenalty(e.ctx, p.ID, ""); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if d, _ = e.svc.Attempt(e.ctx, a.ID); d.Attempt.Extra != 0 {
+		t.Fatalf("time not given back: %s", d.Attempt.Extra)
+	}
+
+	q := a.Layout[0].QuestionID
+	e.signal(a, session.SignalReport{Kind: "copy", QuestionID: q})
+	second := e.signal(a, session.SignalReport{Kind: "copy", QuestionID: q})
+	if !second.Decision.VoidQ || second.Strikes != 2 {
+		t.Fatalf("second copy: %+v", second)
+	}
+	_, err := e.svc.SaveAnswer(e.ctx, a.ID, q, 1, e.right[q])
+	expectErr(t, err, session.ErrQuestionClosed)
+
+	var seq int64 = 1
+	for _, sl := range a.Layout[1:] {
+		seq++
+		if _, err := e.svc.SaveAnswer(e.ctx, a.ID, sl.QuestionID, seq, e.right[sl.QuestionID]); err != nil {
+			t.Fatal(err)
+		}
+	}
+	sub, err := e.svc.Submit(e.ctx, a.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	full := sub.MaxScore
+	if sub.Score >= full {
+		t.Fatalf("voided question still counted: %v of %v", sub.Score, full)
+	}
+	if _, err := e.svc.Pledge(e.ctx, a.ID); !errors.Is(err, session.ErrAttemptClosed) {
+		t.Fatalf("pledge on a closed attempt: %v", err)
+	}
+}
+
+func TestQuestionTimeLimitAndPledge(t *testing.T) {
+	e := newEnv(t)
+	e.create()
+	var a *session.Attempt
+	for i := 0; a == nil; i++ {
+		cand := e.join(fmt.Sprintf("S%d", i), "Alumno")
+		for _, sl := range cand.Layout {
+			if sl.QuestionID == "q007" {
+				a = cand
+			}
+		}
+	}
+	if _, err := e.svc.Start(e.ctx, e.sess.ID); err != nil {
+		t.Fatal(err)
+	}
+	p1, err := e.svc.Pledge(e.ctx, a.ID)
+	if err != nil || p1.PledgedAt.IsZero() {
+		t.Fatalf("pledge: %v", err)
+	}
+	p2, _ := e.svc.Pledge(e.ctx, a.ID)
+	if !p2.PledgedAt.Equal(p1.PledgedAt) {
+		t.Fatal("pledge must be idempotent")
+	}
+	closes, err := e.svc.OpenQuestion(e.ctx, a.ID, "q007")
+	if err != nil || !closes.Equal(e.clk.Now().Add(90*time.Second)) {
+		t.Fatalf("closes %v, %v", closes, err)
+	}
+	e.clk.Advance(80 * time.Second)
+	if again, _ := e.svc.OpenQuestion(e.ctx, a.ID, "q007"); !again.Equal(closes) {
+		t.Fatal("reopening must not restart the clock")
+	}
+	if _, err := e.svc.SaveAnswer(e.ctx, a.ID, "q007", 1, e.right["q007"]); err != nil {
+		t.Fatal(err)
+	}
+	e.clk.Advance(20 * time.Second)
+	_, err = e.svc.SaveAnswer(e.ctx, a.ID, "q007", 2, e.wrong["q007"])
+	expectErr(t, err, session.ErrQuestionClosed)
 }

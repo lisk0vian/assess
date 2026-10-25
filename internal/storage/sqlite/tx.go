@@ -104,16 +104,18 @@ func (t *tx) GetPublished(hash string) (*exam.Published, error) {
 
 // ---- sessions ----
 
-const sessionCols = `id, code, exam_hash, state, duration_ms, grace_ms, created_at, started_at, ends_at, ended_at`
+const sessionCols = `id, code, exam_hash, state, duration_ms, grace_ms, created_at, started_at, ends_at, ended_at, secret`
 
 func scanSession(sc interface{ Scan(...any) error }) (*session.Session, error) {
 	var s session.Session
 	var state string
 	var dur, grace int64
 	var created, started, ends, ended sql.NullInt64
-	if err := sc.Scan(&s.ID, &s.Code, &s.ExamHash, &state, &dur, &grace, &created, &started, &ends, &ended); err != nil {
+	var secret sql.NullString
+	if err := sc.Scan(&s.ID, &s.Code, &s.ExamHash, &state, &dur, &grace, &created, &started, &ends, &ended, &secret); err != nil {
 		return nil, err
 	}
+	s.Secret = secret.String
 	s.State = session.State(state)
 	s.Duration, s.Grace = time.Duration(dur)*time.Millisecond, time.Duration(grace)*time.Millisecond
 	s.CreatedAt, s.StartedAt, s.EndsAt, s.EndedAt = fromMS(created), fromMS(started), fromMS(ends), fromMS(ended)
@@ -121,16 +123,16 @@ func scanSession(sc interface{ Scan(...any) error }) (*session.Session, error) {
 }
 
 func (t *tx) InsertSession(s *session.Session) error {
-	_, err := t.exec(`INSERT INTO sessions (`+sessionCols+`) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+	_, err := t.exec(`INSERT INTO sessions (`+sessionCols+`) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
 		s.ID, s.Code, s.ExamHash, string(s.State), s.Duration.Milliseconds(), s.Grace.Milliseconds(),
-		ms(s.CreatedAt), ms(s.StartedAt), ms(s.EndsAt), ms(s.EndedAt))
+		ms(s.CreatedAt), ms(s.StartedAt), ms(s.EndsAt), ms(s.EndedAt), nullString(s.Secret))
 	return err
 }
 
 func (t *tx) UpdateSession(s *session.Session) error {
-	_, err := t.exec(`UPDATE sessions SET state = ?, duration_ms = ?, grace_ms = ?, started_at = ?, ends_at = ?, ended_at = ?
+	_, err := t.exec(`UPDATE sessions SET state = ?, duration_ms = ?, grace_ms = ?, started_at = ?, ends_at = ?, ended_at = ?, secret = ?
 		WHERE id = ?`,
-		string(s.State), s.Duration.Milliseconds(), s.Grace.Milliseconds(), ms(s.StartedAt), ms(s.EndsAt), ms(s.EndedAt), s.ID)
+		string(s.State), s.Duration.Milliseconds(), s.Grace.Milliseconds(), ms(s.StartedAt), ms(s.EndsAt), ms(s.EndedAt), nullString(s.Secret), s.ID)
 	return err
 }
 
@@ -224,20 +226,21 @@ func (t *tx) ListParticipants(sessionID string) ([]*session.Participant, error) 
 // ---- attempts ----
 
 const attemptCols = `id, session_id, participant_id, seed, layout, state, extra_ms, created_at,
-	submitted_at, submit_reason, score, max_score, last_seq`
+	submitted_at, submit_reason, score, max_score, last_seq, signal_seq, pledged_at`
 
 func scanAttempt(sc interface{ Scan(...any) error }) (*session.Attempt, error) {
 	var a session.Attempt
 	var seed, extra int64
 	var layout []byte
 	var state string
-	var created, submitted sql.NullInt64
+	var created, submitted, pledged sql.NullInt64
 	var reason sql.NullString
 	var score sql.NullFloat64
 	if err := sc.Scan(&a.ID, &a.SessionID, &a.ParticipantID, &seed, &layout, &state, &extra, &created,
-		&submitted, &reason, &score, &a.MaxScore, &a.LastSeq); err != nil {
+		&submitted, &reason, &score, &a.MaxScore, &a.LastSeq, &a.SignalSeq, &pledged); err != nil {
 		return nil, err
 	}
+	a.PledgedAt = fromMS(pledged)
 	if err := json.Unmarshal(layout, &a.Layout); err != nil {
 		return nil, fmt.Errorf("decode layout of attempt %s: %w", a.ID, err)
 	}
@@ -255,17 +258,18 @@ func (t *tx) InsertAttempt(a *session.Attempt) error {
 	if err != nil {
 		return err
 	}
-	_, err = t.exec(`INSERT INTO attempts (`+attemptCols+`) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+	_, err = t.exec(`INSERT INTO attempts (`+attemptCols+`) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
 		a.ID, a.SessionID, a.ParticipantID, int64(a.Seed), layout, //nolint:gosec // G115: bit pattern, see scanAttempt
 		string(a.State), a.Extra.Milliseconds(),
-		ms(a.CreatedAt), ms(a.SubmittedAt), nullString(string(a.SubmitReason)), nullScore(a), a.MaxScore, a.LastSeq)
+		ms(a.CreatedAt), ms(a.SubmittedAt), nullString(string(a.SubmitReason)), nullScore(a), a.MaxScore, a.LastSeq, a.SignalSeq, ms(a.PledgedAt))
 	return err
 }
 
 func (t *tx) UpdateAttempt(a *session.Attempt) error {
-	_, err := t.exec(`UPDATE attempts SET state = ?, extra_ms = ?, submitted_at = ?, submit_reason = ?, score = ?, last_seq = ?
-		WHERE id = ?`,
-		string(a.State), a.Extra.Milliseconds(), ms(a.SubmittedAt), nullString(string(a.SubmitReason)), nullScore(a), a.LastSeq, a.ID)
+	_, err := t.exec(`UPDATE attempts SET state = ?, extra_ms = ?, submitted_at = ?, submit_reason = ?, score = ?, last_seq = ?,
+		signal_seq = ?, pledged_at = ? WHERE id = ?`,
+		string(a.State), a.Extra.Milliseconds(), ms(a.SubmittedAt), nullString(string(a.SubmitReason)), nullScore(a), a.LastSeq,
+		a.SignalSeq, ms(a.PledgedAt), a.ID)
 	return err
 }
 
@@ -356,6 +360,90 @@ func (t *tx) SetAnswerGrade(attemptID, questionID string, points float64, correc
 	return err
 }
 
+// ---- penalties ----
+
+const penaltyCols = `id, attempt_id, event_id, kind, signal, question_id, amount, created_at, reverted_at, note`
+
+func scanPenalty(sc interface{ Scan(...any) error }) (*session.Penalty, error) {
+	var p session.Penalty
+	var event, created, reverted sql.NullInt64
+	var kind string
+	var question, note sql.NullString
+	if err := sc.Scan(&p.ID, &p.AttemptID, &event, &kind, &p.Signal, &question, &p.Amount, &created, &reverted, &note); err != nil {
+		return nil, err
+	}
+	p.EventID, p.Kind, p.QuestionID, p.Note = event.Int64, session.PenaltyKind(kind), question.String, note.String
+	p.CreatedAt, p.RevertedAt = fromMS(created), fromMS(reverted)
+	return &p, nil
+}
+
+func (t *tx) InsertPenalty(p *session.Penalty) error {
+	event := sql.NullInt64{Int64: p.EventID, Valid: p.EventID > 0}
+	res, err := t.exec(`INSERT INTO penalties (attempt_id, event_id, kind, signal, question_id, amount, created_at, note)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+		p.AttemptID, event, string(p.Kind), p.Signal, nullString(p.QuestionID), p.Amount, ms(p.CreatedAt), nullString(p.Note))
+	if err != nil {
+		return err
+	}
+	p.ID, err = res.LastInsertId()
+	return err
+}
+
+func (t *tx) ListPenalties(attemptID string) ([]*session.Penalty, error) {
+	rows, err := t.query(`SELECT `+penaltyCols+` FROM penalties WHERE attempt_id = ? ORDER BY id`, attemptID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var out []*session.Penalty
+	for rows.Next() {
+		p, err := scanPenalty(rows)
+		if err != nil {
+			return nil, err
+		}
+		out = append(out, p)
+	}
+	return out, rows.Err()
+}
+
+func (t *tx) GetPenalty(id int64) (*session.Penalty, error) {
+	p, err := scanPenalty(t.row(`SELECT `+penaltyCols+` FROM penalties WHERE id = ?`, id))
+	return p, notFound(err, fmt.Sprintf("penalty %d", id))
+}
+
+func (t *tx) RevertPenalty(id int64, at time.Time, note string) error {
+	_, err := t.exec(`UPDATE penalties SET reverted_at = ?, note = ? WHERE id = ? AND reverted_at IS NULL`, ms(at), nullString(note), id)
+	return err
+}
+
+func (t *tx) OpenQuestion(attemptID, questionID string, at time.Time) (time.Time, error) {
+	if _, err := t.exec(`INSERT INTO question_opens (attempt_id, question_id, opened_at) VALUES (?, ?, ?)
+		ON CONFLICT (attempt_id, question_id) DO NOTHING`, attemptID, questionID, ms(at)); err != nil {
+		return time.Time{}, err
+	}
+	var opened sql.NullInt64
+	err := t.row(`SELECT opened_at FROM question_opens WHERE attempt_id = ? AND question_id = ?`, attemptID, questionID).Scan(&opened)
+	return fromMS(opened), err
+}
+
+func (t *tx) ListOpened(attemptID string) (map[string]time.Time, error) {
+	rows, err := t.query(`SELECT question_id, opened_at FROM question_opens WHERE attempt_id = ?`, attemptID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	out := map[string]time.Time{}
+	for rows.Next() {
+		var q string
+		var at sql.NullInt64
+		if err := rows.Scan(&q, &at); err != nil {
+			return nil, err
+		}
+		out[q] = fromMS(at)
+	}
+	return out, rows.Err()
+}
+
 // ---- events ----
 
 func (t *tx) InsertEvent(e *session.Event) error {
@@ -375,6 +463,12 @@ func (t *tx) InsertEvent(e *session.Event) error {
 	}
 	e.ID, err = res.LastInsertId()
 	return err
+}
+
+func (t *tx) CountEvents(attemptID, kind string) (int, error) {
+	var n int
+	err := t.row(`SELECT COUNT(*) FROM events WHERE attempt_id = ? AND kind = ?`, attemptID, kind).Scan(&n)
+	return n, err
 }
 
 func (t *tx) ListEvents(sessionID string) ([]*session.Event, error) {

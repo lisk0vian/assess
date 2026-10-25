@@ -32,10 +32,22 @@ type hub struct {
 	mu       sync.Mutex
 	conns    map[chan []byte]string // outbox -> attempt id
 	presence map[string]*Presence
+	created  time.Time
 }
 
 func newHub() *hub {
-	return &hub{conns: map[chan []byte]string{}, presence: map[string]*Presence{}}
+	return &hub{conns: map[chan []byte]string{}, presence: map[string]*Presence{}, created: time.Now()}
+}
+
+// silentFor reports whether attemptID has had no live connection for d.
+func (h *hub) silentFor(attemptID string, d time.Duration, now time.Time) bool {
+	h.mu.Lock()
+	defer h.mu.Unlock()
+	p := h.presence[attemptID]
+	if p == nil {
+		return now.Sub(h.created) > d
+	}
+	return !p.Online && now.Sub(p.LastSeen) > d
 }
 
 func (h *hub) add(attemptID string) chan []byte {
@@ -160,17 +172,26 @@ func (h *Handler) SetPaused(attemptID string, paused bool) {
 type clientMsg struct {
 	Type     string `json:"type"`
 	Question string `json:"question"`
+	signalMsg
 }
 
-// liveSocket pushes {"type":"changed"|"message"|"pause"} and receives
-// {"type":"at","question":id} as the student navigates. Answers stay on HTTP.
+// Signal flood guard per connection.
+const (
+	signalBurst  = 30
+	signalWindow = 10 * time.Second
+)
+
+// liveSocket pushes {"type":"changed"|"message"|"pause"|"verdict"} and
+// receives {"type":"at","question":id} as the student navigates and
+// {"type":"signal",...} integrity signals. Answers stay on HTTP.
 func (h *Handler) liveSocket(w http.ResponseWriter, r *http.Request, d *session.AttemptDetail) {
 	c, err := websocket.Accept(w, r, nil) // same-origin only (default origin check)
 	if err != nil {
 		return
 	}
 	defer func() { _ = c.CloseNow() }()
-	c.SetReadLimit(1 << 10)
+	c.SetReadLimit(2 << 10)
+	key := session.TelemetryKey(d.Session, d.Attempt.ID)
 	ctx, cancel := context.WithCancel(r.Context())
 	defer cancel()
 
@@ -179,14 +200,29 @@ func (h *Handler) liveSocket(w http.ResponseWriter, r *http.Request, d *session.
 
 	go func() {
 		defer cancel()
+		var window time.Time
+		var n int
 		for {
 			_, data, err := c.Read(ctx)
 			if err != nil {
 				return
 			}
 			var m clientMsg
-			if json.Unmarshal(data, &m) == nil && m.Type == "at" && len(m.Question) <= 64 {
-				h.live.at(d.Attempt.ID, m.Question)
+			if json.Unmarshal(data, &m) != nil {
+				continue
+			}
+			switch m.Type {
+			case "at":
+				if len(m.Question) <= 64 {
+					h.live.at(d.Attempt.ID, m.Question)
+				}
+			case "signal":
+				if now := time.Now(); now.Sub(window) > signalWindow {
+					window, n = now, 0
+				}
+				if n++; n <= signalBurst {
+					h.handleSignal(ctx, d, key, m.signalMsg)
+				}
 			}
 		}
 	}()

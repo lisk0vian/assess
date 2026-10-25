@@ -32,6 +32,7 @@ type Session struct {
 	StartedAt time.Time // zero until started
 	EndsAt    time.Time // absolute end for everyone, before per-attempt extra time
 	EndedAt   time.Time // zero until ended
+	Secret    string    // derives each attempt's telemetry key; never sent to clients
 }
 
 // ParticipantSource records how a participant was added.
@@ -89,8 +90,38 @@ type Attempt struct {
 	SubmitReason  SubmitReason
 	Score         float64 // valid once submitted
 	MaxScore      float64
-	LastSeq       int64 // highest client sequence number received
+	LastSeq       int64     // highest client sequence number received for answers
+	SignalSeq     int64     // highest sequence number of signed telemetry
+	PledgedAt     time.Time // when the student accepted the rules (zero if not yet)
 }
+
+// PenaltyKind is an automatic consequence of a signal.
+type PenaltyKind string
+
+// Penalty kinds.
+const (
+	PenaltyStrike PenaltyKind = "strike"
+	PenaltyTime   PenaltyKind = "time"   // Amount ms removed from the attempt's time
+	PenaltyVoid   PenaltyKind = "void"   // the question scores 0 and closes
+	PenaltyPoints PenaltyKind = "points" // Amount points removed from the score
+)
+
+// Penalty is one automatic penalty. It stays in the record when reverted.
+type Penalty struct {
+	ID         int64
+	AttemptID  string
+	EventID    int64
+	Kind       PenaltyKind
+	Signal     string
+	QuestionID string
+	Amount     float64
+	CreatedAt  time.Time
+	RevertedAt time.Time
+	Note       string
+}
+
+// Active reports whether the penalty still applies.
+func (p *Penalty) Active() bool { return p.RevertedAt.IsZero() }
 
 // Deadline returns when the attempt's time runs out, or zero if the session
 // has not started.

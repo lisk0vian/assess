@@ -116,6 +116,7 @@ func (s *Service) CreateSession(ctx context.Context, pub *exam.Published, opts C
 		Duration:  opts.Duration,
 		Grace:     opts.Grace,
 		CreatedAt: now,
+		Secret:    newSecret(),
 	}
 	err := s.store.Update(ctx, func(tx Tx) error {
 		if err := tx.PutPublished(pub); err != nil {
@@ -365,7 +366,22 @@ func (s *Service) SaveAnswer(ctx context.Context, attemptID, questionID string, 
 		if err := grading.Validate(pub.Exam.Questions[questionID], r); err != nil {
 			return fmt.Errorf("%w: %w", ErrInvalidInput, err)
 		}
-		applied, err = tx.UpsertAnswer(&Answer{AttemptID: attemptID, QuestionID: questionID, Response: r, Seq: seq, UpdatedAt: s.clock()})
+		penalties, err := tx.ListPenalties(attemptID)
+		if err != nil {
+			return err
+		}
+		if voided(penalties)[questionID] {
+			return fmt.Errorf("%w: voided", ErrQuestionClosed)
+		}
+		now := s.clock()
+		closes, err := questionCloses(tx, pub, attemptID, questionID, now)
+		if err != nil {
+			return err
+		}
+		if !closes.IsZero() && now.After(closes.Add(questionGrace)) {
+			return fmt.Errorf("%w: time limit", ErrQuestionClosed)
+		}
+		applied, err = tx.UpsertAnswer(&Answer{AttemptID: attemptID, QuestionID: questionID, Response: r, Seq: seq, UpdatedAt: now})
 		if err != nil {
 			return err
 		}
@@ -444,6 +460,21 @@ func (s *Service) Submit(ctx context.Context, attemptID string) (*Attempt, error
 
 // close grades every slot of att and marks it submitted.
 func (s *Service) close(tx Tx, sess *Session, att *Attempt, reason SubmitReason) error {
+	if err := s.grade(tx, sess, att); err != nil {
+		return err
+	}
+	now := s.clock()
+	att.State, att.SubmittedAt, att.SubmitReason = AttemptSubmitted, now, reason
+	if err := tx.UpdateAttempt(att); err != nil {
+		return err
+	}
+	return tx.InsertEvent(&Event{SessionID: att.SessionID, AttemptID: att.ID, Kind: "attempt.submitted", Severity: SeverityInfo,
+		Data: map[string]any{"reason": string(reason), "score": att.Score, "max": att.MaxScore}, ReceivedAt: now})
+}
+
+// grade scores every slot of att into att.Score. Voided questions score 0 and
+// point penalties are subtracted, never below 0.
+func (s *Service) grade(tx Tx, sess *Session, att *Attempt) error {
 	pub, err := s.published(tx, sess.ExamHash)
 	if err != nil {
 		return err
@@ -452,6 +483,11 @@ func (s *Service) close(tx Tx, sess *Session, att *Attempt, reason SubmitReason)
 	if err != nil {
 		return err
 	}
+	penalties, err := tx.ListPenalties(att.ID)
+	if err != nil {
+		return err
+	}
+	void := voided(penalties)
 	byQ := make(map[string]*Answer, len(answers))
 	for _, a := range answers {
 		byQ[a.QuestionID] = a
@@ -463,19 +499,24 @@ func (s *Service) close(tx Tx, sess *Session, att *Attempt, reason SubmitReason)
 			continue
 		}
 		res := grading.Grade(pub.Exam.Questions[sl.QuestionID], pub.Exam.Key.Answers[sl.QuestionID], a.Response)
+		if void[sl.QuestionID] {
+			res.Points = 0
+		}
 		if err := tx.SetAnswerGrade(att.ID, sl.QuestionID, res.Points, res.Correct); err != nil {
 			return err
 		}
 		score += res.Points
 	}
-	now := s.clock()
-	att.State, att.SubmittedAt, att.SubmitReason = AttemptSubmitted, now, reason
-	att.Score = roundScore(score)
-	if err := tx.UpdateAttempt(att); err != nil {
+	att.Score = roundScore(max(0, score-pointsLost(penalties)))
+	return nil
+}
+
+// regrade recomputes the score of a closed attempt after a penalty changed.
+func (s *Service) regrade(tx Tx, sess *Session, att *Attempt) error {
+	if err := s.grade(tx, sess, att); err != nil {
 		return err
 	}
-	return tx.InsertEvent(&Event{SessionID: att.SessionID, AttemptID: att.ID, Kind: "attempt.submitted", Severity: SeverityInfo,
-		Data: map[string]any{"reason": string(reason), "score": att.Score, "max": att.MaxScore}, ReceivedAt: now})
+	return tx.UpdateAttempt(att)
 }
 
 func roundScore(v float64) float64 { return float64(int64(v*1e4+0.5)) / 1e4 }
@@ -614,6 +655,8 @@ type AttemptDetail struct {
 	Participant *Participant
 	Answers     []*Answer
 	Exam        *exam.Published
+	Penalties   []*Penalty
+	Opened      map[string]time.Time // timed questions: when each was first opened
 }
 
 // Attempt loads an attempt with its session, participant, answers and exam.
@@ -631,6 +674,12 @@ func (s *Service) Attempt(ctx context.Context, attemptID string) (*AttemptDetail
 			return err
 		}
 		if d.Answers, err = tx.ListAnswers(attemptID); err != nil {
+			return err
+		}
+		if d.Penalties, err = tx.ListPenalties(attemptID); err != nil {
+			return err
+		}
+		if d.Opened, err = tx.ListOpened(attemptID); err != nil {
 			return err
 		}
 		d.Exam, err = s.published(tx, d.Session.ExamHash)
@@ -705,8 +754,12 @@ func newID() string {
 
 func randomUint64() uint64 {
 	var b [8]byte
-	if _, err := rand.Read(b[:]); err != nil {
+	randomBytes(b[:])
+	return binary.LittleEndian.Uint64(b[:])
+}
+
+func randomBytes(b []byte) {
+	if _, err := rand.Read(b); err != nil {
 		panic(err)
 	}
-	return binary.LittleEndian.Uint64(b[:])
 }

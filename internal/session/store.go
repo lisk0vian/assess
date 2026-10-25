@@ -3,6 +3,7 @@ package session
 import (
 	"context"
 	"errors"
+	"time"
 
 	"github.com/lisk0vian/assess/internal/exam"
 )
@@ -48,6 +49,15 @@ type Tx interface {
 	ListAnswers(attemptID string) ([]*Answer, error)
 	SetAnswerGrade(attemptID, questionID string, points float64, correct bool) error
 
+	InsertPenalty(p *Penalty) error
+	ListPenalties(attemptID string) ([]*Penalty, error)
+	GetPenalty(id int64) (*Penalty, error)
+	RevertPenalty(id int64, at time.Time, note string) error
+	// OpenQuestion records the first time a question was opened and returns it.
+	OpenQuestion(attemptID, questionID string, at time.Time) (time.Time, error)
+	ListOpened(attemptID string) (map[string]time.Time, error)
+
 	InsertEvent(e *Event) error
+	CountEvents(attemptID, kind string) (int, error)
 	ListEvents(sessionID string) ([]*Event, error)
 }
