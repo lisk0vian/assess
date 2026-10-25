@@ -83,50 +83,56 @@ func newStartCmd() *cobra.Command {
 			"TUI never stops the exam; use `ax stop` for that.",
 		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			ctx := cmd.Context()
-			out := cmd.OutOrStdout()
-			dir, err := dataDir()
-			if err != nil {
-				return err
-			}
-			if h, st, _ := daemon.Check(dir); h == daemon.Running {
-				return fmt.Errorf("an exam is already running (%s); use `ax attach` or `ax stop`", st.ExamTitle)
-			}
-			pub, probs, err := exam.Publish(args[0])
-			if errors.Is(err, exam.ErrInvalidExam) {
-				printReport(cmd.ErrOrStderr(), validateReport{Path: args[0], Errors: probs.Count(exam.SeverityError), Warnings: probs.Count(exam.SeverityWarning), Problems: probs})
-				return errSilent
-			}
-			if err != nil {
-				return err
-			}
-			err = withService(ctx, dir, func(svc *session.Service) error {
-				if open, err := svc.OpenSession(ctx); err == nil {
-					return fmt.Errorf("session %s is still open without a server; use `ax resume` to continue it or `ax stop` to end it", open.Code)
-				} else if !errors.Is(err, session.ErrNotFound) {
-					return err
-				}
-				_, err := svc.CreateSession(ctx, pub, session.CreateOptions{Duration: duration})
-				return err
-			})
-			if err != nil {
-				return err
-			}
-			st, err := daemon.Spawn(dir, sf.daemonArgs(cmd))
-			if err != nil {
-				return err
-			}
-			printStarted(out, st, false)
-			if noAttach {
-				return nil
-			}
-			return attach(cmd, dir)
+			return startExam(cmd, &sf, args[0], duration, noAttach)
 		},
 	}
 	sf.register(cmd)
 	cmd.Flags().DurationVar(&duration, "duration", 0, "exam duration (default: the manifest's)")
 	cmd.Flags().BoolVar(&noAttach, "no-attach", false, "do not open the session panel")
 	return cmd
+}
+
+// startExam publishes the exam at examDir, opens its session and launches
+// the server in the background, then opens the panel unless noAttach.
+func startExam(cmd *cobra.Command, sf *serveFlags, examDir string, duration time.Duration, noAttach bool) error {
+	ctx := cmd.Context()
+	out := cmd.OutOrStdout()
+	dir, err := dataDir()
+	if err != nil {
+		return err
+	}
+	if h, st, _ := daemon.Check(dir); h == daemon.Running {
+		return fmt.Errorf("an exam is already running (%s); use `ax attach` or `ax stop`", st.ExamTitle)
+	}
+	pub, probs, err := exam.Publish(examDir)
+	if errors.Is(err, exam.ErrInvalidExam) {
+		printReport(cmd.ErrOrStderr(), validateReport{Path: examDir, Errors: probs.Count(exam.SeverityError), Warnings: probs.Count(exam.SeverityWarning), Problems: probs})
+		return errSilent
+	}
+	if err != nil {
+		return err
+	}
+	err = withService(ctx, dir, func(svc *session.Service) error {
+		if open, err := svc.OpenSession(ctx); err == nil {
+			return fmt.Errorf("session %s is still open without a server; use `ax resume` to continue it or `ax stop` to end it", open.Code)
+		} else if !errors.Is(err, session.ErrNotFound) {
+			return err
+		}
+		_, err := svc.CreateSession(ctx, pub, session.CreateOptions{Duration: duration})
+		return err
+	})
+	if err != nil {
+		return err
+	}
+	st, err := daemon.Spawn(dir, sf.daemonArgs(cmd))
+	if err != nil {
+		return err
+	}
+	printStarted(out, st, false)
+	if noAttach {
+		return nil
+	}
+	return attach(cmd, dir)
 }
 
 func printStarted(w io.Writer, st *daemon.State, resumed bool) {
