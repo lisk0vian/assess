@@ -1,16 +1,19 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Check } from "lucide-react";
 import type { Response } from "../api/client";
 import type { QuestionView } from "../api/types";
 import { t } from "../i18n";
 import { Markdown } from "./Markdown";
 import { iconProps } from "./ui";
+import { fromHex, unseal } from "../proctor/crypto";
 
 export interface AnswerProps {
   question: QuestionView;
   value: Response | undefined;
   disabled: boolean;
   onChange: (r: Response) => void;
+  /** Hex attempt key that unseals hover-only options. */
+  sealKey?: string;
 }
 
 const KEYS = "ABCDEFGHIJ";
@@ -28,10 +31,32 @@ export function Answer(props: AnswerProps) {
   }
 }
 
-function Choice({ question, value, disabled, onChange }: AnswerProps) {
+function Choice({ question, value, disabled, onChange, sealKey }: AnswerProps) {
   const multi = question.type === "multiple";
   const chosen = new Set(multi ? (value?.options ?? []) : value?.option ? [value.option] : []);
+
+  // reveal: hover — one option readable at a time, only while pointed at or
+  // focused. On touch the first tap reveals and the second one chooses.
+  const hover = question.reveal === "hover";
+  const key = useMemo(() => (sealKey ? fromHex(sealKey) : null), [sealKey]);
+  const [shown, setShown] = useState<string | null>(null);
+  const tapReveal = useRef<string | null>(null);
+  const hideTimer = useRef<number | undefined>(undefined);
+  useEffect(() => () => window.clearTimeout(hideTimer.current), []);
+  useEffect(() => setShown(null), [question.id]);
+  const hide = (id: string) => setShown((s) => (s === id ? null : s));
+  const textOf = (o: { id: string; text?: string; sealed?: string }) => {
+    if (!hover) return o.text ?? "";
+    if (shown !== o.id || !key || !o.sealed) return null;
+    return unseal(key, question.id, o.id, o.sealed);
+  };
+  const touchOnly = typeof matchMedia !== "undefined" && matchMedia("(pointer: coarse)").matches;
+
   const toggle = (id: string) => {
+    if (tapReveal.current === id) {
+      tapReveal.current = null;
+      return;
+    }
     if (disabled) return;
     if (!multi) return onChange(chosen.has(id) ? {} : { option: id });
     const next = new Set(chosen);
@@ -41,35 +66,59 @@ function Choice({ question, value, disabled, onChange }: AnswerProps) {
     onChange(ordered.length ? { options: ordered } : {});
   };
   return (
-    <div className="options" role={multi ? "group" : "radiogroup"} aria-labelledby="prompt" style={{ marginTop: 24 }}>
-      {(question.options ?? []).map((o, i) => {
-        const on = chosen.has(o.id);
-        return (
-          <button
-            key={o.id}
-            type="button"
-            role={multi ? "checkbox" : "radio"}
-            aria-checked={on}
-            aria-disabled={disabled}
-            className={`option ${multi ? "option--multi" : ""} ${on ? "is-selected" : ""} ${disabled ? "is-locked" : ""}`}
-            onClick={() => toggle(o.id)}
-          >
-            <span className="option__key">{KEYS[i]}</span>
-            <span className="option__text">
-              <Markdown text={o.text ?? ""} inline />
-            </span>
-            {on ? (
-              <span className="option__mark label">
-                {multi && <Check {...iconProps} size={16} />}
-                {multi ? t("chosen") : t("your_answer")}
+    <>
+      {hover && <p className="label reveal-hint">{t(touchOnly ? "reveal_touch" : "reveal_hint")}</p>}
+      <div className="options" role={multi ? "group" : "radiogroup"} aria-labelledby="prompt" style={{ marginTop: hover ? 10 : 24 }}>
+        {(question.options ?? []).map((o, i) => {
+          const on = chosen.has(o.id);
+          const text = textOf(o);
+          return (
+            <button
+              key={o.id}
+              type="button"
+              role={multi ? "checkbox" : "radio"}
+              aria-checked={on}
+              aria-disabled={disabled}
+              aria-label={text === null ? t("veiled", { k: KEYS[i] }) : undefined}
+              className={`option ${multi ? "option--multi" : ""} ${on ? "is-selected" : ""} ${disabled ? "is-locked" : ""} ${text === null ? "is-veiled" : ""}`}
+              onClick={() => toggle(o.id)}
+              onPointerEnter={hover ? (e) => e.pointerType !== "touch" && setShown(o.id) : undefined}
+              onPointerLeave={hover ? (e) => e.pointerType !== "touch" && hide(o.id) : undefined}
+              onPointerDown={
+                hover
+                  ? (e) => {
+                      if (e.pointerType !== "touch" || shown === o.id) return;
+                      tapReveal.current = o.id;
+                      setShown(o.id);
+                      window.clearTimeout(hideTimer.current);
+                      hideTimer.current = window.setTimeout(() => hide(o.id), 4000);
+                    }
+                  : undefined
+              }
+              onFocus={hover ? () => setShown(o.id) : undefined}
+              onBlur={hover ? () => hide(o.id) : undefined}
+            >
+              <span className="option__key">{KEYS[i]}</span>
+              <span className="option__text">
+                {text === null ? (
+                  <span className="veil" style={{ width: `${Math.min(34, Math.max(8, Math.round(((o.sealed?.length ?? 0) * 3) / 4)))}ch` }} />
+                ) : (
+                  <Markdown text={text} inline />
+                )}
               </span>
-            ) : (
-              <span />
-            )}
-          </button>
-        );
-      })}
-    </div>
+              {on ? (
+                <span className="option__mark label">
+                  {multi && <Check {...iconProps} size={16} />}
+                  {multi ? t("chosen") : t("your_answer")}
+                </span>
+              ) : (
+                <span />
+              )}
+            </button>
+          );
+        })}
+      </div>
+    </>
   );
 }
 

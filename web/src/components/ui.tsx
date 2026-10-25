@@ -87,6 +87,7 @@ export interface Toast {
   kind: "yours" | "plain" | "inverse";
   title: string;
   body?: string;
+  action?: { label: string; run: () => void };
 }
 
 export function Toasts({ toasts, onClose }: { toasts: Toast[]; onClose: (id: string) => void }) {
@@ -98,6 +99,18 @@ export function Toasts({ toasts, onClose }: { toasts: Toast[]; onClose: (id: str
           <div>
             <div className="notice__title">{n.title}</div>
             {n.body && <div className="notice__body">{n.body}</div>}
+            {n.action && (
+              <button
+                className="btn btn--sm"
+                style={{ marginTop: 10 }}
+                onClick={() => {
+                  n.action!.run();
+                  onClose(n.id);
+                }}
+              >
+                {n.action.label}
+              </button>
+            )}
           </div>
           <button className="btn btn--icon btn--sm btn--quiet" aria-label={t("close")} onClick={() => onClose(n.id)}>
             <X {...iconProps} />

@@ -118,3 +118,43 @@ button.tf__opt { border: 0; background: transparent; color: inherit; }
   .exam > .strip { display: grid; margin: 12px 12px 0; }
   .record__cell--status { display: none; }
 }
+
+/* ---------- Integrity (phase 5) ---------- */
+/* The exam text cannot be selected; the student's own answers can. */
+.exam.is-guarded { -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; }
+.exam.is-guarded input, .exam.is-guarded textarea { -webkit-user-select: text; user-select: text; }
+
+.tablelike { width: 100%; border-collapse: collapse; }
+.tablelike th { padding: 10px 12px 10px 0; text-align: left; border-bottom: 1px solid var(--rule-strong); font: var(--text-label); letter-spacing: var(--tracking-label); text-transform: uppercase; color: var(--ink-2); }
+.tablelike td { height: 48px; padding: 8px 12px 8px 0; border-bottom: 1px solid var(--rule); line-height: 1.35; }
+.tablelike td + td { font-weight: 600; }
+.pledge h1 { margin-top: 20px; }
+.pledge-target { padding: 12px 14px; border: 1px dashed var(--rule-strong); font-weight: 600; -webkit-user-select: none; user-select: none; }
+
+/* Hover-only options: a ruled bar stands in for text that is not on the page. */
+.option.is-veiled .option__text { filter: none; opacity: 1; }
+.veil { display: inline-block; max-width: 100%; height: 14px; vertical-align: middle; border: 1px solid var(--rule); background: var(--hatch-ink), var(--surface-2); opacity: .45; }
+.option.is-veiled:hover .veil, .option.is-veiled:focus-visible .veil { opacity: .7; }
+.reveal-hint { margin-top: 24px; }
+
+/* The curtain hides the exam instantly; the countdown is opaque. */
+.overlay.curtain { position: fixed; z-index: 35; }
+.overlay.curtain--count { background: var(--bg); backdrop-filter: none; -webkit-backdrop-filter: none; }
+.curtain .panel__count { font-variant-numeric: tabular-nums; }
+
+/* Timed questions: opening is a choice, because it starts the clock. */
+.timed-gate { display: grid; justify-items: start; gap: 4px; padding: 34px 0 6px; max-width: 520px; }
+.timed-gate .panel__title { margin: 12px 0 4px; }
+.timed-gate .btn { margin-top: 18px; }
+
+.sheet-note { display: grid; gap: 4px; margin: 0 0 8px; padding: 12px 14px; background: var(--inverse); color: var(--on-inverse); }
+.sheet-note b { font: 800 17px/1.1 var(--font-display); letter-spacing: .1em; text-transform: uppercase; }
+.sheet-note span { font: var(--text-small); color: var(--on-inverse-2); }
+
+.swatch--void { background: linear-gradient(to top right, transparent calc(50% - 1px), var(--ink) 50%, transparent calc(50% + 1px)), var(--surface); }
+.exam > header .strikes span { white-space: nowrap; }
+@media (max-width: 960px) {
+  .exam > header .strikes { gap: 4px; }
+  .exam > header .strikes i { width: 12px; height: 12px; }
+  .exam > header .strikes span { margin-left: 4px; font-size: 13px; }
+}

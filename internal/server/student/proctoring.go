@@ -100,9 +100,9 @@ func (a *away) start(attemptID, kind string, at time.Time) {
 	if a.since == nil {
 		a.since = map[string]time.Time{}
 	}
-	if _, ok := a.since[attemptID+"|"+kind]; !ok {
-		a.since[attemptID+"|"+kind] = at
-	}
+	// A start always wins: an episode the browser folded into another one
+	// (focus loss that became a hidden tab) never sent its end.
+	a.since[attemptID+"|"+kind] = at
 }
 
 func (a *away) end(attemptID, kind string, at time.Time) (time.Duration, bool) {

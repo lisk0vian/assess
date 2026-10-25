@@ -197,6 +197,29 @@ reversed, edit it here and note why in the commit.
   question (plus 5 s grace); voided questions reject answers and score 0.
 - The honour pledge is recorded once per attempt (`POST /api/pledge`).
 
+## Student integrity UI (implemented in phase 5)
+
+- Before the exam (standard and strict), a sheet lists what is recorded and
+  its consequence for the exam's profile, and the student types the honour
+  pledge (pasting is disabled). "Start" is also the gesture fullscreen needs;
+  `suggested` offers a windowed start.
+- During the exam: strike boxes in the header, a watermark with name, ID and
+  time over the sheet, text selection, copy, paste and right-click blocked
+  (copies get a poisoned clipboard), and every signal signed and sent on the
+  live socket (queued while it is down).
+- One continuous absence is one episode, counted as its most serious kind
+  (hidden tab > out of fullscreen > focus elsewhere). The curtain hides the
+  exam at once; past the warning threshold it becomes a countdown to the
+  strike, mirrored in the tab title. A strike shows "Strike n of N" with the
+  reason and a reminder that the teacher can revert it; warnings are a quiet
+  notice.
+- Hover-only options show a ruled bar until pointed at, focused or tapped
+  (first tap reveals, second chooses); only one is readable at a time.
+- Timed questions ask before opening, because opening starts their clock;
+  an exposure bar counts down and the answer locks at zero. Voided questions
+  say so and lock.
+- `devices: desktop` turns away touch-only devices before the exam.
+
 ## Anti-cheat (browser APIs only — no installs, no Safe Exam Browser)
 
 **Deter**

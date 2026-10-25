@@ -9,9 +9,14 @@ packages:
     include_files: ["views.go"]
     frontmatter: |
       import type { Response } from "./grading";
+      import type { Thresholds } from "./proctor";
     type_mappings:
       grading.Response: "Response"
       session.State: '"lobby" | "running" | "ended"'
       session.AttemptState: '"active" | "submitted" | "annulled" | "withdrawn"'
       session.SubmitReason: '"manual" | "timeout" | "ended" | ""'
       session.PenaltyKind: '"strike" | "time" | "void" | "points"'
+      proctor.Thresholds: "Thresholds"
+  - path: "github.com/lisk0vian/assess/internal/proctor"
+    output_path: "web/src/api/proctor.ts"
+    include_files: ["thresholds.go"]

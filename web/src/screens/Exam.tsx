@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import * as Dialog from "@radix-ui/react-dialog";
-import { ArrowLeft, ArrowRight, List, X } from "lucide-react";
+import { ArrowLeft, ArrowRight, List, Timer, X } from "lucide-react";
 import { api, ApiError, type Response } from "../api/client";
 import type { MeView, QuestionView } from "../api/types";
 import { points, t, type Key } from "../i18n";
@@ -8,6 +8,8 @@ import { AnswerQueue } from "../state/answerQueue";
 import { Answer } from "../components/Answer";
 import { Markdown } from "../components/Markdown";
 import { clock, iconProps, RecordRow, SaveStatus, timerStage, Toasts, Wordmark, type Toast } from "../components/ui";
+import { fullscreenSupported, useProctor } from "../proctor/useProctor";
+import { Curtain, hhmm, Strikes, Watermark } from "../proctor/ProctorUI";
 
 interface Props {
   me: MeView;
@@ -18,6 +20,7 @@ interface Props {
 
 const typeKey: Record<string, Key> = { single: "t_single", multiple: "t_multiple", truefalse: "t_truefalse", short: "t_short" };
 const pad = (n: number) => String(n).padStart(2, "0");
+const portal = () => document.getElementById("portal") ?? undefined;
 const answered = (r: Response | undefined) => !!r && (!!r.option || !!r.options?.length || r.value !== undefined || !!r.text?.trim());
 
 export function Exam({ me, now, setMe, reportAt }: Props) {
@@ -30,6 +33,8 @@ export function Exam({ me, now, setMe, reportAt }: Props) {
   const [indexOpen, setIndexOpen] = useState(false);
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+  // Timed questions the student chose to open in this page (opening starts their clock).
+  const [opened, setOpened] = useState<Set<string>>(() => new Set(questions.filter((x) => x.closes_at).map((x) => x.id)));
 
   // Flags are a study aid, kept in this browser only.
   const flagKey = `assess-flags:${me.exam.id}:${me.student.student_id}`;
@@ -93,6 +98,7 @@ export function Exam({ me, now, setMe, reportAt }: Props) {
     async (i: number) => {
       const id = questions[i]?.id;
       if (!id || cache[id]) return;
+      if (questions[i].time_limit_ms && !opened.has(id)) return;
       try {
         const qv = await api.question(id);
         setCache((c) => ({ ...c, [id]: qv }));
@@ -101,7 +107,7 @@ export function Exam({ me, now, setMe, reportAt }: Props) {
         window.setTimeout(() => void load(i), 2000);
       }
     },
-    [questions, cache],
+    [questions, cache, opened],
   );
   useEffect(() => {
     void load(index);
@@ -110,12 +116,41 @@ export function Exam({ me, now, setMe, reportAt }: Props) {
 
   const current = questions[index];
   const question = current ? cache[current.id] : undefined;
+
+  // Integrity: signals, curtain, strikes. Only with a telemetry key.
+  const proc = me.proctoring;
+  const watching = !!proc.key;
+  const away = useProctor({
+    enabled: watching,
+    fullscreenRequired: proc.fullscreen === "required",
+    questionID: current?.id ?? "",
+    clipboardNote: () => t("clipboard_note", { id: me.student.student_id, time: hhmm() }),
+  });
+  useEffect(() => {
+    if (watching && proc.fullscreen === "suggested" && fullscreenSupported() && !document.fullscreenElement) {
+      toast({
+        kind: "plain",
+        title: t("fs_suggest_title"),
+        body: t("fs_suggest_body"),
+        action: { label: t("fs_enter"), run: () => void document.documentElement.requestFullscreen().catch(() => undefined) },
+      });
+    }
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Per-question state: voided by a penalty, or a time limit that ran out.
+  const voided = !!(question?.voided ?? current?.voided);
+  const limitMs = current?.time_limit_ms ?? 0;
+  const closesAt = question?.closes_at ?? current?.closes_at ?? 0;
+  const qLeft = closesAt ? closesAt - tick : 0;
+  const qClosed = !!closesAt && qLeft <= 0;
+  const gated = !!limitMs && !opened.has(current?.id ?? "");
+  const locked = timeUp || voided || qClosed;
   useEffect(() => {
     if (current && view === "question") reportAt(current.id);
   }, [current, view, reportAt]);
 
   const change = (r: Response) => {
-    if (!current || timeUp) return;
+    if (!current || locked) return;
     setAnswers((a) => ({ ...a, [current.id]: r }));
     q.put(current.id, r);
   };
@@ -168,6 +203,8 @@ export function Exam({ me, now, setMe, reportAt }: Props) {
 
   const stateOf = (id: string, i: number): { key: Key; swatch: string } => {
     if (i === index && view === "question") return { key: "st_here", swatch: answered(answers[id]) ? "swatch--done" : "" };
+    const sum = questions[i] ?? questions.find((x) => x.id === id);
+    if (sum?.voided || cache[id]?.voided) return { key: "st_voided", swatch: "swatch--void" };
     if (flags.has(id)) return { key: "st_flagged", swatch: "swatch--flag" };
     if (answered(answers[id])) return { key: "st_answered", swatch: "swatch--done" };
     return { key: "st_pending", swatch: "" };
@@ -194,12 +231,18 @@ export function Exam({ me, now, setMe, reportAt }: Props) {
   );
 
   return (
-    <div className="exam">
+    <div className={`exam ${watching ? "is-guarded" : ""}`}>
       <header className="cells">
         <div className="cell">
           <Wordmark />
           <span className="label desktop-only">{t("in_progress")}</span>
-          <span className="label mobile-only" style={{ maxWidth: "52vw", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{me.exam.title}</span>
+          {watching ? (
+            <span className="mobile-only">
+              <Strikes n={proc.strikes} limit={proc.strike_limit} compact />
+            </span>
+          ) : (
+            <span className="label mobile-only" style={{ maxWidth: "52vw", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{me.exam.title}</span>
+          )}
         </div>
         <div className="cell desktop-only">
           <span className="label">{t("exam")}</span>
@@ -209,6 +252,12 @@ export function Exam({ me, now, setMe, reportAt }: Props) {
           <span className="label">{t("student")}</span>
           <b>{me.student.name} · {me.student.student_id}</b>
         </div>
+        {watching && (
+          <div className="cell desktop-only">
+            <span className="label">{t("warnings")}</span>
+            <Strikes n={proc.strikes} limit={proc.strike_limit} />
+          </div>
+        )}
         <div className={`cell timer ${stage.className}`} style={{ border: 0, minWidth: 0 }} role="timer" aria-live="off">
           <span className="label">{t(stage.label)}</span>
           <span className="clock">{clock(remaining)}</span>
@@ -237,20 +286,52 @@ export function Exam({ me, now, setMe, reportAt }: Props) {
               {index + 1 < questions.length && <span className="stack__peek label">{t("next_sheet", { n: pad(index + 2) })}</span>}
             </div>
             <section className="sheet" aria-labelledby="prompt">
+              {watching && <Watermark me={me} />}
               <RecordRow
                 cells={[
                   { label: "question", numeral: true, value: <>{pad(index + 1)}<em> / {pad(questions.length)}</em></> },
                   { label: "value", value: points(current.points) },
                   { label: "type", value: t(typeKey[current.type] ?? "t_short") },
-                  { label: "status", className: "record__cell--status", value: answered(answers[current.id]) ? t("saved") : t("unsaved") },
+                  { label: "status", className: "record__cell--status", value: voided ? t("st_voided") : qClosed ? t("st_closed") : answered(answers[current.id]) ? t("saved") : t("unsaved") },
                 ]}
               />
-              {question ? (
+              {gated ? (
+                <div className="timed-gate">
+                  <Timer size={28} strokeWidth={2} strokeLinecap="square" />
+                  <h2 className="panel__title">{t("timed_title")}</h2>
+                  <p className="muted">{t("timed_body", { time: clock(limitMs) })}</p>
+                  <button className="btn btn--primary" onClick={() => setOpened((o) => new Set(o).add(current.id))}>
+                    {t("timed_open")}
+                    <ArrowRight {...iconProps} />
+                  </button>
+                </div>
+              ) : question ? (
                 <>
+                  {limitMs > 0 && closesAt > 0 && (
+                    <div className={`exposure ${qClosed ? "is-closed" : ""}`} style={{ marginTop: 22 }} role="timer" aria-label={t("timed_left")}>
+                      <span className="label">{t("timed_left")}</span>
+                      <div className="exposure__track">
+                        <div className="exposure__fill" style={{ width: `${Math.max(0, Math.min(100, (qLeft / limitMs) * 100))}%` }} />
+                      </div>
+                      <span className="exposure__time">{clock(qLeft)}</span>
+                    </div>
+                  )}
                   <div id="prompt" className={question.prompt.length <= 140 && !question.prompt.includes("\n\n") ? "prompt" : "prompt prompt--long"}>
                     <Markdown text={question.prompt} />
                   </div>
-                  <Answer question={question} value={answers[current.id]} disabled={timeUp} onChange={change} />
+                  {voided && (
+                    <div className="sheet-note" role="note">
+                      <b>{t("voided_title")}</b>
+                      <span>{t("voided_body")}</span>
+                    </div>
+                  )}
+                  {qClosed && !voided && (
+                    <div className="sheet-note" role="note">
+                      <b>{t("st_closed")}</b>
+                      <span>{t("timed_closed")}</span>
+                    </div>
+                  )}
+                  <Answer question={question} value={answers[current.id]} disabled={locked} onChange={change} sealKey={proc.key} />
                 </>
               ) : (
                 <p className="muted" style={{ marginTop: 30 }}>{t("loading")}</p>
@@ -364,7 +445,7 @@ export function Exam({ me, now, setMe, reportAt }: Props) {
       </nav>
 
       <Dialog.Root open={indexOpen} onOpenChange={setIndexOpen}>
-        <Dialog.Portal>
+        <Dialog.Portal container={portal()}>
           <Dialog.Overlay className="dialog-overlay" />
           <div className="dialog-wrap" style={{ placeItems: "end stretch", padding: 0 }}>
             <Dialog.Content className="sheet-index dialog" style={{ width: "100%" }}>
@@ -382,7 +463,7 @@ export function Exam({ me, now, setMe, reportAt }: Props) {
       </Dialog.Root>
 
       <Dialog.Root open={confirmOpen} onOpenChange={setConfirmOpen}>
-        <Dialog.Portal>
+        <Dialog.Portal container={portal()}>
           <Dialog.Overlay className="dialog-overlay" />
           <div className="dialog-wrap">
             <Dialog.Content className="dialog" role="alertdialog">
@@ -412,6 +493,8 @@ export function Exam({ me, now, setMe, reportAt }: Props) {
           </div>
         </div>
       )}
+
+      {away && !timeUp && <Curtain away={away} me={me} />}
 
       <Toasts toasts={toasts} onClose={(id) => setToasts((all) => all.filter((x) => x.id !== id))} />
     </div>

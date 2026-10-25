@@ -10,6 +10,7 @@ import (
 
 	"github.com/lisk0vian/assess/internal/exam"
 	"github.com/lisk0vian/assess/internal/grading"
+	"github.com/lisk0vian/assess/internal/proctor"
 	"github.com/lisk0vian/assess/internal/session"
 )
 
@@ -39,6 +40,8 @@ type ProctoringView struct {
 	SignalSeq   int64  `json:"signal_seq"`
 	Pledged     bool   `json:"pledged"`
 	Strikes     int    `json:"strikes"`
+	// Away limits for countdowns, ms.
+	Thresholds proctor.Thresholds `json:"thresholds"`
 }
 
 // PenaltyView is an active penalty, shown to the student for transparency.
@@ -88,13 +91,14 @@ type AttemptView struct {
 
 // QuestionSummary is one entry of the attempt's layout.
 type QuestionSummary struct {
-	ID       string  `json:"id"`
-	Number   int     `json:"number"`
-	Type     string  `json:"type"`
-	Points   float64 `json:"points"`
-	Answered bool    `json:"answered"`
-	Voided   bool    `json:"voided,omitempty"`
-	ClosesAt int64   `json:"closes_at,omitempty"` // Unix ms, timed questions once opened
+	ID          string  `json:"id"`
+	Number      int     `json:"number"`
+	Type        string  `json:"type"`
+	Points      float64 `json:"points"`
+	Answered    bool    `json:"answered"`
+	Voided      bool    `json:"voided,omitempty"`
+	TimeLimitMs int64   `json:"time_limit_ms,omitempty"` // opening the question starts its clock
+	ClosesAt    int64   `json:"closes_at,omitempty"`     // Unix ms, timed questions once opened
 }
 
 // QuestionView is a full question without any scoring information.
@@ -176,13 +180,14 @@ func buildMe(d *session.AttemptDetail, now time.Time) MeView {
 		q := d.Exam.Exam.Questions[sl.QuestionID]
 		_, answered := v.Answers[sl.QuestionID]
 		v.Questions = append(v.Questions, QuestionSummary{ID: q.ID, Number: i + 1, Type: q.Type, Points: sl.Points,
-			Answered: answered, Voided: void[q.ID], ClosesAt: closesAt(d, q.ID)})
+			Answered: answered, Voided: void[q.ID], TimeLimitMs: q.TimeLimit.D().Milliseconds(), ClosesAt: closesAt(d, q.ID)})
 	}
 
 	set := session.ProctorSettings(&m)
 	v.Proctoring = ProctoringView{
 		Profile: set.Profile, Fullscreen: set.Fullscreen, Devices: set.Devices, StrikeLimit: set.StrikeLimit,
 		GraceMs: set.Grace.Milliseconds(), SignalSeq: a.SignalSeq, Pledged: !a.PledgedAt.IsZero(),
+		Thresholds: set.Thresholds(),
 	}
 	if a.State == session.AttemptActive && set.Enabled() {
 		v.Proctoring.Key = session.TelemetryKey(d.Session, a.ID)

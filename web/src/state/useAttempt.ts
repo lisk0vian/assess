@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { api, ApiError } from "../api/client";
 import type { MeView } from "../api/types";
 import { setLanguage } from "../i18n";
+import { telemetry, type Verdict } from "../proctor/telemetry";
 
 export type Phase = "loading" | "anonymous" | "ready" | "error";
 
@@ -23,12 +24,14 @@ export function useAttempt() {
   const [live, setLive] = useState(false);
   const [paused, setPaused] = useState(false);
   const [messages, setMessages] = useState<TeacherMessage[]>([]);
+  const [verdict, setVerdict] = useState<Verdict | null>(null);
   const socket = useRef<WebSocket | null>(null);
   const lastAt = useRef("");
   const offset = useRef(0);
 
   const setMe = useCallback((next: MeView) => {
     offset.current = next.server_now - Date.now();
+    telemetry.configure(next.proctoring.key, next.proctoring.signal_seq);
     setLanguage(next.exam.language);
     setMeState(next);
     setPhase("ready");
@@ -64,11 +67,12 @@ export function useAttempt() {
       ws.onopen = () => {
         delay = 1000;
         setLive(true);
+        telemetry.attach((m) => ws?.send(m));
         if (lastAt.current) ws?.send(JSON.stringify({ type: "at", question: lastAt.current }));
         void reload(); // catch up on anything missed while disconnected
       };
       ws.onmessage = (e: MessageEvent<string>) => {
-        let msg: { type?: string; text?: string; on?: boolean } = {};
+        let msg: { type?: string; text?: string; on?: boolean } & Partial<Verdict> = {};
         try {
           msg = JSON.parse(e.data);
         } catch {
@@ -76,10 +80,12 @@ export function useAttempt() {
         }
         if (msg.type === "message" && msg.text) setMessages((m) => [...m, { id: crypto.randomUUID(), text: msg.text! }]);
         else if (msg.type === "pause") setPaused(!!msg.on);
+        else if (msg.type === "verdict") setVerdict({ ...(msg as Verdict) });
         else void reload();
       };
       ws.onclose = () => {
         setLive(false);
+        telemetry.detach();
         if (stopped) return;
         retry = window.setTimeout(connect, delay);
         delay = Math.min(delay * 2, 15_000);
@@ -113,5 +119,7 @@ export function useAttempt() {
 
   const dismiss = useCallback((id: string) => setMessages((m) => m.filter((x) => x.id !== id)), []);
 
-  return { phase, me, setMe, reload, now, live, paused, messages, dismiss, reportAt };
+  const clearVerdict = useCallback(() => setVerdict(null), []);
+
+  return { phase, me, setMe, reload, now, live, paused, messages, dismiss, reportAt, verdict, clearVerdict };
 }

@@ -9,7 +9,7 @@ import "time"
 const (
 	Hidden         = "hidden"          // the exam tab was hidden for DurationMs
 	Blur           = "blur"            // the window lost focus while visible for DurationMs
-	Copy           = "copy"            // copy, cut, context menu or PrintScreen on the exam
+	Copy           = "copy"            // copy, cut or PrintScreen on the exam (right-click is only blocked)
 	PasteInput     = "paste_input"     // text pasted, dropped or inserted by an extension into an answer
 	Burst          = "burst"           // text appeared faster than anyone types
 	FullscreenExit = "fullscreen_exit" // left fullscreen for DurationMs (required mode)
@@ -96,6 +96,7 @@ func (s Settings) Decide(sig Signal) Decision {
 		return Decision{Ignore: true}
 	}
 	strict := s.Profile == "strict"
+	th := s.Thresholds()
 	d := sig.DurationMs
 	pick := func(strictD, standardD Decision) Decision {
 		if strict {
@@ -105,10 +106,7 @@ func (s Settings) Decide(sig Signal) Decision {
 	}
 	switch sig.Kind {
 	case Hidden:
-		lo, hi := int64(3000), int64(15000)
-		if !strict {
-			lo, hi = 5000, 30000
-		}
+		lo, hi := th.HiddenWarn, th.HiddenStrike
 		switch {
 		case d < lo:
 			return Decision{Ignore: true}
@@ -122,10 +120,7 @@ func (s Settings) Decide(sig Signal) Decision {
 			return out
 		}
 	case Blur:
-		lo, hi := int64(2000), int64(10000)
-		if !strict {
-			lo, hi = 3000, 20000
-		}
+		lo, hi := th.BlurWarn, th.BlurStrike
 		switch {
 		case d < lo:
 			return Decision{Ignore: true}
@@ -145,7 +140,7 @@ func (s Settings) Decide(sig Signal) Decision {
 		if s.Fullscreen != "required" {
 			return Decision{Severity: Info}
 		}
-		if d > 10000 {
+		if d > th.FullscreenStrike {
 			return Decision{Severity: High, Warn: true, Strike: true}
 		}
 		return Decision{Severity: Warn}
