@@ -51,11 +51,11 @@ read it. Encryption applies only to exported `.examx` packages.
 | `instructions` | Markdown | no | — | Shown before starting. |
 | `order.shuffle_questions` | bool | no | `true` | Per-attempt, seed stored. |
 | `order.shuffle_options` | bool | no | `true` | Options with `pin: true` keep their position. |
-| `proctoring.profile` | `off` \| `standard` \| `strict` | no | `standard` | Presets; individual settings override them. |
-| `proctoring.fullscreen` | `off` \| `suggested` \| `required` | no | profile | `required` shows the exam only in fullscreen; leaving it starts a 10 s countdown. Default: `off` for `off`, `suggested` for `standard`, `required` for `strict`. |
-| `proctoring.devices` | `any` \| `desktop` | no | profile | `desktop` turns away phones and tablets. Default `desktop` for `strict`, `any` otherwise. |
-| `proctoring.reveal` | `always` \| `hover` | no | profile | Default for every question: `hover` keeps options hidden until pointed at. Default `hover` for `strict`. |
-| `proctoring.strike_limit` | 1–10 | no | `3` | Strikes that annul the attempt. |
+| `proctoring.profile` | `off` \| `standard` \| `strict` | no | `standard` | `standard` and `strict` turn on every protection and differ in tolerance (`strict` annuls at the second strike); `off` turns everything off and ignores the settings below. |
+| `proctoring.fullscreen` | `off` \| `suggested` \| `required` | no | `required` | `required` shows the exam only in fullscreen; leaving it starts a countdown (5 s `standard`, 3 s `strict`). |
+| `proctoring.devices` | `any` \| `desktop` | no | profile | `desktop` turns away phones and tablets. Default `desktop` for `strict`, `any` for `standard`. |
+| `proctoring.reveal` | `always` \| `hover` | no | `hover` | Default for every question: `hover` keeps options hidden until pointed at. |
+| `proctoring.strike_limit` | 1–10 | no | profile | Strikes that annul the attempt. Default 3 for `standard`, 2 for `strict`. |
 | `items` | list | yes | — | Ordered list of `question` or `pool` entries. |
 | `branding.accent` | hex color | no | — | Accent color for the student UI. |
 | `branding.logo` | path | no | — | File under `assets/`. |

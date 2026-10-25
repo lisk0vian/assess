@@ -1,4 +1,4 @@
-import type { ReactNode } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import { Check, Clock, LoaderCircle, WifiOff, X } from "lucide-react";
 import { t, type Key } from "../i18n";
 import type { SaveState } from "../state/answerQueue";
@@ -93,33 +93,64 @@ export interface Toast {
   action?: { label: string; run: () => void };
 }
 
+/** How long a notice stays: long enough to read, short enough not to bother. */
+const toastMs = (n: Toast) => Math.min(12_000, 5_000 + ((n.title.length + (n.body?.length ?? 0)) * 40));
+
 export function Toasts({ toasts, onClose }: { toasts: Toast[]; onClose: (id: string) => void }) {
   return (
     <div className="toasts" aria-live="polite">
       {toasts.map((n) => (
-        <div key={n.id} className={`notice ${n.kind === "yours" ? "notice--yours" : n.kind === "inverse" ? "notice--inverse" : ""}`}>
-          {n.kind === "plain" ? <Clock size={28} strokeWidth={2} strokeLinecap="square" /> : <i className="notice__mark" />}
-          <div>
-            <div className="notice__title">{n.title}</div>
-            {n.body && <div className="notice__body">{n.body}</div>}
-            {n.action && (
-              <button
-                className="btn btn--sm"
-                style={{ marginTop: 10 }}
-                onClick={() => {
-                  n.action!.run();
-                  onClose(n.id);
-                }}
-              >
-                {n.action.label}
-              </button>
-            )}
-          </div>
-          <button className="btn btn--icon btn--sm btn--quiet" aria-label={t("close")} onClick={() => onClose(n.id)}>
-            <X {...iconProps} />
-          </button>
-        </div>
+        <ToastItem key={n.id} n={n} onClose={onClose} />
       ))}
+    </div>
+  );
+}
+
+/**
+ * Every notice closes itself after a short time (paused while pointed at or
+ * focused, so it can be read), and can be closed sooner with its button.
+ */
+function ToastItem({ n, onClose }: { n: Toast; onClose: (id: string) => void }) {
+  const [held, setHeld] = useState(false);
+  // Parents re-render every second (the clock) with new callbacks and
+  // objects: the timer depends only on this notice's id and the hover state.
+  const close = useRef(onClose);
+  close.current = onClose;
+  const [ms] = useState(() => toastMs(n));
+  useEffect(() => {
+    if (held) return;
+    const id = window.setTimeout(() => close.current(n.id), ms);
+    return () => window.clearTimeout(id);
+  }, [held, n.id, ms]);
+  return (
+    <div
+      className={`notice ${n.kind === "yours" ? "notice--yours" : n.kind === "inverse" ? "notice--inverse" : ""}`}
+      onPointerEnter={() => setHeld(true)}
+      onPointerLeave={() => setHeld(false)}
+      onFocus={() => setHeld(true)}
+      onBlur={() => setHeld(false)}
+    >
+      {n.kind === "plain" ? <Clock size={28} strokeWidth={2} strokeLinecap="square" /> : <i className="notice__mark" />}
+      <div>
+        <div className="notice__title">{n.title}</div>
+        {n.body && <div className="notice__body">{n.body}</div>}
+        {n.action && (
+          <button
+            className="btn btn--sm"
+            style={{ marginTop: 10 }}
+            onClick={() => {
+              n.action!.run();
+              onClose(n.id);
+            }}
+          >
+            {n.action.label}
+          </button>
+        )}
+      </div>
+      <button className="btn btn--icon btn--sm btn--quiet" aria-label={t("close")} onClick={() => onClose(n.id)}>
+        <X {...iconProps} />
+      </button>
+      {!held && <i className="notice__timer" style={{ animationDuration: `${ms}ms` }} aria-hidden="true" />}
     </div>
   );
 }

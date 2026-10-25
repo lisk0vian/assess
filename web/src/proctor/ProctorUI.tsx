@@ -78,7 +78,9 @@ export function Curtain({ away, me }: { away: Away; me: MeView }) {
   }, [counting, left]);
 
   const next = { n: me.proctoring.strikes + 1, limit: me.proctoring.strike_limit };
-  if (away.kind === "fullscreen_exit") {
+  // Out of fullscreen right now: the only way back is the button, whatever
+  // the absence started as.
+  if (away.now === "fullscreen_exit") {
     return (
       <div className="overlay curtain" role="alertdialog" aria-labelledby="curtain-title">
         <section className="panel">
@@ -211,11 +213,11 @@ export function Pledge({ me, onPledge }: { me: MeView; onPledge: (fullscreen: bo
 
   const rows = useMemo(() => {
     const r: [string, string][] = [
-      [t("rule_hidden", { s: sec(th.hidden_strike_ms) }), t(strict ? "fx_strike_time" : "fx_strike")],
+      [t("rule_hidden", { s: sec(th.hidden_strike_ms) }), t("fx_strike_time")],
       [t("rule_blur", { s: sec(th.blur_strike_ms) }), t("fx_strike")],
       [t("rule_copy"), t(strict ? "fx_copy_strict" : "fx_copy_standard")],
       [t("rule_screenshot"), t(strict ? "fx_copy_strict" : "fx_copy_standard")],
-      [t("rule_paste"), t(strict ? "fx_strike" : "fx_warning")],
+      [t("rule_paste"), t(strict ? "fx_strike" : "fx_paste_standard")],
     ];
     if (p.fullscreen === "required") r.push([t("rule_fullscreen", { s: sec(th.fullscreen_strike_ms) }), t("fx_strike")]);
     r.push([t("rule_limit", { n: p.strike_limit }), t("fx_annul")]);
@@ -239,6 +241,7 @@ export function Pledge({ me, onPledge }: { me: MeView; onPledge: (fullscreen: bo
       <section className="sheet pledge">
         <Wordmark />
         <h1>{t("rules_title")}</h1>
+        <p className="muted">{t(strict ? "rules_intro_strict" : "rules_intro_standard", { n: p.strike_limit })}</p>
         <table className="tablelike">
           <thead>
             <tr>

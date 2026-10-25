@@ -9,9 +9,14 @@ in PowerShell or `./ax.exe` in Git Bash.
 | [`algebra-01`](algebra-01) | es | `standard` | Math (KaTeX), every question type, a question pool, a 90 s timed question |
 | [`programacion-go`](programacion-go) | es | `strict` | Code blocks, required fullscreen, options revealed on hover, desktop only, 2 min timed question, review after the session, custom accent |
 | [`ml-basics-en`](ml-basics-en) | en | `standard` | English UI, SVG diagrams from `assets/`, a pool, logo and accent |
-| [`historia-ventana`](historia-ventana) | es | `standard` + overrides | Tables, lists, quotes, a map, fullscreen required on a standard profile, 5 strikes, hover on one question only |
+| [`historia-ventana`](historia-ventana) | es | `standard` + overrides | Tables, lists, quotes, a map, 5 strikes, options always visible except on one question |
 | [`quiz-rapido`](quiz-rapido) | es | `off` | No proctoring, fixed order, hidden score, 5 minutes (try the automatic end) |
 | [`invalid/`](invalid) | — | — | Broken exams that `ax validate` rejects with clear messages |
+
+Profiles: `standard` and `strict` turn on every protection (pledge, curtain,
+copy and paste blocked, capture shield, watermark, required fullscreen,
+hover-only options). `standard` warns first and annuls at 3 strikes; `strict`
+counts at once and annuls at the second strike. `off` turns everything off.
 
 `go test ./internal/exam` checks that the valid examples stay valid and the
 invalid ones keep failing.
@@ -67,16 +72,19 @@ ax --data-dir ./data/quiz start examples/quiz-rapido --port 27338
 
 **Integrity (`programacion-go`, `historia-ventana`, `algebra-01`)**
 
-1. Join and type the pledge. With `strict`, "Comenzar" enters fullscreen.
-2. Switch to another tab for 20 s. The tab title counts down, and on return
-   you see "Aviso 1 de 3" and lose a minute (`strict`).
-3. Press Ctrl+C on a question. It counts as a strike in `strict` and only a
-   warning in `standard`. The second copy on the same question voids it in
-   `strict`.
-4. Leave fullscreen with Esc. You have 10 s to come back.
+1. Join and type the pledge. "Comenzar" enters fullscreen.
+2. Switch to another tab. The tab title counts down; after 3 s in `strict`
+   (10 s in `standard`) it counts. Back on the tab you are out of fullscreen:
+   the same absence ends when you press "Activar pantalla completa", and you
+   see "Aviso 1 de 2" (`strict`) and lose a minute.
+3. Press Ctrl+C or PrintScreen on a question. In `strict` it is a strike and
+   the question is voided; in `standard` the first time is only a warning.
+   Hold the Windows key: the exam disappears until you let go.
+4. Leave fullscreen with Esc. You have 3 s (`strict`) or 5 s (`standard`).
 5. In the panel, open **Incidencias**, select the incident and press **Z**:
    the strike is reverted with your note, and the lost time comes back.
-6. Three strikes annul the attempt (five in `historia-ventana`). Readmit with **U**.
+6. The second strike annuls a `strict` exam; `standard` needs three (five in
+   `historia-ventana`). Readmit with **U**: it leaves one strike of margin.
 
 **Hidden options.** In `programacion-go`, options show only while the
 pointer is over them or they have keyboard focus (Tab). On a phone, the first

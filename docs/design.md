@@ -172,14 +172,27 @@ reversed, edit it here and note why in the commit.
 
 ## Anti-cheat engine (implemented in phase 5)
 
-- `internal/proctor` maps a signal to a decision (warn, strike, lost time,
-  voided question) by profile. `strict`: away > 15 s = strike and 1 min lost,
-  focus loss > 10 s = strike, copy = strike (the second one also voids the
-  question), paste = strike. `standard` is gentler: away > 30 s or focus loss
-  > 20 s = strike, the first copy and pastes only warn. Short glances (< 3–5 s)
-  record nothing; nothing counts during the first 15 s of an attempt except
-  automation and forged telemetry. Extensions, typing bursts and a second tab
-  only warn.
+- Profiles. `standard` and `strict` protect the same way: pledge, curtain,
+  copy and paste blocked, capture shield, watermark, required fullscreen,
+  hover-only options. They differ only in tolerance:
+
+  | | `standard` | `strict` |
+  |---|---|---|
+  | Away from the tab | warning from 3 s, strike and −1 min after 10 s | warning from 1.5 s, strike and −1 min after 3 s |
+  | Another window | warning from 3 s, strike after 10 s | warning from 2 s, strike after 5 s |
+  | Out of required fullscreen | strike after 5 s | strike after 3 s |
+  | Copy or screen capture | first time a warning, then strike and the question is voided | strike and the question is voided |
+  | Paste into an answer | first time a warning, then strike | strike |
+  | Strikes that annul | 3 | 2 (the first one is the warning) |
+  | Devices | any | desktop |
+
+  `off` turns every protection off and ignores the overrides. Automation and
+  forged telemetry are strikes; extensions, typing bursts and a second tab
+  only warn. Nothing counts during the first 15 s of an attempt except
+  automation and forged telemetry.
+- One absence counts once: coming back to the tab but out of fullscreen
+  (switching tabs leaves it) is the same absence, which ends when fullscreen
+  is restored.
 - Manifest: `proctoring.fullscreen`, `devices`, `reveal` and `strike_limit`
   override the profile defaults.
 - Penalties live in their own table and are never deleted: reverting one keeps
@@ -273,14 +286,16 @@ reversed, edit it here and note why in the commit.
 **Act** (server-side rule engine)
 - Each signal maps to `warn`, `time_penalty`, `void_question`,
   `point_penalty` or `strike`; `standard` and `strict` profiles ship tables.
-- **3 strikes annul the attempt** immediately; the teacher can readmit,
-  remove strikes or revert any penalty, with a note.
+- Reaching the strike limit (3 in `standard`, 2 in `strict`) annuls the
+  attempt immediately; the teacher can readmit, remove strikes or revert any
+  penalty, with a note.
 - Away countdown in the tab title/favicon, optional system notification;
   strike counter always visible to the student.
 - False-positive guards: ignore focus loss < 1–2 s, one continuous absence =
   one strike, grace period at start, network drops never count.
-- Profiles: `proctoring: off | standard | strict` (default `standard`);
-  `devices: any | desktop` (`desktop` in `strict`).
+- Profiles: `proctoring: off | standard | strict` (default `standard`).
+  `standard` and `strict` share every protection and differ in tolerance;
+  `off` disables everything (see "Anti-cheat engine").
 
 **Deliberately excluded:** devtools detection, random presence checks,
 VM/remote-desktop detection, `getDisplayMedia`, anti-OCR obfuscation, webcam,

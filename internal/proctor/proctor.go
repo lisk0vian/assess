@@ -1,6 +1,13 @@
 // Package proctor turns browser integrity signals into decisions: a warning,
 // a strike, lost time or a voided question. Decisions follow the exam's
-// profile (off, standard, strict) and are always reversible by the teacher.
+// profile and are always reversible by the teacher.
+//
+// standard and strict protect the same way (pledge, curtain, copy and paste
+// blocked, capture shield, watermark, required fullscreen, hover-only
+// options); they differ in tolerance. standard ignores short glances, warns
+// before counting and annuls at 3 strikes. strict counts almost everything
+// at once and annuls at the second strike: the first one is the warning.
+// off turns every protection off.
 package proctor
 
 import "time"
@@ -62,14 +69,15 @@ type Settings struct {
 	Grace time.Duration
 }
 
-// Resolve applies a profile's defaults under explicit manifest choices.
+// Resolve applies a profile's defaults under explicit manifest choices. With
+// off, nothing is protected and the overrides are ignored.
 func Resolve(profile, fullscreen, devices, reveal string, strikeLimit int) Settings {
-	s := Settings{Profile: profile, Fullscreen: "suggested", Devices: "any", Reveal: "always", StrikeLimit: 3, Grace: 15 * time.Second}
+	s := Settings{Profile: profile, Fullscreen: "required", Devices: "any", Reveal: "hover", StrikeLimit: 3, Grace: 15 * time.Second}
 	switch profile {
 	case "off":
-		s.Fullscreen, s.StrikeLimit = "off", 0
+		return Settings{Profile: "off", Fullscreen: "off", Devices: "any", Reveal: "always"}
 	case "strict":
-		s.Fullscreen, s.Devices, s.Reveal = "required", "desktop", "hover"
+		s.Devices, s.StrikeLimit = "desktop", 2
 	default:
 		s.Profile = "standard"
 	}
@@ -99,58 +107,48 @@ func (s Settings) Decide(sig Signal) Decision {
 	strict := s.Profile == "strict"
 	th := s.Thresholds()
 	d := sig.DurationMs
-	pick := func(strictD, standardD Decision) Decision {
-		if strict {
-			return strictD
-		}
-		return standardD
-	}
+	// strict: every offence counts at once. standard: the first copy, capture
+	// or paste is a warning, later ones count.
+	first := !strict && sig.Count <= 1
+	strike := Decision{Severity: High, Warn: true, Strike: true}
 	switch sig.Kind {
-	case Hidden:
+	case Hidden, Blur:
 		lo, hi := th.HiddenWarn, th.HiddenStrike
+		if sig.Kind == Blur {
+			lo, hi = th.BlurWarn, th.BlurStrike
+		}
 		switch {
 		case d < lo:
 			return Decision{Ignore: true}
 		case d <= hi:
 			return Decision{Severity: Warn, Warn: true}
-		default:
-			out := Decision{Severity: High, Warn: true, Strike: true}
-			if strict {
-				out.LoseTime = time.Minute
-			}
-			return out
+		case sig.Kind == Hidden:
+			strike.LoseTime = time.Minute
 		}
-	case Blur:
-		lo, hi := th.BlurWarn, th.BlurStrike
-		switch {
-		case d < lo:
-			return Decision{Ignore: true}
-		case d <= hi:
-			return Decision{Severity: Warn, Warn: true}
-		default:
-			return Decision{Severity: High, Warn: true, Strike: true}
-		}
+		return strike
 	case Copy, Screenshot:
-		if sig.Count <= 1 {
-			return pick(Decision{Severity: High, Warn: true, Strike: true}, Decision{Severity: Warn, Warn: true})
+		if first {
+			return Decision{Severity: Warn, Warn: true}
 		}
-		return pick(Decision{Severity: High, Warn: true, Strike: true, VoidQ: true}, Decision{Severity: High, Warn: true, Strike: true})
+		strike.VoidQ = true
+		return strike
 	case PasteInput:
-		return pick(Decision{Severity: High, Warn: true, Strike: true}, Decision{Severity: Warn, Warn: true})
+		if first {
+			return Decision{Severity: Warn, Warn: true}
+		}
+		return strike
 	case FullscreenExit:
 		if s.Fullscreen != "required" {
 			return Decision{Severity: Info}
 		}
 		if d > th.FullscreenStrike {
-			return Decision{Severity: High, Warn: true, Strike: true}
+			return strike
 		}
 		return Decision{Severity: Warn}
 	case Untrusted, Webdriver, Telemetry:
-		return Decision{Severity: High, Warn: true, Strike: true}
+		return strike
 	case Burst, DOMInjection, SecondTab, TelemetryGap:
 		return Decision{Severity: Warn}
-	case Resize:
-		return Decision{Severity: Info}
 	}
 	return Decision{Severity: Info}
 }

@@ -425,7 +425,7 @@ func TestStrikesAnnulAndRevert(t *testing.T) {
 	e.clk.Advance(20 * time.Second)
 
 	out := e.signal(a, session.SignalReport{Kind: "hidden", DurationMs: 40000, Seq: 1})
-	if out.Strikes != 1 || out.Limit != 3 || len(out.Penalties) != 1 {
+	if out.Strikes != 1 || out.Limit != 3 || len(out.Penalties) != 2 { // a strike and a lost minute
 		t.Fatalf("first strike: %+v", out)
 	}
 	if dup := e.signal(a, session.SignalReport{Kind: "hidden", DurationMs: 40000, Seq: 1}); !dup.Duplicate {
@@ -452,7 +452,7 @@ func TestStrikesAnnulAndRevert(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if d.Attempt.State != session.AttemptAnnulled || len(d.Penalties) != 4 {
+	if d.Attempt.State != session.AttemptAnnulled || len(d.Penalties) != 5 {
 		t.Fatalf("attempt %s with %d penalties", d.Attempt.State, len(d.Penalties))
 	}
 	_, err = e.svc.ReportSignal(e.ctx, a.ID, session.SignalReport{Kind: "copy", Seq: 6})
@@ -474,6 +474,7 @@ func TestStrikesAnnulAndRevert(t *testing.T) {
 func TestStrictPenalties(t *testing.T) {
 	e := newEnv(t)
 	e.pub.Exam.Manifest.Proctoring.Profile = "strict"
+	e.pub.Exam.Manifest.Proctoring.StrikeLimit = 5 // room to watch each penalty
 	e.create()
 	a := e.join("A1", "Ana")
 	if _, err := e.svc.Start(e.ctx, e.sess.ID); err != nil {
@@ -564,4 +565,47 @@ func TestQuestionTimeLimitAndPledge(t *testing.T) {
 	e.clk.Advance(20 * time.Second)
 	_, err = e.svc.SaveAnswer(e.ctx, a.ID, "q007", 2, e.wrong["q007"])
 	expectErr(t, err, session.ErrQuestionClosed)
+}
+
+// strict: the first offence is the warning, the second one annuls.
+func TestStrictSecondOffenceAnnuls(t *testing.T) {
+	e := newEnv(t)
+	e.pub.Exam.Manifest.Proctoring.Profile = "strict"
+	e.create()
+	a := e.join("A1", "Ana")
+	if _, err := e.svc.Start(e.ctx, e.sess.ID); err != nil {
+		t.Fatal(err)
+	}
+	e.clk.Advance(time.Minute)
+	first := e.signal(a, session.SignalReport{Kind: "hidden", DurationMs: 8000})
+	if first.Annulled || first.Strikes != 1 || first.Limit != 2 {
+		t.Fatalf("leaving once is the warning: %+v", first)
+	}
+	second := e.signal(a, session.SignalReport{Kind: "screenshot", QuestionID: a.Layout[0].QuestionID})
+	if !second.Annulled {
+		t.Fatalf("trying again annuls: %+v", second)
+	}
+}
+
+// standard tolerates more: warnings first, three strikes to annul.
+func TestStandardTolerates(t *testing.T) {
+	e := newEnv(t)
+	e.create()
+	a := e.join("A1", "Ana")
+	if _, err := e.svc.Start(e.ctx, e.sess.ID); err != nil {
+		t.Fatal(err)
+	}
+	e.clk.Advance(time.Minute)
+	for _, r := range []session.SignalReport{
+		{Kind: "hidden", DurationMs: 8000}, {Kind: "screenshot"}, {Kind: "paste_input"}, {Kind: "blur", DurationMs: 10000},
+	} {
+		if out := e.signal(a, r); out.Strikes != 0 || !out.Decision.Warn {
+			t.Fatalf("%s should only warn: %+v", r.Kind, out)
+		}
+	}
+	e.signal(a, session.SignalReport{Kind: "screenshot"})
+	e.signal(a, session.SignalReport{Kind: "hidden", DurationMs: 30000})
+	if out := e.signal(a, session.SignalReport{Kind: "paste_input"}); !out.Annulled {
+		t.Fatalf("the third strike annuls: %+v", out)
+	}
 }

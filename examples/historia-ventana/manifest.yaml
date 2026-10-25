@@ -1,7 +1,6 @@
 # Caso: perfil standard con ajustes propios.
-# - fullscreen: required aunque el perfil sea standard (se puede combinar).
-# - strike_limit: 5 → hacen falta 5 avisos para anular.
-# - Solo una pregunta tiene las opciones ocultas (reveal: hover en q002).
+# - reveal: always → las opciones se ven siempre, salvo en q002 (reveal: hover).
+# - strike_limit: 5 → hacen falta 5 avisos para anular (por defecto, 3).
 # - Contenido variado: tablas, listas, citas, un mapa SVG y logo propio.
 format: assess/v1
 id: historia-ventana
@@ -17,7 +16,7 @@ instructions: |
 
 proctoring:
   profile: standard
-  fullscreen: required
+  reveal: always
   strike_limit: 5
 
 items:

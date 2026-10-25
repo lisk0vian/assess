@@ -268,11 +268,13 @@ func inLayout(d *session.AttemptDetail, id string) bool {
 }
 
 // revealOf is the question's reveal mode: its own setting, else the exam's.
+// With proctoring off, options are always shown.
 func revealOf(d *session.AttemptDetail, q *exam.Question) string {
-	if q.Reveal != "" {
+	set := session.ProctorSettings(&d.Exam.Exam.Manifest)
+	if q.Reveal != "" && set.Enabled() {
 		return q.Reveal
 	}
-	return session.ProctorSettings(&d.Exam.Exam.Manifest).Reveal
+	return set.Reveal
 }
 
 func closesAt(d *session.AttemptDetail, id string) int64 {

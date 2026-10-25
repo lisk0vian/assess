@@ -13,7 +13,7 @@ type Thresholds struct {
 // Thresholds returns the profile's away limits.
 func (s Settings) Thresholds() Thresholds {
 	if s.Profile == "strict" {
-		return Thresholds{HiddenWarn: 3000, HiddenStrike: 15000, BlurWarn: 2000, BlurStrike: 10000, FullscreenStrike: 10000}
+		return Thresholds{HiddenWarn: 1500, HiddenStrike: 3000, BlurWarn: 2000, BlurStrike: 5000, FullscreenStrike: 3000}
 	}
-	return Thresholds{HiddenWarn: 5000, HiddenStrike: 30000, BlurWarn: 3000, BlurStrike: 20000, FullscreenStrike: 10000}
+	return Thresholds{HiddenWarn: 3000, HiddenStrike: 10000, BlurWarn: 3000, BlurStrike: 10000, FullscreenStrike: 5000}
 }

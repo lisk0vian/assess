@@ -30,7 +30,8 @@ export function App() {
     if (!verdict || !me || verdict.strike || verdict.annulled) return;
     const body = warningText(verdict, me);
     clearVerdict();
-    if (body) setWarnings((w) => [...w.filter((x) => x.body !== body), { id: uid(), kind: "inverse", title: t("warning_title"), body }]);
+    if (!body) return;
+    setWarnings((w) => [...w.filter((x) => x.body !== body), { id: uid(), kind: "inverse", title: t("warning_title"), body }]);
   }, [verdict, me, clearVerdict]);
 
   if (blocked) {

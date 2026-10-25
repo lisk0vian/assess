@@ -5,7 +5,8 @@ export type AwayKind = "hidden" | "fullscreen_exit" | "blur";
 
 /** One continuous absence: it counts once, as its most serious kind. */
 export interface Away {
-  kind: AwayKind;
+  kind: AwayKind; // the most serious state of the episode: what it counts as
+  now: AwayKind; // the state right now: what the student must fix to come back
   since: number; // performance.now() when the episode began
 }
 
@@ -50,23 +51,28 @@ export function useProctor(o: ProctorOptions): Away | null {
     const q = () => opts.current.questionID;
     const evaluate = () => {
       const kind = currentAway(opts.current.fullscreenRequired);
-      // Back from the worse state (e.g. the tab is visible again but out of
-      // fullscreen): that absence is over; what remains is a new episode the
-      // student can fix from the page.
-      if (episode && (!kind || rank[kind] < rank[episode.kind])) {
-        telemetry.report(episode.kind, { phase: "end", durationMs: performance.now() - episode.since, questionID: q() });
-        episode = null;
-        setAway(null);
+      // The absence lasts until the exam is fully back. Coming back to the tab
+      // but out of fullscreen (switching tabs leaves it) is the same absence:
+      // it counts once, and ends when the student restores fullscreen.
+      if (!kind) {
+        if (episode) {
+          telemetry.report(episode.kind, { phase: "end", durationMs: performance.now() - episode.since, questionID: q() });
+          episode = null;
+          setAway(null);
+        }
+        return;
       }
-      if (!kind) return;
       if (!episode) {
-        episode = { kind, since: performance.now() };
+        episode = { kind, now: kind, since: performance.now() };
         telemetry.report(kind, { phase: "start", questionID: q() });
         setAway(episode);
       } else if (rank[kind] > rank[episode.kind]) {
         // Same absence, more serious now: the server measures the new kind from here.
-        episode = { kind, since: episode.since };
+        episode = { kind, now: kind, since: episode.since };
         telemetry.report(kind, { phase: "start", questionID: q() });
+        setAway(episode);
+      } else if (kind !== episode.now) {
+        episode = { ...episode, now: kind };
         setAway(episode);
       }
     };

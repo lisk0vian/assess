@@ -108,6 +108,9 @@ func (l *loader) validateManifest() {
 	if n := m.Proctoring.StrikeLimit; n < 0 || n > 10 {
 		l.errorf(f, fieldPath{"proctoring", "strike_limit"}, "must be between 1 and 10")
 	}
+	if p := m.Proctoring; p.Profile == "off" && (p.Fullscreen != "" || p.Devices != "" || p.Reveal != "" || p.StrikeLimit != 0) {
+		l.warnf(f, fieldPath{"proctoring"}, "ignored: profile off turns every protection off")
+	}
 
 	switch d := m.Duration.D(); {
 	case d == 0:

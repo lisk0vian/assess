@@ -164,6 +164,15 @@ button.tf__opt { border: 0; background: transparent; color: inherit; }
 .is-shielded .exam .desk, .is-shielded .exam .side-rail { visibility: hidden; }
 @media print { body { display: none !important; } }
 
+/* Notices close themselves: a thin rule along the bottom shows the time left. */
+.notice { position: relative; overflow: hidden; }
+.notice__timer { position: absolute; left: 0; bottom: 0; height: 2px; width: 100%; background: currentColor; opacity: .35; transform-origin: left; animation: notice-time linear forwards; }
+@keyframes notice-time { from { transform: scaleX(1); } to { transform: scaleX(0); } }
+
+/* The close button on an inverted notice takes the notice's ink, not the page's. */
+.notice--inverse .btn--quiet { color: var(--on-inverse); }
+.notice--inverse .btn--quiet:hover { background: color-mix(in srgb, var(--on-inverse) 12%, transparent); }
+
 /* ---------- Exam branding (manifest branding.accent / branding.logo) ---------- */
 /* The exam's accent replaces the magenta; text and wash tones are derived. */
 :root[data-brand] {

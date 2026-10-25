@@ -6,46 +6,63 @@ import (
 )
 
 func TestResolveDefaultsAndOverrides(t *testing.T) {
-	std := Resolve("", "", "", "", 0)
-	if std.Profile != "standard" || std.Fullscreen != "suggested" || std.Devices != "any" || std.Reveal != "always" || std.StrikeLimit != 3 {
+	for _, p := range []string{"", "standard", "strict"} {
+		s := Resolve(p, "", "", "", 0)
+		if s.Fullscreen != "required" || s.Reveal != "hover" || !s.Enabled() {
+			t.Fatalf("%q must protect fully: %+v", p, s)
+		}
+	}
+	if std := Resolve("", "", "", "", 0); std.Profile != "standard" || std.StrikeLimit != 3 || std.Devices != "any" {
 		t.Fatalf("standard defaults: %+v", std)
 	}
-	strict := Resolve("strict", "", "", "", 0)
-	if strict.Fullscreen != "required" || strict.Devices != "desktop" || strict.Reveal != "hover" {
+	if strict := Resolve("strict", "", "", "", 0); strict.StrikeLimit != 2 || strict.Devices != "desktop" {
 		t.Fatalf("strict defaults: %+v", strict)
 	}
 	custom := Resolve("strict", "suggested", "any", "always", 5)
 	if custom.Fullscreen != "suggested" || custom.Devices != "any" || custom.Reveal != "always" || custom.StrikeLimit != 5 {
 		t.Fatalf("overrides ignored: %+v", custom)
 	}
-	if off := Resolve("off", "", "", "", 0); off.Enabled() || !off.Decide(Signal{Kind: Untrusted}).Ignore {
-		t.Fatal("off must collect nothing")
+	off := Resolve("off", "required", "desktop", "hover", 3)
+	if off.Enabled() || off.Fullscreen != "off" || off.Reveal != "always" || off.Devices != "any" || !off.Decide(Signal{Kind: Untrusted}).Ignore {
+		t.Fatalf("off must turn everything off: %+v", off)
 	}
 }
 
 func TestDecisions(t *testing.T) {
 	strict := Resolve("strict", "", "", "", 0)
 	std := Resolve("standard", "", "", "", 0)
+	strike := Decision{Severity: High, Warn: true, Strike: true}
+	warn := Decision{Severity: Warn, Warn: true}
+	away := strike
+	away.LoseTime = time.Minute
+	voids := strike
+	voids.VoidQ = true
 	cases := []struct {
 		name string
 		s    Settings
 		sig  Signal
 		want Decision
 	}{
-		{"short glance away is ignored", strict, Signal{Kind: Hidden, DurationMs: 1500}, Decision{Ignore: true}},
-		{"9 s away warns", strict, Signal{Kind: Hidden, DurationMs: 9000}, Decision{Severity: Warn, Warn: true}},
-		{"22 s away: strike and a minute (strict)", strict, Signal{Kind: Hidden, DurationMs: 22000}, Decision{Severity: High, Warn: true, Strike: true, LoseTime: time.Minute}},
-		{"22 s away only warns (standard)", std, Signal{Kind: Hidden, DurationMs: 22000}, Decision{Severity: Warn, Warn: true}},
-		{"40 s away strikes without time (standard)", std, Signal{Kind: Hidden, DurationMs: 40000}, Decision{Severity: High, Warn: true, Strike: true}},
-		{"notification blur ignored", strict, Signal{Kind: Blur, DurationMs: 800}, Decision{Ignore: true}},
-		{"first copy strikes (strict)", strict, Signal{Kind: Copy, Count: 1}, Decision{Severity: High, Warn: true, Strike: true}},
-		{"a screenshot counts like a copy", std, Signal{Kind: Screenshot, Count: 1}, Decision{Severity: Warn, Warn: true}},
-		{"second copy voids the question (strict)", strict, Signal{Kind: Copy, Count: 2}, Decision{Severity: High, Warn: true, Strike: true, VoidQ: true}},
-		{"first copy only warns (standard)", std, Signal{Kind: Copy, Count: 1}, Decision{Severity: Warn, Warn: true}},
-		{"automation strikes", std, Signal{Kind: Untrusted}, Decision{Severity: High, Warn: true, Strike: true}},
+		{"a glance away is ignored (standard)", std, Signal{Kind: Hidden, DurationMs: 2500}, Decision{Ignore: true}},
+		{"a glance away is ignored (strict)", strict, Signal{Kind: Hidden, DurationMs: 1000}, Decision{Ignore: true}},
+		{"2 s away warns (strict)", strict, Signal{Kind: Hidden, DurationMs: 2000}, warn},
+		{"4 s away counts (strict)", strict, Signal{Kind: Hidden, DurationMs: 4000}, away},
+		{"12 s away counts (standard)", std, Signal{Kind: Hidden, DurationMs: 12000}, away},
+		{"8 s away only warns (standard)", std, Signal{Kind: Hidden, DurationMs: 8000}, warn},
+		{"25 s away counts (standard)", std, Signal{Kind: Hidden, DurationMs: 25000}, away},
+		{"another window 6 s counts (strict)", strict, Signal{Kind: Blur, DurationMs: 6000}, strike},
+		{"another window 6 s warns (standard)", std, Signal{Kind: Blur, DurationMs: 6000}, warn},
+		{"first copy counts and voids (strict)", strict, Signal{Kind: Copy, Count: 1}, voids},
+		{"first copy warns (standard)", std, Signal{Kind: Copy, Count: 1}, warn},
+		{"second copy counts and voids (standard)", std, Signal{Kind: Copy, Count: 2}, voids},
+		{"a capture is a copy", strict, Signal{Kind: Screenshot, Count: 1}, voids},
+		{"first paste warns (standard)", std, Signal{Kind: PasteInput, Count: 1}, warn},
+		{"first paste counts (strict)", strict, Signal{Kind: PasteInput, Count: 1}, strike},
+		{"automation counts", std, Signal{Kind: Untrusted}, strike},
 		{"extensions only warn", strict, Signal{Kind: DOMInjection}, Decision{Severity: Warn}},
-		{"fullscreen exit is informational when suggested", std, Signal{Kind: FullscreenExit, DurationMs: 60000}, Decision{Severity: Info}},
-		{"fullscreen exit strikes when required", strict, Signal{Kind: FullscreenExit, DurationMs: 12000}, Decision{Severity: High, Warn: true, Strike: true}},
+		{"fullscreen exit counts after 5 s (standard)", std, Signal{Kind: FullscreenExit, DurationMs: 6000}, strike},
+		{"fullscreen exit counts after 3 s (strict)", strict, Signal{Kind: FullscreenExit, DurationMs: 4000}, strike},
+		{"fullscreen exit is informational when suggested", Resolve("standard", "suggested", "", "", 0), Signal{Kind: FullscreenExit, DurationMs: 60000}, Decision{Severity: Info}},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {

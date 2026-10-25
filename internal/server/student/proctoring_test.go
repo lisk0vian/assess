@@ -123,7 +123,8 @@ func TestSignedSignals(t *testing.T) {
 	}
 
 	c.mustStatus(http.StatusOK, "POST", "/api/pledge", nil, &me)
-	if !me.Proctoring.Pledged || me.Proctoring.Strikes != 2 || len(me.Penalties) != 2 {
+	// hidden: a strike and a lost minute; forged telemetry: a strike.
+	if !me.Proctoring.Pledged || me.Proctoring.Strikes != 2 || len(me.Penalties) != 3 {
 		t.Fatalf("after signals: %+v, %d penalties", me.Proctoring, len(me.Penalties))
 	}
 }
