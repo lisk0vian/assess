@@ -4,6 +4,8 @@ import (
 	"context"
 	"sort"
 	"time"
+
+	"github.com/lisk0vian/assess/internal/exam"
 )
 
 // ResultRow is one participant's outcome, ready for export.
@@ -90,4 +92,51 @@ func (s *Service) Results(ctx context.Context, sessionID string) (*Results, erro
 	}
 	sort.SliceStable(r.Rows, func(i, j int) bool { return r.Rows[i].Name < r.Rows[j].Name })
 	return r, nil
+}
+
+// Archive is everything recorded about one session, for reports.
+type Archive struct {
+	*Snapshot
+	Published *exam.Published
+	Events    []*Event // oldest first
+}
+
+// Archive reads the whole record of sessionID.
+func (s *Service) Archive(ctx context.Context, sessionID string) (*Archive, error) {
+	snap, err := s.Snapshot(ctx, sessionID)
+	if err != nil {
+		return nil, err
+	}
+	arc := &Archive{Snapshot: snap}
+	err = s.store.View(ctx, func(tx Tx) error {
+		if arc.Published, err = s.published(tx, snap.Session.ExamHash); err != nil {
+			return err
+		}
+		arc.Events, err = tx.ListEvents(sessionID)
+		return err
+	})
+	return arc, err
+}
+
+// ExamSessions returns the sessions of the exam with manifest id examID,
+// whatever version was published, oldest first.
+func (s *Service) ExamSessions(ctx context.Context, examID string) ([]*Session, error) {
+	var out []*Session
+	err := s.store.View(ctx, func(tx Tx) error {
+		all, err := tx.ListSessions()
+		if err != nil {
+			return err
+		}
+		for _, sess := range all {
+			pub, err := s.published(tx, sess.ExamHash)
+			if err != nil {
+				return err
+			}
+			if pub.Exam.Manifest.ID == examID {
+				out = append(out, sess)
+			}
+		}
+		return nil
+	})
+	return out, err
 }
