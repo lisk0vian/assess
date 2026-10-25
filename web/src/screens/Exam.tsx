@@ -26,7 +26,23 @@ const answered = (r: Response | undefined) => !!r && (!!r.option || !!r.options?
 
 export function Exam({ me, now, setMe, reportAt }: Props) {
   const questions = me.questions;
-  const [index, setIndex] = useState(0);
+  // Where the student was, so a reload or a readmission resumes there.
+  const posKey = `assess-pos:${me.exam.id}:${me.student.student_id}`;
+  const [index, setIndex] = useState(() => {
+    try {
+      const i = Number(localStorage.getItem(posKey));
+      return Number.isInteger(i) && i >= 0 && i < questions.length ? i : 0;
+    } catch {
+      return 0;
+    }
+  });
+  useEffect(() => {
+    try {
+      localStorage.setItem(posKey, String(index));
+    } catch {
+      /* storage may be unavailable */
+    }
+  }, [index, posKey]);
   const [view, setView] = useState<"question" | "review">("question");
   const [answers, setAnswers] = useState<Record<string, Response>>(me.answers ?? {});
   const [cache, setCache] = useState<Record<string, QuestionView>>({});

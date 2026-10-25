@@ -187,7 +187,7 @@ func verdict(kind, questionID string, out *session.SignalOutcome) []byte {
 	d := out.Decision
 	return encode("verdict", map[string]any{
 		"kind": kind, "question_id": questionID, "warn": d.Warn, "strike": d.Strike,
-		"lose_ms": d.LoseTime.Milliseconds(), "void": d.VoidQ, "strikes": out.Strikes,
+		"lose_ms": out.Lost.Milliseconds(), "void": d.VoidQ, "strikes": out.Strikes,
 		"limit": out.Limit, "annulled": out.Annulled,
 	})
 }

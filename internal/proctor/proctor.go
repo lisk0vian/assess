@@ -42,12 +42,12 @@ const (
 
 // Decision is what to do with one signal.
 type Decision struct {
-	Severity Severity
-	Warn     bool          // tell the student (non-blocking notice)
-	Strike   bool          // count a strike
-	LoseTime time.Duration // remove time from the attempt
-	VoidQ    bool          // the current question scores 0 and closes
-	Ignore   bool          // below thresholds: record nothing
+	Severity  Severity
+	Warn      bool    // tell the student (non-blocking notice)
+	Strike    bool    // count a strike
+	LoseShare float64 // share of the attempt's remaining time to remove (0.2 = 20 %)
+	VoidQ     bool    // the current question scores 0 and closes
+	Ignore    bool    // below thresholds: record nothing
 }
 
 // Signal is one report, enriched with how many times this kind happened
@@ -96,6 +96,15 @@ func Resolve(profile, fullscreen, devices, reveal string, strikeLimit int) Setti
 	return s
 }
 
+// LoseShare is the share of the remaining time a long absence costs:
+// 20 % in standard, half of it in strict.
+func (s Settings) LoseShare() float64 {
+	if s.Profile == "strict" {
+		return 0.5
+	}
+	return 0.2
+}
+
 // Enabled reports whether signals are collected at all.
 func (s Settings) Enabled() bool { return s.Profile != "off" }
 
@@ -123,7 +132,7 @@ func (s Settings) Decide(sig Signal) Decision {
 		case d <= hi:
 			return Decision{Severity: Warn, Warn: true}
 		case sig.Kind == Hidden:
-			strike.LoseTime = time.Minute
+			strike.LoseShare = s.LoseShare()
 		}
 		return strike
 	case Copy, Screenshot:

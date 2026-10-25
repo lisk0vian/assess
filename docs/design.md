@@ -131,11 +131,19 @@ reversed, edit it here and note why in the commit.
 - Views (Tab): **Alumnos** (live table: state, question the student is on,
   answered, online, score, time used, extra time), **Ranking** (submitted,
   by score then time), **Enlace** (URL, code, QR with the code pre-filled).
-- Keys: S start, + 5 min for everyone, E end (confirm); on the selected
+- Keys: S start, + 5 min for everyone, ⇧M message to everyone, ⇧P pause or
+  resume everyone, E end (confirm: Y end and keep the server for results, A
+  end and stop the server; once ended, E stops the server); on the selected
   student T extra time, M message, P pause/resume (their clock keeps running),
   X annul (confirm), U readmit, D remove (withdraws if they joined; confirm);
   N add a student; A/R approve or reject the oldest pending device request;
-  L lock; Q detach (the exam keeps running).
+  L lock; Q detach (the exam keeps running). Labels follow the state (pause
+  becomes resume).
+- The session ends by itself once every student has turned in or run out of
+  time. Withdrawing or annulling the last one does not end it, so they can
+  still be readmitted.
+- A readmitted student continues on the same page, on the question they were
+  on (the page stays connected while the session is open).
 - Approval requests: a student ID already in use on another device, or a
   join after `--join-window`, waits on "Esperando a tu profesor" until the
   teacher decides. Approved devices share the attempt.
@@ -178,7 +186,7 @@ reversed, edit it here and note why in the commit.
 
   | | `standard` | `strict` |
   |---|---|---|
-  | Away from the tab | warning from 3 s, strike and −1 min after 10 s | warning from 1.5 s, strike and −1 min after 3 s |
+  | Away from the tab | warning from 3 s; after 10 s a strike and −20 % of the remaining time | warning from 1.5 s; after 3 s a strike and −50 % of the remaining time |
   | Another window | warning from 3 s, strike after 10 s | warning from 2 s, strike after 5 s |
   | Out of required fullscreen | strike after 5 s | strike after 3 s |
   | Copy or screen capture | first time a warning, then strike and the question is voided | strike and the question is voided |

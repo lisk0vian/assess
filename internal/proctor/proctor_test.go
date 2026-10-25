@@ -1,9 +1,6 @@
 package proctor
 
-import (
-	"testing"
-	"time"
-)
+import "testing"
 
 func TestResolveDefaultsAndOverrides(t *testing.T) {
 	for _, p := range []string{"", "standard", "strict"} {
@@ -34,7 +31,9 @@ func TestDecisions(t *testing.T) {
 	strike := Decision{Severity: High, Warn: true, Strike: true}
 	warn := Decision{Severity: Warn, Warn: true}
 	away := strike
-	away.LoseTime = time.Minute
+	away.LoseShare = 0.5 // strict
+	awayStd := strike
+	awayStd.LoseShare = 0.2
 	voids := strike
 	voids.VoidQ = true
 	cases := []struct {
@@ -47,9 +46,9 @@ func TestDecisions(t *testing.T) {
 		{"a glance away is ignored (strict)", strict, Signal{Kind: Hidden, DurationMs: 1000}, Decision{Ignore: true}},
 		{"2 s away warns (strict)", strict, Signal{Kind: Hidden, DurationMs: 2000}, warn},
 		{"4 s away counts (strict)", strict, Signal{Kind: Hidden, DurationMs: 4000}, away},
-		{"12 s away counts (standard)", std, Signal{Kind: Hidden, DurationMs: 12000}, away},
+		{"12 s away counts (standard)", std, Signal{Kind: Hidden, DurationMs: 12000}, awayStd},
 		{"8 s away only warns (standard)", std, Signal{Kind: Hidden, DurationMs: 8000}, warn},
-		{"25 s away counts (standard)", std, Signal{Kind: Hidden, DurationMs: 25000}, away},
+		{"25 s away counts (standard)", std, Signal{Kind: Hidden, DurationMs: 25000}, awayStd},
 		{"another window 6 s counts (strict)", strict, Signal{Kind: Blur, DurationMs: 6000}, strike},
 		{"another window 6 s warns (standard)", std, Signal{Kind: Blur, DurationMs: 6000}, warn},
 		{"first copy counts and voids (strict)", strict, Signal{Kind: Copy, Count: 1}, voids},

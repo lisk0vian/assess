@@ -450,7 +450,10 @@ func (s *Service) Submit(ctx context.Context, attemptID string) (*Attempt, error
 		if s.clock().After(att.Deadline(sess).Add(sess.Grace)) {
 			reason = SubmitTimeout
 		}
-		return s.close(tx, sess, att, reason)
+		if err := s.close(tx, sess, att, reason); err != nil {
+			return err
+		}
+		return s.finishIfDone(tx, sess)
 	})
 	if err == nil {
 		s.changed(att.SessionID)
@@ -520,6 +523,29 @@ func (s *Service) regrade(tx Tx, sess *Session, att *Attempt) error {
 }
 
 func roundScore(v float64) float64 { return float64(int64(v*1e4+0.5)) / 1e4 }
+
+// finishIfDone ends a running session once every student has turned in (or
+// ran out of time): there is no point in waiting for the clock. It runs on
+// submissions only, so withdrawing or annulling the last student leaves the
+// session open for a readmission.
+func (s *Service) finishIfDone(tx Tx, sess *Session) error {
+	if sess.State != StateRunning {
+		return nil
+	}
+	attempts, err := tx.ListAttempts(sess.ID)
+	if err != nil {
+		return err
+	}
+	if len(attempts) == 0 {
+		return nil
+	}
+	for _, a := range attempts {
+		if a.State == AttemptActive {
+			return nil
+		}
+	}
+	return s.end(tx, sess, SubmitEnded, "session.finished")
+}
 
 // End closes the session now and submits every active attempt.
 func (s *Service) End(ctx context.Context, sessionID string) error {

@@ -1,3 +1,4 @@
+import { useEffect } from "react";
 import type { MeView } from "../api/types";
 import { t } from "../i18n";
 import { Wordmark } from "../components/ui";
@@ -6,6 +7,10 @@ const fmt = (n: number) => n.toLocaleString(document.documentElement.lang, { max
 
 export function Result({ me }: { me: MeView }) {
   const a = me.attempt;
+  // The exam is over: give the screen back.
+  useEffect(() => {
+    if (document.fullscreenElement) void document.exitFullscreen().catch(() => undefined);
+  }, []);
   if (a.state === "annulled" || a.state === "withdrawn") {
     const annulled = a.state === "annulled";
     return (
@@ -32,6 +37,7 @@ export function Result({ me }: { me: MeView }) {
         )}
         {at && <p>{t("result_submitted_at", { time: at })}</p>}
         {a.submit_reason === "timeout" && <p className="muted">{t("result_timeout")}</p>}
+        {a.submit_reason === "ended" && <p className="muted">{t("result_ended")}</p>}
         <p className="muted">{me.exam.result_visibility === "review" && !me.review ? t("result_review_later") : t("result_body")}</p>
         {me.review && (
           <table className="tablelike" style={{ marginTop: 22, width: "100%", borderCollapse: "collapse" }}>

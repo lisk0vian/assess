@@ -55,6 +55,7 @@ type Board struct {
 	Students    []StudentRow      `json:"students"`
 	Requests    []student.Request `json:"requests"`
 	StrikeLimit int               `json:"strike_limit"` // 0: proctoring off
+	AllPaused   bool              `json:"all_paused"`   // the teacher paused everyone
 	Incidents   []Incident        `json:"incidents"`    // newest first
 }
 
@@ -71,7 +72,7 @@ func (d *daemon) board(ctx context.Context) (*Board, error) {
 	for _, p := range d.students.Presence() {
 		presence[p.AttemptID] = p
 	}
-	b := &Board{Status: *st}
+	b := &Board{Status: *st, AllPaused: d.students.AllPaused()}
 	if _, pub, err := d.svc.Session(ctx, d.sessionID); err == nil {
 		if set := session.ProctorSettings(&pub.Exam.Manifest); set.Enabled() {
 			b.StrikeLimit = set.StrikeLimit
@@ -232,6 +233,24 @@ func (c *controlServer) studentRoutes(mux *http.ServeMux) {
 		return d.svc.RecordEvent(r.Context(), &session.Event{SessionID: d.sessionID, AttemptID: r.PathValue("id"),
 			Kind: "teacher.message", Severity: session.SeverityInfo, Data: map[string]any{"text": text}})
 	}))
+	mux.HandleFunc("POST /message", act(func(r *http.Request, body map[string]any) error {
+		text := strings.TrimSpace(str(body, "text"))
+		if text == "" || len(text) > 500 {
+			return fmt.Errorf("%w: message must have 1 to 500 characters", session.ErrInvalidInput)
+		}
+		d.students.MessageAll(text)
+		return d.svc.RecordEvent(r.Context(), &session.Event{SessionID: d.sessionID, Kind: "teacher.message_all",
+			Severity: session.SeverityInfo, Data: map[string]any{"text": text}})
+	}))
+	mux.HandleFunc("POST /pause", act(func(r *http.Request, body map[string]any) error {
+		on, _ := body["on"].(bool)
+		d.students.SetPausedAll(on)
+		kind := "teacher.resumed_all"
+		if on {
+			kind = "teacher.paused_all"
+		}
+		return d.svc.RecordEvent(r.Context(), &session.Event{SessionID: d.sessionID, Kind: kind, Severity: session.SeverityInfo})
+	}))
 	mux.HandleFunc("POST /attempts/{id}/pause", act(func(r *http.Request, body map[string]any) error {
 		on, _ := body["on"].(bool)
 		d.students.SetPaused(r.PathValue("id"), on)
@@ -297,6 +316,16 @@ func (c *Client) RevertPenalties(ctx context.Context, ids []int64, note string) 
 		return c.Board(ctx)
 	}
 	return b, nil
+}
+
+// MessageAll shows a message to every student.
+func (c *Client) MessageAll(ctx context.Context, text string) (*Board, error) {
+	return c.board(ctx, "POST", "/message", map[string]any{"text": text})
+}
+
+// PauseAll pauses or resumes everyone.
+func (c *Client) PauseAll(ctx context.Context, on bool) (*Board, error) {
+	return c.board(ctx, "POST", "/pause", map[string]any{"on": on})
 }
 
 // DecideRequest approves or rejects a device request.

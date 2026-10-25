@@ -48,10 +48,14 @@ In the panel:
 - **S** starts the exam for everyone in the lobby.
 - **Tab** switches views: Alumnos, Ranking, Incidencias, Enlace.
 - **T** gives the selected student extra time, **+** gives everyone 5 minutes.
-- **M** messages a student, **P** pauses them, **X** annuls, **U** readmits.
+- **M** messages a student, **P** pauses or resumes them, **X** annuls, **U** readmits.
+- **⇧M** messages everyone, **⇧P** pauses or resumes everyone.
 - **Z** reverts a penalty (it asks for a note).
 - **N** adds a student, **D** removes one, **A/R** approves or rejects a device.
-- **E** ends the exam, **L** locks the panel, **Q** detaches (the exam keeps running).
+- **E** ends the exam: **Y** keeps the server running to see results, **A**
+  also stops the server. The exam also ends by itself when everyone has
+  turned in.
+- **L** locks the panel, **Q** detaches (the exam keeps running).
 
 ```sh
 ax status            # is the server running? (Running / Not running / Crashed)
@@ -76,13 +80,16 @@ ax --data-dir ./data/quiz start examples/quiz-rapido --port 27338
 2. Switch to another tab. The tab title counts down; after 3 s in `strict`
    (10 s in `standard`) it counts. Back on the tab you are out of fullscreen:
    the same absence ends when you press "Activar pantalla completa", and you
-   see "Aviso 1 de 2" (`strict`) and lose a minute.
+   see "Aviso 1 de 2" (`strict`) and lose half of the remaining time (20 %
+   in `standard`).
 3. Press Ctrl+C or PrintScreen on a question. In `strict` it is a strike and
    the question is voided; in `standard` the first time is only a warning.
    Hold the Windows key: the exam disappears until you let go.
 4. Leave fullscreen with Esc. You have 3 s (`strict`) or 5 s (`standard`).
 5. In the panel, open **Incidencias**, select the incident and press **Z**:
    the strike is reverted with your note, and the lost time comes back.
+   Readmitting (**U**) brings the student back to the question they were on,
+   without reloading.
 6. The second strike annuls a `strict` exam; `standard` needs three (five in
    `historia-ventana`). Readmit with **U**: it leaves one strike of margin.
 

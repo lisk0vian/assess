@@ -69,6 +69,7 @@ const (
 	promptAddID
 	promptAddName
 	promptRevert
+	promptMessageAll
 )
 
 // Options configures the panel.
@@ -100,6 +101,8 @@ type Monitor struct {
 	reverting []int64 // penalties a revert prompt applies to
 	question  string
 	onYes     func() tea.Cmd
+	altLabel  string // a third answer in a confirmation, e.g. "end and stop the server"
+	onAlt     func() tea.Cmd
 	lastInput time.Time
 }
 
@@ -119,6 +122,9 @@ func NewMonitor(c *daemon.Client, st *daemon.State, opts Options) *Monitor {
 }
 
 type tickMsg time.Time
+
+// stoppedMsg: the server was shut down from the panel; the panel closes.
+type stoppedMsg struct{}
 
 type boardMsg struct {
 	board  *daemon.Board
@@ -175,6 +181,8 @@ func (m *Monitor) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case tea.KeyPressMsg:
 		m.lastInput = time.Now()
 		return m.key(msg)
+	case stoppedMsg:
+		return m, tea.Quit
 	}
 	return m, nil
 }
@@ -196,7 +204,25 @@ func (m *Monitor) startPrompt(kind promptKind, question, placeholder string) tea
 }
 
 func (m *Monitor) confirm(question string, yes func() tea.Cmd) {
-	m.mode, m.question, m.onYes = modeConfirm, question, yes
+	m.mode, m.question, m.onYes, m.altLabel, m.onAlt = modeConfirm, question, yes, "", nil
+}
+
+// confirmOr asks a question with a second way to say yes (key A).
+func (m *Monitor) confirmOr(question string, yes func() tea.Cmd, altLabel string, alt func() tea.Cmd) {
+	m.confirm(question, yes)
+	m.altLabel, m.onAlt = altLabel, alt
+}
+
+// stopServer ends the exam (if still open) and shuts the server down.
+func (m *Monitor) stopServer() tea.Cmd {
+	return func() tea.Msg {
+		ctx, cancel := context.WithTimeout(context.Background(), 8*time.Second)
+		defer cancel()
+		if err := m.client.Shutdown(ctx, true); err != nil {
+			return boardMsg{err: err}
+		}
+		return stoppedMsg{}
+	}
 }
 
 func (m *Monitor) key(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
@@ -218,8 +244,11 @@ func (m *Monitor) key(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 		return m, cmd
 	case modeConfirm:
 		m.mode = modeNormal
-		if k == "y" || k == "s" {
+		if k == "y" || k == "s" || k == "Y" || k == "S" {
 			return m, m.onYes()
+		}
+		if (k == "a" || k == "A") && m.onAlt != nil {
+			return m, m.onAlt()
 		}
 		m.notice = "Cancelado."
 		return m, nil
@@ -268,6 +297,13 @@ func (m *Monitor) submitPrompt(v string) tea.Cmd {
 		id := m.pendingID
 		return m.call("Alumno añadido: "+v+".", func(ctx context.Context) (*daemon.Board, error) {
 			return m.client.AddStudent(ctx, id, v)
+		})
+	case promptMessageAll:
+		if v == "" {
+			return nil
+		}
+		return m.call("Mensaje enviado a todos.", func(ctx context.Context) (*daemon.Board, error) {
+			return m.client.MessageAll(ctx, v)
 		})
 	case promptRevert:
 		ids := m.reverting
@@ -371,14 +407,30 @@ func (m *Monitor) normalKey(k string) (tea.Model, tea.Cmd) {
 			})
 		}
 	case "e", "E":
-		if st != nil && st.State != session.StateEnded {
-			m.confirm("¿Terminar el examen para todos y entregar lo guardado?", func() tea.Cmd {
-				return m.call("Examen terminado: entregas guardadas.", func(ctx context.Context) (*daemon.Board, error) {
+		switch {
+		case st != nil && st.State != session.StateEnded:
+			m.confirmOr("¿Terminar el examen para todos y entregar lo guardado?", func() tea.Cmd {
+				return m.call("Examen terminado: entregas guardadas. El servidor sigue para ver resultados.", func(ctx context.Context) (*daemon.Board, error) {
 					if _, err := m.client.End(ctx); err != nil {
 						return nil, err
 					}
 					return m.client.Board(ctx)
 				})
+			}, "terminar y apagar el servidor", m.stopServer)
+		case st != nil:
+			m.confirm("¿Apagar el servidor? Los resultados quedan guardados (`ax results`).", m.stopServer)
+		}
+	case "M", "shift+m":
+		if st != nil && st.State != session.StateEnded {
+			return m, m.startPrompt(promptMessageAll, "Mensaje para TODOS los alumnos:", "Quedan 10 minutos")
+		}
+	case "P", "shift+p":
+		if st != nil && st.State == session.StateRunning {
+			if m.board.AllPaused {
+				return m, m.call("Todos pueden continuar.", func(ctx context.Context) (*daemon.Board, error) { return m.client.PauseAll(ctx, false) })
+			}
+			m.confirm("¿Pausar el examen para todos? Su tiempo sigue corriendo.", func() tea.Cmd {
+				return m.call("Examen en pausa para todos (el tiempo sigue).", func(ctx context.Context) (*daemon.Board, error) { return m.client.PauseAll(ctx, true) })
 			})
 		}
 	case "a", "A", "r", "R":
@@ -428,9 +480,9 @@ func (m *Monitor) normalKey(k string) (tea.Model, tea.Cmd) {
 	switch k {
 	case "t", "T":
 		return m, m.startPrompt(promptMinutes, "Minutos extra para "+row.Name+":", "5")
-	case "m", "M":
+	case "m":
 		return m, m.startPrompt(promptMessage, "Mensaje para "+row.Name+":", "Recuerda mantener esta pestaña activa")
-	case "p", "P":
+	case "p":
 		if row.Paused {
 			return m, attempt("pause", row.Name+" puede continuar.", map[string]any{"on": false})
 		}
@@ -719,7 +771,11 @@ func (m *Monitor) finish(b *strings.Builder) tea.View {
 	b.WriteString("\n")
 	switch m.mode {
 	case modeConfirm:
-		b.WriteString(accentStyle.Render(m.question) + "  " + keyStyle.Render("Y") + " sí  " + keyStyle.Render("N") + " no\n")
+		b.WriteString(accentStyle.Render(m.question) + "  " + keyStyle.Render("Y") + " sí  ")
+		if m.onAlt != nil {
+			b.WriteString(keyStyle.Render("A") + " " + m.altLabel + "  ")
+		}
+		b.WriteString(keyStyle.Render("N") + " no\n")
 	case modePrompt:
 		b.WriteString(boldStyle.Render(m.question) + "  " + m.input.View() + "\n" + mutedStyle.Render("Enter confirma · Esc cancela") + "\n")
 	case modeLocked:
@@ -740,7 +796,11 @@ func (m *Monitor) keys() string {
 	if m.view == viewStudents {
 		if r := m.selected(); r != nil {
 			if r.AttemptID != "" {
-				top = append(top, k("T", "tiempo"), k("M", "mensaje"), k("P", "pausa"))
+				pause := "pausar"
+				if r.Paused {
+					pause = "reanudar"
+				}
+				top = append(top, k("T", "tiempo"), k("M", "mensaje"), k("P", pause))
 				switch r.State {
 				case session.AttemptActive:
 					top = append(top, k("X", "anular"))
@@ -765,10 +825,16 @@ func (m *Monitor) keys() string {
 		bottom = append(bottom, k("S", "comenzar"))
 	}
 	if st != nil && st.State == session.StateRunning {
-		bottom = append(bottom, k("+", "5 min a todos"))
+		pauseAll := "pausar a todos"
+		if m.board.AllPaused {
+			pauseAll = "reanudar a todos"
+		}
+		bottom = append(bottom, k("+", "5 min a todos"), k("⇧P", pauseAll))
 	}
 	if st != nil && st.State != session.StateEnded {
-		bottom = append(bottom, k("E", "terminar"))
+		bottom = append(bottom, k("⇧M", "mensaje a todos"), k("E", "terminar"))
+	} else if st != nil {
+		bottom = append(bottom, k("E", "apagar el servidor"))
 	}
 	bottom = append(bottom, k("L", "bloquear"), k("Q", "salir (el examen sigue)"))
 	if len(top) == 0 {

@@ -45,6 +45,10 @@ export interface ProctoringView {
    * Away limits for countdowns, ms.
    */
   thresholds: Thresholds;
+  /**
+   * Percentage of the remaining time a long absence costs.
+   */
+  lose_percent: number /* int */;
 }
 /**
  * PenaltyView is an active penalty, shown to the student for transparency.

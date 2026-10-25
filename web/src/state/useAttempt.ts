@@ -12,6 +12,7 @@ export type Phase = "loading" | "anonymous" | "ready" | "error";
 export interface TeacherMessage {
   id: string;
   text: string;
+  all: boolean; // sent to the whole class
 }
 
 /**
@@ -24,7 +25,7 @@ export function useAttempt() {
   const [phase, setPhase] = useState<Phase>("loading");
   const [me, setMeState] = useState<MeView | null>(null);
   const [live, setLive] = useState(false);
-  const [paused, setPaused] = useState(false);
+  const [paused, setPaused] = useState<false | "you" | "all">(false);
   const [messages, setMessages] = useState<TeacherMessage[]>([]);
   const [verdict, setVerdict] = useState<Verdict | null>(null);
   const socket = useRef<WebSocket | null>(null);
@@ -54,7 +55,9 @@ export function useAttempt() {
     void reload();
   }, [reload]);
 
-  const open = me !== null && me.attempt.state === "active" && me.session.state !== "ended";
+  // Stay connected while the session is open, also after a withdrawal or an
+  // annulment: the teacher may readmit, and the page must notice by itself.
+  const open = me !== null && me.attempt.state !== "submitted" && me.session.state !== "ended";
 
   // Live channel with exponential reconnect.
   useEffect(() => {
@@ -75,14 +78,14 @@ export function useAttempt() {
         void reload(); // catch up on anything missed while disconnected
       };
       ws.onmessage = (e: MessageEvent<string>) => {
-        let msg: { type?: string; text?: string; on?: boolean } & Partial<Verdict> = {};
+        let msg: { type?: string; text?: string; on?: boolean; all?: boolean } & Partial<Verdict> = {};
         try {
           msg = JSON.parse(e.data);
         } catch {
           return;
         }
-        if (msg.type === "message" && msg.text) setMessages((m) => [...m, { id: uid(), text: msg.text! }]);
-        else if (msg.type === "pause") setPaused(!!msg.on);
+        if (msg.type === "message" && msg.text) setMessages((m) => [...m, { id: uid(), text: msg.text!, all: !!msg.all }]);
+        else if (msg.type === "pause") setPaused(msg.on ? (msg.all ? "all" : "you") : false);
         else if (msg.type === "verdict") setVerdict({ ...(msg as Verdict) });
         else void reload();
       };

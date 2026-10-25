@@ -209,6 +209,8 @@ func TestReviewOnlyAfterSessionEnds(t *testing.T) {
 	c := e.browser()
 	var me MeView
 	c.mustStatus(http.StatusOK, "POST", "/api/join", map[string]string{"code": e.sess.Code, "name": "Eva", "student_id": "E1"}, &me)
+	// Someone still answering keeps the session open after Eva turns in.
+	e.browser().mustStatus(http.StatusOK, "POST", "/api/join", map[string]string{"code": e.sess.Code, "name": "Leo", "student_id": "L2"}, nil)
 	e.svc.Start(context.Background(), e.sess.ID)
 	q := me.Questions[0].ID
 	c.mustStatus(http.StatusOK, "PUT", "/api/answers/"+q, map[string]any{"seq": 1, "response": correct[q]}, nil)

@@ -42,6 +42,8 @@ type ProctoringView struct {
 	Strikes     int    `json:"strikes"`
 	// Away limits for countdowns, ms.
 	Thresholds proctor.Thresholds `json:"thresholds"`
+	// Percentage of the remaining time a long absence costs.
+	LosePercent int `json:"lose_percent"`
 }
 
 // PenaltyView is an active penalty, shown to the student for transparency.
@@ -187,7 +189,7 @@ func buildMe(d *session.AttemptDetail, now time.Time) MeView {
 	v.Proctoring = ProctoringView{
 		Profile: set.Profile, Fullscreen: set.Fullscreen, Devices: set.Devices, StrikeLimit: set.StrikeLimit,
 		GraceMs: set.Grace.Milliseconds(), SignalSeq: a.SignalSeq, Pledged: !a.PledgedAt.IsZero(),
-		Thresholds: set.Thresholds(),
+		Thresholds: set.Thresholds(), LosePercent: int(set.LoseShare()*100 + 0.5),
 	}
 	if a.State == session.AttemptActive && set.Enabled() {
 		v.Proctoring.Key = session.TelemetryKey(d.Session, a.ID)

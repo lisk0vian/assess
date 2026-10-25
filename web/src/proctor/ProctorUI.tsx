@@ -139,7 +139,7 @@ export function VerdictPanel({ verdict, fullscreen, onClose }: { verdict: Verdic
         <div id="verdict-body" className="muted">
           <p>
             {t(reason as Parameters<typeof t>[0])}
-            {verdict.lose_ms > 0 && <> {t("verdict_lost", { n: Math.round(verdict.lose_ms / 60_000) })}</>}
+            {verdict.lose_ms > 0 && <> {t("verdict_lost", { time: clock(verdict.lose_ms) })}</>}
             {verdict.void && <> {t("verdict_void")}</>}
           </p>
           <p>{t("verdict_revert")}</p>
@@ -213,7 +213,7 @@ export function Pledge({ me, onPledge }: { me: MeView; onPledge: (fullscreen: bo
 
   const rows = useMemo(() => {
     const r: [string, string][] = [
-      [t("rule_hidden", { s: sec(th.hidden_strike_ms) }), t("fx_strike_time")],
+      [t("rule_hidden", { s: sec(th.hidden_strike_ms) }), t("fx_strike_time", { p: p.lose_percent })],
       [t("rule_blur", { s: sec(th.blur_strike_ms) }), t("fx_strike")],
       [t("rule_copy"), t(strict ? "fx_copy_strict" : "fx_copy_standard")],
       [t("rule_screenshot"), t(strict ? "fx_copy_strict" : "fx_copy_standard")],
@@ -222,7 +222,7 @@ export function Pledge({ me, onPledge }: { me: MeView; onPledge: (fullscreen: bo
     if (p.fullscreen === "required") r.push([t("rule_fullscreen", { s: sec(th.fullscreen_strike_ms) }), t("fx_strike")]);
     r.push([t("rule_limit", { n: p.strike_limit }), t("fx_annul")]);
     return r;
-  }, [th, strict, p.fullscreen, p.strike_limit]);
+  }, [th, strict, p.fullscreen, p.strike_limit, p.lose_percent]);
 
   const start = async (fullscreen: boolean) => {
     if (!ok || busy) return;

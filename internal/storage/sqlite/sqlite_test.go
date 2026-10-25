@@ -484,7 +484,7 @@ func TestStrictPenalties(t *testing.T) {
 
 	lost := e.signal(a, session.SignalReport{Kind: "hidden", DurationMs: 22000})
 	d, _ := e.svc.Attempt(e.ctx, a.ID)
-	if d.Attempt.Extra != -time.Minute {
+	if d.Attempt.Extra != -22*time.Minute { // half of the 44 min left
 		t.Fatalf("extra = %s after a time penalty", d.Attempt.Extra)
 	}
 	if len(lost.Penalties) != 2 {
@@ -607,5 +607,26 @@ func TestStandardTolerates(t *testing.T) {
 	e.signal(a, session.SignalReport{Kind: "hidden", DurationMs: 30000})
 	if out := e.signal(a, session.SignalReport{Kind: "paste_input"}); !out.Annulled {
 		t.Fatalf("the third strike annuls: %+v", out)
+	}
+}
+
+func TestSessionEndsWhenEveryoneTurnsIn(t *testing.T) {
+	e := newEnv(t)
+	e.create()
+	ana, leo := e.join("A1", "Ana"), e.join("L2", "Leo")
+	if _, err := e.svc.Start(e.ctx, e.sess.ID); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := e.svc.Submit(e.ctx, ana.ID); err != nil {
+		t.Fatal(err)
+	}
+	if s, _, _ := e.svc.Session(e.ctx, e.sess.ID); s.State != session.StateRunning {
+		t.Fatal("Leo is still answering: the session must stay open")
+	}
+	if _, err := e.svc.Submit(e.ctx, leo.ID); err != nil {
+		t.Fatal(err)
+	}
+	if s, _, _ := e.svc.Session(e.ctx, e.sess.ID); s.State != session.StateEnded {
+		t.Fatalf("everyone turned in, state %s", s.State)
 	}
 }

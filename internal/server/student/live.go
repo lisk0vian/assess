@@ -33,6 +33,7 @@ type hub struct {
 	conns    map[chan []byte]string // outbox -> attempt id
 	presence map[string]*Presence
 	created  time.Time
+	allPause bool // the teacher paused everyone; newcomers start paused too
 }
 
 func newHub() *hub {
@@ -57,8 +58,8 @@ func (h *hub) add(attemptID string) chan []byte {
 	h.conns[ch] = attemptID
 	p := h.entry(attemptID)
 	p.Online, p.LastSeen = true, time.Now()
-	if p.Paused {
-		ch <- encode("pause", map[string]any{"on": true})
+	if p.Paused || h.allPause {
+		ch <- encode("pause", map[string]any{"on": true, "all": h.allPause})
 	}
 	return ch
 }
@@ -159,6 +160,30 @@ func (h *Handler) Presence() []Presence { return h.live.snapshot() }
 // Message shows a teacher's message on the student's screen.
 func (h *Handler) Message(attemptID, text string) {
 	h.live.send(attemptID, encode("message", map[string]any{"text": text}))
+}
+
+// MessageAll shows a teacher's message to every student.
+func (h *Handler) MessageAll(text string) {
+	h.live.send("", encode("message", map[string]any{"text": text, "all": true}))
+}
+
+// SetPausedAll pauses or resumes everyone, including students who connect
+// later. Clocks keep running.
+func (h *Handler) SetPausedAll(paused bool) {
+	h.live.mu.Lock()
+	h.live.allPause = paused
+	for _, p := range h.live.presence {
+		p.Paused = paused
+	}
+	h.live.mu.Unlock()
+	h.live.send("", encode("pause", map[string]any{"on": paused, "all": true}))
+}
+
+// AllPaused reports whether the teacher paused everyone.
+func (h *Handler) AllPaused() bool {
+	h.live.mu.Lock()
+	defer h.live.mu.Unlock()
+	return h.live.allPause
 }
 
 // SetPaused pauses or resumes one student's screen. Their clock keeps running.

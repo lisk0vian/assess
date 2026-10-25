@@ -60,7 +60,8 @@ type SignalOutcome struct {
 	Decision  proctor.Decision
 	Duplicate bool // seq already seen: nothing recorded
 	Penalties []*Penalty
-	Strikes   int // active strikes after this signal
+	Lost      time.Duration // time removed from the attempt
+	Strikes   int           // active strikes after this signal
 	Limit     int
 	Annulled  bool // the strike limit was reached
 }
@@ -143,12 +144,15 @@ func (s *Service) ReportSignal(ctx context.Context, attemptID string, r SignalRe
 				return err
 			}
 		}
-		if d.LoseTime > 0 {
-			att.Extra -= d.LoseTime
+		// Lost time is a share of what the student has left, in whole seconds.
+		lose := time.Duration(float64(att.Deadline(sess).Sub(now)) * d.LoseShare).Truncate(time.Second)
+		if lose > 0 {
+			out.Lost = lose
+			att.Extra -= lose
 			if err := tx.UpdateAttempt(att); err != nil {
 				return err
 			}
-			if err := add(PenaltyTime, float64(d.LoseTime.Milliseconds()), r.QuestionID); err != nil {
+			if err := add(PenaltyTime, float64(lose.Milliseconds()), r.QuestionID); err != nil {
 				return err
 			}
 		}

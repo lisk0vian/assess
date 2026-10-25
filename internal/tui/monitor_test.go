@@ -166,3 +166,36 @@ func TestMonitorIncidentsAndRevert(t *testing.T) {
 		t.Fatal("an incident with nothing active must not open the prompt")
 	}
 }
+
+func TestMonitorKeysFollowState(t *testing.T) {
+	m := NewMonitor(&daemon.Client{}, &daemon.State{}, Options{})
+	b := board(session.StateRunning)
+	m.Update(boardMsg{board: b})
+	v := m.View().Content
+	for _, want := range []string{"pausar", "pausar a todos", "mensaje a todos"} {
+		if !strings.Contains(v, want) {
+			t.Fatalf("missing %q:\n%s", want, v)
+		}
+	}
+	b.Students[0].Paused, b.AllPaused = true, true
+	m.Update(boardMsg{board: b})
+	v = m.View().Content
+	if !strings.Contains(v, "reanudar") || !strings.Contains(v, "reanudar a todos") {
+		t.Fatalf("pause labels must turn into resume:\n%s", v)
+	}
+
+	press(m, "M")
+	if m.mode != modePrompt || m.prompt != promptMessageAll {
+		t.Fatal("⇧M asks for a message to everyone")
+	}
+	press(m, "esc", "E")
+	if v := m.View().Content; m.mode != modeConfirm || !strings.Contains(v, "terminar y apagar el servidor") {
+		t.Fatalf("E offers ending with the server:\n%s", v)
+	}
+	press(m, "n")
+	ended := board(session.StateEnded)
+	m.Update(boardMsg{board: ended})
+	if v := m.View().Content; !strings.Contains(v, "apagar el servidor") || strings.Contains(v, "mensaje a todos") {
+		t.Fatalf("after the end, E stops the server:\n%s", v)
+	}
+}

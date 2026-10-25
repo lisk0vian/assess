@@ -45,7 +45,7 @@ export function App() {
       </main>
     );
   }
-  const toasts: Toast[] = [...messages.map((m) => ({ id: m.id, kind: "plain" as const, title: t("msg_title"), body: m.text })), ...warnings];
+  const toasts: Toast[] = [...messages.map((m) => ({ id: m.id, kind: "plain" as const, title: t(m.all ? "msg_title_all" : "msg_title"), body: m.text })), ...warnings];
   const close = (id: string) => {
     dismiss(id);
     setWarnings((w) => w.filter((x) => x.id !== id));
@@ -66,7 +66,7 @@ export function App() {
           <section className="panel panel--inverse" role="alert">
             <Pause size={28} strokeWidth={2} strokeLinecap="square" />
             <h1 className="panel__title">{t("pause_title")}</h1>
-            <p>{t("pause_body")}</p>
+            <p>{t(paused === "all" ? "pause_body_all" : "pause_body")}</p>
           </section>
         </div>
       )}
