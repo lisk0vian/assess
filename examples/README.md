@@ -124,7 +124,9 @@ with its points.
 
 ```sh
 ax                    # menu: create, edit or start an exam
+ax new                # step-by-step wizard, no files to learn
 ax new mi-examen      # template with every question type
+ax format             # the file format: hand it to an AI to write exams for you
 ax edit mi-examen     # forms for settings, questions and answers; E opens $EDITOR
 ax validate mi-examen
 ```

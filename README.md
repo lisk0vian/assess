@@ -31,7 +31,9 @@ go build ./cmd/ax
 go test ./...
 
 ./ax                                     # menu: create, edit, start, report
-./ax new ./my-exam --title "Álgebra 1"   # scaffold a valid exam
+./ax new                                 # guided wizard for a new exam
+./ax new ./my-exam --title "Álgebra 1"   # or: scaffold a template folder
+./ax format                              # the file format, for writing exams by hand or with an AI
 ./ax edit ./my-exam                      # edit questions and answers in the terminal
 ./ax validate ./my-exam                  # check it
 ./ax validate examples/algebra-01

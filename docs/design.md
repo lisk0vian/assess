@@ -180,6 +180,23 @@ reversed, edit it here and note why in the commit.
 
 ## Editor and menu (implemented in phase 7)
 
+- `ax new` (no folder, in a terminal) is a wizard for teachers who never read
+  the format. Four steps in a stepper: **Datos** (title, folder derived from
+  the title, duration presets in words, language, what students see,
+  instructions with a default), **Preguntas** (a list with a live preview of
+  each question as students see it, the right answer marked; add, edit,
+  delete, reorder; the empty state explains the four types), **Vigilancia**
+  (profile with a plain-language description of what students will notice,
+  shuffling), **Revisar** (summary; the exam is written to a scratch folder
+  and validated before anything touches the real one). Then: start it now,
+  keep editing, or quit. Esc goes back a step; leaving with work asks first.
+  Built with Bubble Tea, bubbles (list, viewport, help, key, spinner), huh
+  and lipgloss. Question ids are assigned in order (q001…).
+- Files stay first-class: `ax format` prints the [authoring guide](authoring.md)
+  (a complete valid example, checked by the tests, plus a checklist and a
+  request a teacher can give an AI) and the format reference, so an AI with
+  only the binary can write an exam and loop on `ax validate --json`.
+
 - `ax edit <dir>` opens the exam in the terminal: the settings row, the items
   in order (pools grouped with their questions, questions no item names
   marked) and the validation result, refreshed after every change.

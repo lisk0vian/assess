@@ -2,7 +2,12 @@
 
 Status: **v1**, enforced by `ax validate`.
 Reference example: [`examples/algebra-01`](../examples/algebra-01).
-Create a new exam from a template with `ax new <folder>`.
+Writing an exam as files (for example with an AI assistant)? Start with the
+[authoring guide](authoring.md): a complete valid example and a checklist.
+`ax format` prints the guide and this reference from the binary.
+
+Teachers can skip the files: `ax new` is a guided wizard, `ax edit <folder>`
+edits an existing exam, and `ax new <folder>` writes a template.
 
 An exam is a plain folder. It can live anywhere and be versioned with git;
 `ax` always refers to exams by folder path.
