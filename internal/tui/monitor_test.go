@@ -8,6 +8,7 @@ import (
 	tea "charm.land/bubbletea/v2"
 
 	"github.com/lisk0vian/assess/internal/daemon"
+	"github.com/lisk0vian/assess/internal/report"
 	"github.com/lisk0vian/assess/internal/server/student"
 	"github.com/lisk0vian/assess/internal/session"
 )
@@ -212,5 +213,25 @@ func TestMonitorOpensReportWhenEnded(t *testing.T) {
 	}
 	if cmd := press(m, "i"); cmd == nil || !m.WantsReport() {
 		t.Fatal("I should close the panel to open the report")
+	}
+}
+
+func TestMonitorShowsAwayHits(t *testing.T) {
+	m := NewMonitor(&daemon.Client{}, &daemon.State{StudentURL: "http://x/", Code: "K7Q2XM"}, Options{})
+	b := board(session.StateRunning)
+	b.StrikeLimit = 3
+	b.Students[0].Strikes, b.Students[0].Signals, b.Students[0].AwayHits = 1, 2, 1
+	b.AwayHits = []report.AwayHit{{Who: report.Who{Name: "Ana Pérez", StudentID: "A-1"}, QuestionID: "q004", Signal: "hidden",
+		AwayMs: 40_000, AfterMs: 8_000, Difficulty: 0.75, Strong: true}}
+	m.Update(boardMsg{board: b})
+	if v := m.View().Content; !strings.Contains(v, "1/3 ·2 ↩1") {
+		t.Fatalf("the students view should flag the hit:\n%s", v)
+	}
+	m.view = viewIncidents
+	v := m.View().Content
+	for _, want := range []string{"SALIÓ Y ACERTÓ", "Ana Pérez", "q004", "fuera de la pestaña 40s → acertó a los 8s", "la falla el 75 % del resto"} {
+		if !strings.Contains(v, want) {
+			t.Fatalf("incidents view missing %q:\n%s", want, v)
+		}
 	}
 }

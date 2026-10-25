@@ -10,6 +10,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/lisk0vian/assess/internal/exam"
+	"github.com/lisk0vian/assess/internal/report"
 	"github.com/lisk0vian/assess/internal/server/student"
 	"github.com/lisk0vian/assess/internal/session"
 )
@@ -33,6 +35,7 @@ type StudentRow struct {
 	UsedMs        int64                `json:"used_ms,omitempty"` // from the start to submission (or now)
 	Strikes       int                  `json:"strikes"`           // active strikes
 	Signals       int                  `json:"signals"`           // warn and high integrity signals
+	AwayHits      int                  `json:"away_hits"`         // correct answers right after leaving the exam
 }
 
 // Incident is one integrity signal in the live log, with what it cost.
@@ -57,6 +60,7 @@ type Board struct {
 	StrikeLimit int               `json:"strike_limit"` // 0: proctoring off
 	AllPaused   bool              `json:"all_paused"`   // the teacher paused everyone
 	Incidents   []Incident        `json:"incidents"`    // newest first
+	AwayHits    []report.AwayHit  `json:"away_hits"`    // left and got it right, hardest questions first
 }
 
 func (d *daemon) board(ctx context.Context) (*Board, error) {
@@ -73,10 +77,12 @@ func (d *daemon) board(ctx context.Context) (*Board, error) {
 		presence[p.AttemptID] = p
 	}
 	b := &Board{Status: *st, AllPaused: d.students.AllPaused()}
-	if _, pub, err := d.svc.Session(ctx, d.sessionID); err == nil {
-		if set := session.ProctorSettings(&pub.Exam.Manifest); set.Enabled() {
-			b.StrikeLimit = set.StrikeLimit
-		}
+	_, pub, err := d.svc.Session(ctx, d.sessionID)
+	if err != nil {
+		return nil, err
+	}
+	if set := session.ProctorSettings(&pub.Exam.Manifest); set.Enabled() {
+		b.StrikeLimit = set.StrikeLimit
 	}
 	attempted := map[string]bool{}
 	byAttempt := map[string]*session.Attempt{}
@@ -123,12 +129,38 @@ func (d *daemon) board(ctx context.Context) (*Board, error) {
 		return strings.ToLower(b.Students[i].Name) < strings.ToLower(b.Students[j].Name)
 	})
 	b.Incidents = incidents(snap, byAttempt)
+	if b.StrikeLimit > 0 {
+		if err := d.awayHits(ctx, b, snap, pub); err != nil {
+			return nil, err
+		}
+	}
 	for _, r := range d.students.Requests() {
 		if r.Status == student.Pending {
 			b.Requests = append(b.Requests, r)
 		}
 	}
 	return b, nil
+}
+
+// awayHitsShown bounds the "left and got it right" list of the panel.
+const awayHitsShown = 20
+
+// awayHits marks correct answers given right after leaving the question.
+func (d *daemon) awayHits(ctx context.Context, b *Board, snap *session.Snapshot, pub *exam.Published) error {
+	events, err := d.svc.Events(ctx, d.sessionID, report.AwaySignalKinds()...)
+	if err != nil {
+		return err
+	}
+	hits := report.AwayHits(&session.Archive{Snapshot: snap, Published: pub, Events: events})
+	per := map[string]int{}
+	for _, h := range hits {
+		per[h.StudentID]++
+	}
+	for i := range b.Students {
+		b.Students[i].AwayHits = per[b.Students[i].StudentID]
+	}
+	b.AwayHits = hits[:min(len(hits), awayHitsShown)]
+	return nil
 }
 
 // incidents joins the newest signals with their students and penalties.

@@ -644,6 +644,18 @@ func (m *Monitor) View() tea.View {
 			b.WriteString(mutedStyle.Render("También: "+u) + "\n")
 		}
 	case viewIncidents:
+		if len(m.board.AwayHits) > 0 {
+			b.WriteString(headStyle.Render("  SALIÓ Y ACERTÓ") + mutedStyle.Render(" · acertó justo al volver a la pregunta; la dificultad es provisional hasta que todos entreguen") + "\n")
+			for _, h := range m.board.AwayHits {
+				hard := fmt.Sprintf("la falla el %d %% del resto", int(h.Difficulty*100+0.5))
+				if h.Strong {
+					hard = accentStyle.Render(hard)
+				}
+				fmt.Fprintf(&b, "  ↩ %-22s %-8s %s %ds → acertó a los %ds · %s\n", cut(h.Name, 22), h.QuestionID,
+					signalName(h.Signal), h.AwayMs/1000, h.AfterMs/1000, hard)
+			}
+			b.WriteString("\n")
+		}
 		if len(m.board.Incidents) == 0 {
 			b.WriteString(mutedStyle.Render("  Sin incidencias.") + "\n")
 			if m.board.StrikeLimit == 0 {
@@ -665,7 +677,7 @@ func (m *Monitor) View() tea.View {
 			b.WriteString(m.line(i, line) + "\n")
 		}
 	default:
-		b.WriteString(headStyle.Render(fmt.Sprintf("  %-24s %-9s %-13s %-6s %-9s %-7s %-8s %-8s %s", "ALUMNO", "ID", "ESTADO", "PREG.", "RESP.", "CONEX.", "AVISOS", "NOTA", "TIEMPO")) + "\n")
+		b.WriteString(headStyle.Render(fmt.Sprintf("  %-24s %-9s %-13s %-6s %-9s %-7s %-11s %-8s %s", "ALUMNO", "ID", "ESTADO", "PREG.", "RESP.", "CONEX.", "AVISOS", "NOTA", "TIEMPO")) + "\n")
 		rows := m.rows()
 		if len(rows) == 0 {
 			b.WriteString(mutedStyle.Render("  Nadie ha entrado todavía. Comparte el código o el QR (vista Enlace).") + "\n")
@@ -722,8 +734,11 @@ func (m *Monitor) studentLine(r daemon.StudentRow) string {
 		if r.Signals > 0 {
 			strikes += fmt.Sprintf(" ·%d", r.Signals)
 		}
+		if r.AwayHits > 0 {
+			strikes += fmt.Sprintf(" ↩%d", r.AwayHits)
+		}
 	}
-	return fmt.Sprintf("%-24s %-9s %-13s %-6s %-9s %-7s %-8s %-8s %s", cut(r.Name, 24), cut(r.StudentID, 9), state, q, resp, conn, strikes, score(r), used)
+	return fmt.Sprintf("%-24s %-9s %-13s %-6s %-9s %-7s %-11s %-8s %s", cut(r.Name, 24), cut(r.StudentID, 9), state, q, resp, conn, strikes, score(r), used)
 }
 
 func incidentLine(in daemon.Incident) string {

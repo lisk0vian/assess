@@ -592,15 +592,26 @@ func tailAtLeast(ps []float64, k int) float64 {
 // awayHits finds correct answers saved right after an absence that started
 // on the same question, weighted by how hard the question was for the rest.
 func (r *Report) awayHits(arc *session.Archive, atts []*attempt) {
-	r.AwayHits = AwayHits(arc, atts)
+	r.AwayHits = awayHits(arc, atts)
+}
+
+// AwaySignalKinds are the event kinds AwayHits reads; arc.Events may hold
+// only these.
+func AwaySignalKinds() []string {
+	out := make([]string, 0, len(awaySignals))
+	for k := range awaySignals {
+		out = append(out, k)
+	}
+	sort.Strings(out)
+	return out
 }
 
 // AwayHits finds, in arc, correct answers saved right after the student came
-// back to the question they left. atts may be nil; it is prepared then.
-func AwayHits(arc *session.Archive, atts []*attempt) []AwayHit {
-	if atts == nil {
-		atts = prepare(arc)
-	}
+// back to the question they left. It works on a running session too: then
+// the difficulty counts students still answering as not having it right.
+func AwayHits(arc *session.Archive) []AwayHit { return awayHits(arc, prepare(arc)) }
+
+func awayHits(arc *session.Archive, atts []*attempt) []AwayHit {
 	byID := make(map[string]*attempt, len(atts))
 	seen, correct := map[string]int{}, map[string]int{}
 	for _, a := range atts {

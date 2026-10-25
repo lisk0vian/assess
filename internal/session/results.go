@@ -118,6 +118,17 @@ func (s *Service) Archive(ctx context.Context, sessionID string) (*Archive, erro
 	return arc, err
 }
 
+// Events returns the events of sessionID of the given kinds, oldest first.
+func (s *Service) Events(ctx context.Context, sessionID string, kinds ...string) ([]*Event, error) {
+	var out []*Event
+	err := s.store.View(ctx, func(tx Tx) error {
+		var err error
+		out, err = tx.ListEventsOfKind(sessionID, kinds)
+		return err
+	})
+	return out, err
+}
+
 // ExamSessions returns the sessions of the exam with manifest id examID,
 // whatever version was published, oldest first.
 func (s *Service) ExamSessions(ctx context.Context, examID string) ([]*Session, error) {

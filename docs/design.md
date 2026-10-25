@@ -156,8 +156,8 @@ reversed, edit it here and note why in the commit.
   newest signals (time, student, signal, duration, question, consequence;
   reverted ones are marked). Z reverts the selected incident's penalties, or
   in Alumnos the student's newest one, after asking for a note.
-- Seat map: deferred (optional; planned with the collusion report in phase 6,
-  which is where seat-aware weighting is used).
+- Seat map: deferred. The phase 6 collusion analysis works without seats;
+  seat-aware weighting is added when the map exists.
 
 ## Teacher TUI (design decisions)
 
@@ -177,6 +177,50 @@ reversed, edit it here and note why in the commit.
   session history, collusion analysis (identical wrong answers, synchronized
   answering, weighted by seating), "left-and-got-it-right" correlation, leaked
   question detection across sessions.
+
+## Reports (implemented in phase 6)
+
+- `ax report [--session id] [--json]`: only once the session has ended; asks
+  for the panel password and closes itself after 5 idle minutes when one is
+  set. Piped output is plain text, `--json` is the full analysis for tools.
+  In the panel, **I** opens the report of an ended session.
+- The analysis (`internal/report`) grades every attempt from scratch,
+  ignoring penalties, so it sees what students actually answered. Scores and
+  times count submitted attempts only; collusion and "left and got it right"
+  consider every attempt.
+- Views, drawn with ntcharts v2 bar charts:
+  1. **Resumen**: counts, mean/median/deviation/range, histograms of the score
+     (10 % bins) and of the time used (from each student's own start), and
+     the students with strikes or evidence.
+  2. **Preguntas**: % correct per question, blank rate and discrimination
+     (correlation between getting it right and the rest of the exam). Notes
+     flag negative discrimination (check the key), questions that barely
+     discriminate, possible leaks, hits after leaving and voided answers.
+  3. **Incidencias**: warn/high signals over time (≤ 30 bars), totals by
+     signal kind, active strikes, reverted penalties, time removed.
+  4. **Indicios** (evidence, never proof):
+     - *Similar answers*: for every pair, the chance two wrong answers to a
+       question match comes from how the whole class answered it wrong
+       (Σ nₖ(nₖ−1) / N(N−1)), so a shared popular distractor or a true/false
+       says nothing and a shared odd wrong number says a lot. The chance of
+       the observed matches or more is a Poisson binomial tail, multiplied by
+       the number of pairs compared. Medium: ≥ 3 identical wrong answers and
+       corrected p < 0.05, or ≥ 4 identical answers saved within 20 s of each
+       other while the questions were at different positions (so same pace in
+       the same order does not count) on at least a third of the shared
+       questions. High: corrected p < 0.01, or both signs together.
+     - *Left and got it right*: a hidden/blur/fullscreen-exit absence on a
+       question followed, within 90 s of coming back, by the final correct
+       answer to that question. Weighted by difficulty (share of the other
+       students who did not get it right); strong when ≥ 50 %.
+  5. **Historial**: the sessions of the same exam id (any published version)
+     with their mean and median, and *possibly leaked questions*: correct
+     rate at least 20 points above the earlier sessions pooled (≥ 10 earlier
+     answers, ≥ 5 now) and one-sided z ≥ 2.33. The advice is to rewrite or
+     rotate the question.
+- Live: the panel marks "left and got it right" as ↩N in AVISOS and lists the
+  hits at the top of Incidencias; the difficulty is provisional until
+  everyone turns in.
 
 ## Anti-cheat engine (implemented in phase 5)
 

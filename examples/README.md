@@ -64,6 +64,8 @@ ax logs -f           # follow the server log
 ax stop              # end the exam and stop the server
 ax results --sep ";" --out notas.csv   # CSV for Excel with a Spanish locale
 ax results --format json
+ax report            # once the exam ended: charts, questions, evidence (I in the panel)
+ax report --json > informe.json
 ```
 
 To try several exams without mixing data, give each one its own data folder:

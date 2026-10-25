@@ -66,4 +66,6 @@ type Tx interface {
 	// SignalCounts counts warn and high integrity signals per attempt.
 	SignalCounts(sessionID string) (map[string]int, error)
 	ListEvents(sessionID string) ([]*Event, error)
+	// ListEventsOfKind returns the events of the given kinds, oldest first.
+	ListEventsOfKind(sessionID string, kinds []string) ([]*Event, error)
 }

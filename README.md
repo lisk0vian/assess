@@ -3,7 +3,7 @@
 Create, run and proctor exams from the terminal. Students answer from any
 browser on the classroom network — nothing to install.
 
-> **Status: pre-alpha (phase 4).** The design is settled; features are being
+> **Status: pre-alpha (phase 6).** The design is settled; features are being
 > built phase by phase. See [docs/design.md](docs/design.md).
 
 ## What it will do
@@ -15,6 +15,9 @@ browser on the classroom network — nothing to install.
 - The server enforces time, grading and penalties; answer keys never reach the
   browser.
 - Browser-only anti-cheat with transparent, reversible penalties.
+- `ax report` after the exam: score and time charts, how each question
+  behaved, the incident timeline, and evidence worth a look (similar wrong
+  answers, correct right after leaving, questions that may have leaked).
 - One self-contained executable for Windows, Linux and macOS.
 
 ## Development

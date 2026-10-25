@@ -524,6 +524,18 @@ func (t *tx) ListEvents(sessionID string) ([]*session.Event, error) {
 	return t.events(`WHERE session_id = ? ORDER BY received_at, id`, sessionID, sessionID)
 }
 
+func (t *tx) ListEventsOfKind(sessionID string, kinds []string) ([]*session.Event, error) {
+	if len(kinds) == 0 {
+		return nil, nil
+	}
+	args := []any{sessionID}
+	for _, k := range kinds {
+		args = append(args, k)
+	}
+	marks := strings.TrimSuffix(strings.Repeat("?, ", len(kinds)), ", ")
+	return t.events(`WHERE session_id = ? AND kind IN (`+marks+`) ORDER BY received_at, id`, sessionID, args...)
+}
+
 // events runs a query over the events of sessionID; where carries the
 // conditions and order, args its parameters.
 func (t *tx) events(where, sessionID string, args ...any) ([]*session.Event, error) {
