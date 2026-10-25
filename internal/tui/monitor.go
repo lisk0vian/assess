@@ -104,7 +104,11 @@ type Monitor struct {
 	altLabel  string // a third answer in a confirmation, e.g. "end and stop the server"
 	onAlt     func() tea.Cmd
 	lastInput time.Time
+	report    bool // quit to open the report of the ended session
 }
+
+// WantsReport reports whether the panel closed to open the session report.
+func (m *Monitor) WantsReport() bool { return m.report }
 
 // NewMonitor builds the panel for a connected daemon.
 func NewMonitor(c *daemon.Client, st *daemon.State, opts Options) *Monitor {
@@ -405,6 +409,11 @@ func (m *Monitor) normalKey(k string) (tea.Model, tea.Cmd) {
 				}
 				return m.client.Board(ctx)
 			})
+		}
+	case "i", "I":
+		if st != nil && st.State == session.StateEnded {
+			m.report = true
+			return m, tea.Quit
 		}
 	case "e", "E":
 		switch {
@@ -834,7 +843,7 @@ func (m *Monitor) keys() string {
 	if st != nil && st.State != session.StateEnded {
 		bottom = append(bottom, k("⇧M", "mensaje a todos"), k("E", "terminar"))
 	} else if st != nil {
-		bottom = append(bottom, k("E", "apagar el servidor"))
+		bottom = append(bottom, k("I", "informe"), k("E", "apagar el servidor"))
 	}
 	bottom = append(bottom, k("L", "bloquear"), k("Q", "salir (el examen sigue)"))
 	if len(top) == 0 {

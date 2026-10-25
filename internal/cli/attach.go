@@ -41,11 +41,15 @@ func attach(cmd *cobra.Command, dir string) error {
 		opts.CheckPassword = func(pw string) bool { return security.CheckPassword(dir, pw) }
 		opts.LockAfter = lockAfter
 	}
-	_, err = tea.NewProgram(tui.NewMonitor(c, st, opts)).Run()
-	if err == nil {
-		fmt.Fprintln(cmd.OutOrStdout(), "Panel closed. The exam keeps running; `ax attach` reopens it.")
+	mon := tui.NewMonitor(c, st, opts)
+	if _, err = tea.NewProgram(mon).Run(); err != nil {
+		return err
 	}
-	return err
+	if mon.WantsReport() {
+		return showReport(cmd, dir, st.SessionID)
+	}
+	fmt.Fprintln(cmd.OutOrStdout(), "Panel closed. The exam keeps running; `ax attach` reopens it.")
+	return nil
 }
 
 func isTerminal() bool {

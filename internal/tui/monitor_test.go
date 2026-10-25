@@ -199,3 +199,18 @@ func TestMonitorKeysFollowState(t *testing.T) {
 		t.Fatalf("after the end, E stops the server:\n%s", v)
 	}
 }
+
+func TestMonitorOpensReportWhenEnded(t *testing.T) {
+	m := NewMonitor(&daemon.Client{}, &daemon.State{StudentURL: "http://x/", Code: "K7Q2XM"}, Options{})
+	m.Update(boardMsg{board: board(session.StateRunning)})
+	if cmd := press(m, "i"); cmd != nil || m.WantsReport() {
+		t.Fatal("the report is only for ended sessions")
+	}
+	m.Update(boardMsg{board: board(session.StateEnded)})
+	if !strings.Contains(m.View().Content, "informe") {
+		t.Fatal("an ended session should offer the report")
+	}
+	if cmd := press(m, "i"); cmd == nil || !m.WantsReport() {
+		t.Fatal("I should close the panel to open the report")
+	}
+}
