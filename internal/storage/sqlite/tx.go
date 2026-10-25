@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/lisk0vian/assess/internal/exam"
@@ -406,6 +407,24 @@ func (t *tx) ListPenalties(attemptID string) ([]*session.Penalty, error) {
 	return out, rows.Err()
 }
 
+func (t *tx) ListSessionPenalties(sessionID string) ([]*session.Penalty, error) {
+	rows, err := t.query(`SELECT p.`+strings.ReplaceAll(penaltyCols, ", ", ", p.")+` FROM penalties p
+		JOIN attempts a ON a.id = p.attempt_id WHERE a.session_id = ? ORDER BY p.id`, sessionID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var out []*session.Penalty
+	for rows.Next() {
+		p, err := scanPenalty(rows)
+		if err != nil {
+			return nil, err
+		}
+		out = append(out, p)
+	}
+	return out, rows.Err()
+}
+
 func (t *tx) GetPenalty(id int64) (*session.Penalty, error) {
 	p, err := scanPenalty(t.row(`SELECT `+penaltyCols+` FROM penalties WHERE id = ?`, id))
 	return p, notFound(err, fmt.Sprintf("penalty %d", id))
@@ -471,9 +490,45 @@ func (t *tx) CountEvents(attemptID, kind string) (int, error) {
 	return n, err
 }
 
+func (t *tx) RecentEvents(sessionID, prefix string, limit int) ([]*session.Event, error) {
+	return t.events(`WHERE session_id = ? AND kind LIKE ? ESCAPE '\' ORDER BY id DESC LIMIT ?`,
+		sessionID, sessionID, likePrefix(prefix), limit)
+}
+
+func likePrefix(s string) string {
+	r := strings.NewReplacer(`\`, `\\`, "%", `\%`, "_", `\_`)
+	return r.Replace(s) + "%"
+}
+
+func (t *tx) SignalCounts(sessionID string) (map[string]int, error) {
+	rows, err := t.query(`SELECT attempt_id, COUNT(*) FROM events
+		WHERE session_id = ? AND kind LIKE 'signal.%' AND severity IN ('warn', 'high') AND attempt_id IS NOT NULL
+		GROUP BY attempt_id`, sessionID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	out := map[string]int{}
+	for rows.Next() {
+		var id string
+		var n int
+		if err := rows.Scan(&id, &n); err != nil {
+			return nil, err
+		}
+		out[id] = n
+	}
+	return out, rows.Err()
+}
+
 func (t *tx) ListEvents(sessionID string) ([]*session.Event, error) {
+	return t.events(`WHERE session_id = ? ORDER BY received_at, id`, sessionID, sessionID)
+}
+
+// events runs a query over the events of sessionID; where carries the
+// conditions and order, args its parameters.
+func (t *tx) events(where, sessionID string, args ...any) ([]*session.Event, error) {
 	rows, err := t.query(`SELECT id, attempt_id, kind, severity, question_id, data, client_at, received_at
-		FROM events WHERE session_id = ? ORDER BY received_at, id`, sessionID)
+		FROM events `+where, args...)
 	if err != nil {
 		return nil, err
 	}

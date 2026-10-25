@@ -37,11 +37,20 @@ var (
 const (
 	viewStudents = iota
 	viewRanking
+	viewIncidents
 	viewLink
 	viewCount
 )
 
-var viewNames = [viewCount]string{"Alumnos", "Ranking", "Enlace"}
+var viewNames = [viewCount]string{"Alumnos", "Ranking", "Incidencias", "Enlace"}
+
+// signalNames are the teacher-facing names of integrity signals.
+var signalNames = map[string]string{
+	"hidden": "fuera de la pestaña", "blur": "en otra ventana", "copy": "copiar", "paste_input": "pegar en respuesta",
+	"burst": "escritura en ráfaga", "fullscreen_exit": "salió de pantalla completa", "untrusted": "clics o teclas sintéticos",
+	"webdriver": "navegador automatizado", "dom_injection": "extensión en la página", "resize": "ventana reducida",
+	"second_tab": "segunda pestaña", "telemetry": "telemetría alterada", "telemetry_gap": "canal en silencio",
+}
 
 type mode int
 
@@ -59,6 +68,7 @@ const (
 	promptMessage
 	promptAddID
 	promptAddName
+	promptRevert
 )
 
 // Options configures the panel.
@@ -86,7 +96,8 @@ type Monitor struct {
 	mode      mode
 	prompt    promptKind
 	input     textinput.Model
-	pendingID string // student id typed in the first step of "add"
+	pendingID string  // student id typed in the first step of "add"
+	reverting []int64 // penalties a revert prompt applies to
 	question  string
 	onYes     func() tea.Cmd
 	lastInput time.Time
@@ -258,8 +269,61 @@ func (m *Monitor) submitPrompt(v string) tea.Cmd {
 		return m.call("Alumno añadido: "+v+".", func(ctx context.Context) (*daemon.Board, error) {
 			return m.client.AddStudent(ctx, id, v)
 		})
+	case promptRevert:
+		ids := m.reverting
+		return m.call("Penalización revertida.", func(ctx context.Context) (*daemon.Board, error) {
+			return m.client.RevertPenalties(ctx, ids, v)
+		})
 	}
 	return nil
+}
+
+// revert asks for a note and reverts the active penalties of an incident.
+func (m *Monitor) revert(in *daemon.Incident) tea.Cmd {
+	if in == nil {
+		m.notice = "No hay penalizaciones activas que revertir."
+		return nil
+	}
+	m.reverting = activePenalties(in)
+	return m.startPrompt(promptRevert, fmt.Sprintf("Revertir «%s» de %s. Nota (opcional):", signalName(in.Kind), in.Name), "motivo")
+}
+
+func activePenalties(in *daemon.Incident) []int64 {
+	var ids []int64
+	for _, p := range in.Penalties {
+		if p.Active() {
+			ids = append(ids, p.ID)
+		}
+	}
+	return ids
+}
+
+// latestPenalized is the newest incident of attemptID that still costs something.
+func (m *Monitor) latestPenalized(attemptID string) *daemon.Incident {
+	if m.board == nil {
+		return nil
+	}
+	for i := range m.board.Incidents {
+		in := &m.board.Incidents[i]
+		if in.AttemptID == attemptID && len(activePenalties(in)) > 0 {
+			return in
+		}
+	}
+	return nil
+}
+
+func (m *Monitor) selectedIncident() *daemon.Incident {
+	if m.board == nil || m.view != viewIncidents || m.sel < 0 || m.sel >= len(m.board.Incidents) {
+		return nil
+	}
+	return &m.board.Incidents[m.sel]
+}
+
+func signalName(kind string) string {
+	if n, ok := signalNames[kind]; ok {
+		return n
+	}
+	return kind
 }
 
 func (m *Monitor) normalKey(k string) (tea.Model, tea.Cmd) {
@@ -330,6 +394,17 @@ func (m *Monitor) normalKey(k string) (tea.Model, tea.Cmd) {
 		}
 	case "n", "N":
 		return m, m.startPrompt(promptAddID, "Identificador del nuevo alumno:", "A-123")
+	case "z", "Z":
+		switch {
+		case m.view == viewIncidents:
+			in := m.selectedIncident()
+			if in != nil && len(activePenalties(in)) == 0 {
+				in = nil
+			}
+			return m, m.revert(in)
+		case m.view == viewStudents && row != nil && row.AttemptID != "":
+			return m, m.revert(m.latestPenalized(row.AttemptID))
+		}
 	}
 	if row == nil || m.view != viewStudents {
 		return m, nil
@@ -426,7 +501,11 @@ func (m *Monitor) selected() *daemon.StudentRow {
 }
 
 func (m *Monitor) clampSel() {
-	if n := len(m.rows()); m.sel >= n {
+	n := len(m.rows())
+	if m.view == viewIncidents && m.board != nil {
+		n = len(m.board.Incidents)
+	}
+	if m.sel >= n {
 		m.sel = max(n-1, 0)
 	}
 }
@@ -461,7 +540,15 @@ func (m *Monitor) View() tea.View {
 	}
 
 	fmt.Fprintf(&b, "%s  %s   %s\n", mutedStyle.Render("Código"), accentStyle.Render(st.Code), boldStyle.Render(st.StudentURL))
-	b.WriteString(mutedStyle.Render(fmt.Sprintf("%d en línea · %d respondiendo · %d entregados · %d en total", st.Online, st.Active, st.Submitted, st.Joined)) + "\n")
+	b.WriteString(mutedStyle.Render(fmt.Sprintf("%d en línea · %d respondiendo · %d entregados · %d en total", st.Online, st.Active, st.Submitted, st.Joined)))
+	if m.board.StrikeLimit > 0 {
+		strikes := 0
+		for _, r := range m.board.Students {
+			strikes += r.Strikes
+		}
+		b.WriteString(mutedStyle.Render(fmt.Sprintf(" · %d avisos (anula con %d)", strikes, m.board.StrikeLimit)))
+	}
+	b.WriteString("\n")
 	if st.LastError != "" {
 		b.WriteString(accentStyle.Render("Error del servidor: ") + st.LastError + "\n")
 	}
@@ -495,6 +582,18 @@ func (m *Monitor) View() tea.View {
 		for _, u := range st.OtherURLs {
 			b.WriteString(mutedStyle.Render("También: "+u) + "\n")
 		}
+	case viewIncidents:
+		if len(m.board.Incidents) == 0 {
+			b.WriteString(mutedStyle.Render("  Sin incidencias.") + "\n")
+			if m.board.StrikeLimit == 0 {
+				b.WriteString(mutedStyle.Render("  La vigilancia está desactivada en este examen (proctoring: off).") + "\n")
+			}
+		} else {
+			b.WriteString(headStyle.Render(fmt.Sprintf("  %-8s %-22s %-28s %-6s %s", "HORA", "ALUMNO", "SEÑAL", "PREG.", "CONSECUENCIA")) + "\n")
+		}
+		for i, in := range m.board.Incidents {
+			b.WriteString(m.line(i, incidentLine(in)) + "\n")
+		}
 	case viewRanking:
 		rows := m.rows()
 		if len(rows) == 0 {
@@ -505,7 +604,7 @@ func (m *Monitor) View() tea.View {
 			b.WriteString(m.line(i, line) + "\n")
 		}
 	default:
-		b.WriteString(headStyle.Render(fmt.Sprintf("  %-24s %-9s %-13s %-6s %-9s %-7s %-8s %s", "ALUMNO", "ID", "ESTADO", "PREG.", "RESP.", "CONEX.", "NOTA", "TIEMPO")) + "\n")
+		b.WriteString(headStyle.Render(fmt.Sprintf("  %-24s %-9s %-13s %-6s %-9s %-7s %-8s %-8s %s", "ALUMNO", "ID", "ESTADO", "PREG.", "RESP.", "CONEX.", "AVISOS", "NOTA", "TIEMPO")) + "\n")
 		rows := m.rows()
 		if len(rows) == 0 {
 			b.WriteString(mutedStyle.Render("  Nadie ha entrado todavía. Comparte el código o el QR (vista Enlace).") + "\n")
@@ -556,7 +655,41 @@ func (m *Monitor) studentLine(r daemon.StudentRow) string {
 	if r.ExtraMs > 0 {
 		used += fmt.Sprintf(" +%dm", r.ExtraMs/60000)
 	}
-	return fmt.Sprintf("%-24s %-9s %-13s %-6s %-9s %-7s %-8s %s", cut(r.Name, 24), cut(r.StudentID, 9), state, q, resp, conn, score(r), used)
+	strikes := "—"
+	if m.board.StrikeLimit > 0 && r.AttemptID != "" {
+		strikes = fmt.Sprintf("%d/%d", r.Strikes, m.board.StrikeLimit)
+		if r.Signals > 0 {
+			strikes += fmt.Sprintf(" ·%d", r.Signals)
+		}
+	}
+	return fmt.Sprintf("%-24s %-9s %-13s %-6s %-9s %-7s %-8s %-8s %s", cut(r.Name, 24), cut(r.StudentID, 9), state, q, resp, conn, strikes, score(r), used)
+}
+
+func incidentLine(in daemon.Incident) string {
+	at := time.UnixMilli(in.At).Format("15:04:05")
+	what := signalName(in.Kind)
+	if in.DurationMs > 0 {
+		what += fmt.Sprintf(" %ds", in.DurationMs/1000)
+	}
+	q := "—"
+	if in.Question > 0 {
+		q = strconv.Itoa(in.Question)
+	}
+	var fx []string
+	for _, p := range in.Penalties {
+		s := map[session.PenaltyKind]string{session.PenaltyStrike: "aviso", session.PenaltyVoid: "pregunta anulada", session.PenaltyPoints: "puntos"}[p.Kind]
+		if p.Kind == session.PenaltyTime {
+			s = fmt.Sprintf("−%d min", int(p.Amount)/60000)
+		}
+		if !p.Active() {
+			s += " (revertido)"
+		}
+		fx = append(fx, s)
+	}
+	if len(fx) == 0 {
+		fx = []string{map[session.Severity]string{session.SeverityInfo: "registro", session.SeverityWarn: "advertencia", session.SeverityHigh: "grave"}[in.Severity]}
+	}
+	return fmt.Sprintf("%-8s %-22s %-28s %-6s %s", at, cut(in.Name, 22), cut(what, 28), q, strings.Join(fx, ", "))
 }
 
 func score(r daemon.StudentRow) string {
@@ -618,6 +751,15 @@ func (m *Monitor) keys() string {
 			top = append(top, k("D", "dar de baja"))
 		}
 		top = append(top, k("N", "nuevo alumno"))
+		if r := m.selected(); r != nil && r.Strikes > 0 {
+			top = append(top, k("Z", "revertir último aviso"))
+		}
+	}
+	if m.view == viewIncidents {
+		if in := m.selectedIncident(); in != nil && len(activePenalties(in)) > 0 {
+			top = append(top, k("Z", "revertir"))
+		}
+		top = append(top, k("↑↓", "elegir"))
 	}
 	if st != nil && st.State == session.StateLobby {
 		bottom = append(bottom, k("S", "comenzar"))

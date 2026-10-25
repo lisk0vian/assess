@@ -614,12 +614,18 @@ type Snapshot struct {
 	Session      *Session
 	Participants map[string]*Participant // by participant id
 	Attempts     []*Attempt
-	Answers      map[string][]*Answer // by attempt id
+	Answers      map[string][]*Answer  // by attempt id
+	Penalties    map[string][]*Penalty // by attempt id
+	SignalCounts map[string]int        // warn and high signals by attempt id
+	Incidents    []*Event              // newest integrity signals, newest first
 }
+
+// incidentLimit bounds the signal log shown live.
+const incidentLimit = 80
 
 // Snapshot reads the whole state of a session in one transaction.
 func (s *Service) Snapshot(ctx context.Context, sessionID string) (*Snapshot, error) {
-	snap := &Snapshot{Participants: map[string]*Participant{}, Answers: map[string][]*Answer{}}
+	snap := &Snapshot{Participants: map[string]*Participant{}, Answers: map[string][]*Answer{}, Penalties: map[string][]*Penalty{}}
 	err := s.store.View(ctx, func(tx Tx) error {
 		var err error
 		if snap.Session, err = tx.GetSession(sessionID); err != nil {
@@ -633,6 +639,19 @@ func (s *Service) Snapshot(ctx context.Context, sessionID string) (*Snapshot, er
 			snap.Participants[p.ID] = p
 		}
 		if snap.Attempts, err = tx.ListAttempts(sessionID); err != nil {
+			return err
+		}
+		ps, err := tx.ListSessionPenalties(sessionID)
+		if err != nil {
+			return err
+		}
+		for _, p := range ps {
+			snap.Penalties[p.AttemptID] = append(snap.Penalties[p.AttemptID], p)
+		}
+		if snap.SignalCounts, err = tx.SignalCounts(sessionID); err != nil {
+			return err
+		}
+		if snap.Incidents, err = tx.RecentEvents(sessionID, "signal.", incidentLimit); err != nil {
 			return err
 		}
 		for _, a := range snap.Attempts {

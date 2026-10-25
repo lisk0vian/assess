@@ -143,6 +143,11 @@ reversed, edit it here and note why in the commit.
   `ax attach`, `ax stop` and the panel, which locks after 5 idle minutes or with
   L and then shows no names. Pause state and pending requests live in memory:
   a daemon restart clears them (the attempts themselves are in SQLite).
+- Integrity (phase 5): an AVISOS column (active strikes / limit · warn and
+  high signals), a total in the header, and an **Incidencias** view with the
+  newest signals (time, student, signal, duration, question, consequence;
+  reverted ones are marked). Z reverts the selected incident's penalties, or
+  in Alumnos the student's newest one, after asking for a note.
 - Seat map: deferred (optional; planned with the collusion report in phase 6,
   which is where seat-aware weighting is used).
 

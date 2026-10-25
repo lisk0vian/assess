@@ -51,6 +51,7 @@ type Tx interface {
 
 	InsertPenalty(p *Penalty) error
 	ListPenalties(attemptID string) ([]*Penalty, error)
+	ListSessionPenalties(sessionID string) ([]*Penalty, error)
 	GetPenalty(id int64) (*Penalty, error)
 	RevertPenalty(id int64, at time.Time, note string) error
 	// OpenQuestion records the first time a question was opened and returns it.
@@ -59,5 +60,10 @@ type Tx interface {
 
 	InsertEvent(e *Event) error
 	CountEvents(attemptID, kind string) (int, error)
+	// RecentEvents returns the newest events whose kind starts with prefix,
+	// newest first.
+	RecentEvents(sessionID, prefix string, limit int) ([]*Event, error)
+	// SignalCounts counts warn and high integrity signals per attempt.
+	SignalCounts(sessionID string) (map[string]int, error)
 	ListEvents(sessionID string) ([]*Event, error)
 }

@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"net/http"
 	"sort"
+	"strconv"
 	"strings"
 	"time"
 
@@ -30,13 +31,31 @@ type StudentRow struct {
 	ExtraMs       int64                `json:"extra_ms"`
 	SubmittedAt   int64                `json:"submitted_at,omitempty"`
 	UsedMs        int64                `json:"used_ms,omitempty"` // from the start to submission (or now)
+	Strikes       int                  `json:"strikes"`           // active strikes
+	Signals       int                  `json:"signals"`           // warn and high integrity signals
+}
+
+// Incident is one integrity signal in the live log, with what it cost.
+type Incident struct {
+	EventID    int64              `json:"event_id"`
+	AttemptID  string             `json:"attempt_id"`
+	Name       string             `json:"name"`
+	StudentID  string             `json:"student_id"`
+	Kind       string             `json:"kind"` // proctor signal kind
+	Severity   session.Severity   `json:"severity"`
+	Question   int                `json:"question,omitempty"` // 1-based position in the attempt
+	DurationMs int64              `json:"duration_ms,omitempty"`
+	At         int64              `json:"at"`
+	Penalties  []*session.Penalty `json:"penalties,omitempty"`
 }
 
 // Board is everything the live panel shows.
 type Board struct {
-	Status   StatusView        `json:"status"`
-	Students []StudentRow      `json:"students"`
-	Requests []student.Request `json:"requests"`
+	Status      StatusView        `json:"status"`
+	Students    []StudentRow      `json:"students"`
+	Requests    []student.Request `json:"requests"`
+	StrikeLimit int               `json:"strike_limit"` // 0: proctoring off
+	Incidents   []Incident        `json:"incidents"`    // newest first
 }
 
 func (d *daemon) board(ctx context.Context) (*Board, error) {
@@ -53,15 +72,23 @@ func (d *daemon) board(ctx context.Context) (*Board, error) {
 		presence[p.AttemptID] = p
 	}
 	b := &Board{Status: *st}
+	if _, pub, err := d.svc.Session(ctx, d.sessionID); err == nil {
+		if set := session.ProctorSettings(&pub.Exam.Manifest); set.Enabled() {
+			b.StrikeLimit = set.StrikeLimit
+		}
+	}
 	attempted := map[string]bool{}
+	byAttempt := map[string]*session.Attempt{}
 	now := d.svc.Now()
 	for _, a := range snap.Attempts {
 		attempted[a.ParticipantID] = true
+		byAttempt[a.ID] = a
 		p := snap.Participants[a.ParticipantID]
 		pr := presence[a.ID]
 		row := StudentRow{
 			AttemptID: a.ID, ParticipantID: p.ID, StudentID: p.StudentID, Name: p.Name, State: a.State,
 			Online: pr.Online, Paused: pr.Paused, Total: len(a.Layout), MaxScore: a.MaxScore, ExtraMs: a.Extra.Milliseconds(),
+			Strikes: session.ActiveStrikes(snap.Penalties[a.ID]), Signals: snap.SignalCounts[a.ID],
 		}
 		for i, sl := range a.Layout {
 			if sl.QuestionID == pr.Question {
@@ -94,12 +121,45 @@ func (d *daemon) board(ctx context.Context) (*Board, error) {
 	sort.SliceStable(b.Students, func(i, j int) bool {
 		return strings.ToLower(b.Students[i].Name) < strings.ToLower(b.Students[j].Name)
 	})
+	b.Incidents = incidents(snap, byAttempt)
 	for _, r := range d.students.Requests() {
 		if r.Status == student.Pending {
 			b.Requests = append(b.Requests, r)
 		}
 	}
 	return b, nil
+}
+
+// incidents joins the newest signals with their students and penalties.
+func incidents(snap *session.Snapshot, byAttempt map[string]*session.Attempt) []Incident {
+	byEvent := map[int64][]*session.Penalty{}
+	for _, ps := range snap.Penalties {
+		for _, p := range ps {
+			if p.EventID > 0 {
+				byEvent[p.EventID] = append(byEvent[p.EventID], p)
+			}
+		}
+	}
+	out := make([]Incident, 0, len(snap.Incidents))
+	for _, e := range snap.Incidents {
+		in := Incident{EventID: e.ID, AttemptID: e.AttemptID, Kind: strings.TrimPrefix(e.Kind, "signal."),
+			Severity: e.Severity, At: e.ReceivedAt.UnixMilli(), Penalties: byEvent[e.ID]}
+		if a := byAttempt[e.AttemptID]; a != nil {
+			if p := snap.Participants[a.ParticipantID]; p != nil {
+				in.Name, in.StudentID = p.Name, p.StudentID
+			}
+			for i, sl := range a.Layout {
+				if sl.QuestionID == e.QuestionID {
+					in.Question = i + 1
+				}
+			}
+		}
+		if v, ok := e.Data["duration_ms"].(float64); ok {
+			in.DurationMs = int64(v)
+		}
+		out = append(out, in)
+	}
+	return out
 }
 
 // studentRoutes registers the per-student actions of the control API.
@@ -131,6 +191,14 @@ func (c *controlServer) studentRoutes(mux *http.ServeMux) {
 	}
 	str := func(body map[string]any, k string) string { v, _ := body[k].(string); return v }
 
+	mux.HandleFunc("POST /penalties/{id}/revert", act(func(r *http.Request, body map[string]any) error {
+		id, err := strconv.ParseInt(r.PathValue("id"), 10, 64)
+		if err != nil {
+			return fmt.Errorf("%w: penalty id", session.ErrInvalidInput)
+		}
+		_, err = d.svc.RevertPenalty(r.Context(), id, str(body, "note"))
+		return err
+	}))
 	mux.HandleFunc("POST /students", act(func(r *http.Request, body map[string]any) error {
 		_, err := d.svc.AddParticipant(r.Context(), d.sessionID, str(body, "student_id"), str(body, "name"), session.SourceManual)
 		return err
@@ -214,6 +282,21 @@ func (c *Client) RemoveParticipant(ctx context.Context, participantID string) (*
 // AttemptAction runs extend|withdraw|annul|readmit|message|pause on an attempt.
 func (c *Client) AttemptAction(ctx context.Context, attemptID, action string, body map[string]any) (*Board, error) {
 	return c.board(ctx, "POST", "/attempts/"+attemptID+"/"+action, body)
+}
+
+// RevertPenalties reverts penalties with a note, one by one.
+func (c *Client) RevertPenalties(ctx context.Context, ids []int64, note string) (*Board, error) {
+	var b *Board
+	for _, id := range ids {
+		var err error
+		if b, err = c.board(ctx, "POST", fmt.Sprintf("/penalties/%d/revert", id), map[string]any{"note": note}); err != nil {
+			return nil, err
+		}
+	}
+	if b == nil {
+		return c.Board(ctx)
+	}
+	return b, nil
 }
 
 // DecideRequest approves or rejects a device request.

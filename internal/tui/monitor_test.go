@@ -134,3 +134,35 @@ func TestMonitorLock(t *testing.T) {
 		t.Fatal("locking without a password should explain how to set one")
 	}
 }
+
+func TestMonitorIncidentsAndRevert(t *testing.T) {
+	m := NewMonitor(&daemon.Client{}, &daemon.State{}, Options{})
+	b := board(session.StateRunning)
+	b.StrikeLimit = 3
+	b.Students[0].Strikes, b.Students[0].Signals = 2, 4
+	b.Incidents = []daemon.Incident{
+		{EventID: 9, AttemptID: "a1", Name: "Ana Pérez", Kind: "hidden", Severity: session.SeverityHigh, Question: 4, DurationMs: 22000,
+			At: time.Now().UnixMilli(), Penalties: []*session.Penalty{{ID: 5, Kind: session.PenaltyStrike}, {ID: 6, Kind: session.PenaltyTime, Amount: 60000}}},
+		{EventID: 8, AttemptID: "a1", Name: "Ana Pérez", Kind: "copy", Severity: session.SeverityHigh,
+			Penalties: []*session.Penalty{{ID: 4, Kind: session.PenaltyStrike, RevertedAt: time.Now()}}},
+	}
+	m.Update(boardMsg{board: b})
+	if v := m.View().Content; !strings.Contains(v, "2/3 ·4") || !strings.Contains(v, "2 avisos (anula con 3)") {
+		t.Fatalf("students view lacks strikes:\n%s", v)
+	}
+	press(m, "tab", "tab")
+	v := m.View().Content
+	for _, want := range []string{"fuera de la pestaña 22s", "aviso, −1 min", "aviso (revertido)"} {
+		if !strings.Contains(v, want) {
+			t.Fatalf("incidents view missing %q:\n%s", want, v)
+		}
+	}
+	press(m, "z")
+	if m.mode != modePrompt || len(m.reverting) != 2 || !strings.Contains(m.View().Content, "Revertir «fuera de la pestaña» de Ana Pérez") {
+		t.Fatalf("revert prompt not shown: mode %v ids %v", m.mode, m.reverting)
+	}
+	press(m, "esc", "down", "z")
+	if m.mode == modePrompt {
+		t.Fatal("an incident with nothing active must not open the prompt")
+	}
+}

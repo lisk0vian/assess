@@ -161,7 +161,7 @@ func (s *Service) ReportSignal(ctx context.Context, attemptID string, r SignalRe
 		if err != nil {
 			return err
 		}
-		out.Strikes = activeStrikes(all)
+		out.Strikes = ActiveStrikes(all)
 		if set.StrikeLimit > 0 && out.Strikes >= set.StrikeLimit {
 			out.Annulled = true
 			return s.annul(tx, sess, att, fmt.Sprintf("%d strikes", out.Strikes))
@@ -174,7 +174,8 @@ func (s *Service) ReportSignal(ctx context.Context, attemptID string, r SignalRe
 	return out, err
 }
 
-func activeStrikes(ps []*Penalty) int {
+// ActiveStrikes counts the strikes that still apply.
+func ActiveStrikes(ps []*Penalty) int {
 	n := 0
 	for _, p := range ps {
 		if p.Kind == PenaltyStrike && p.Active() {
