@@ -1,0 +1,18 @@
+id: q006
+type: single
+reveal: always # esta pregunta muestra sus opciones aunque el perfil sea strict
+prompt: |
+  Dado este fragmento, ¿qué tipo tiene `err` en la línea marcada?
+
+  ```go
+  f, err := os.Open("datos.txt") // ← aquí
+  ```
+options:
+  - id: a
+    text: "`error`"
+  - id: b
+    text: "`*os.PathError`"
+  - id: c
+    text: "`string`"
+  - id: d
+    text: "`bool`"

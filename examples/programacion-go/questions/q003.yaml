@@ -1,0 +1,5 @@
+id: q003
+type: truefalse
+prompt: |
+  En Go, un `map` puede leerse y escribirse desde varias goroutines a la vez
+  sin ninguna sincronización.

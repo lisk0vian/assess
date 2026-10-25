@@ -1,0 +1,6 @@
+format: assess/v1
+exam: clave-incorrecta
+answers:
+  q001:
+    option: c
+    points: 1

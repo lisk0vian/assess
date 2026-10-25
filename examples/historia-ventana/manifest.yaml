@@ -1,0 +1,32 @@
+# Caso: perfil standard con ajustes propios.
+# - fullscreen: required aunque el perfil sea standard (se puede combinar).
+# - strike_limit: 5 → hacen falta 5 avisos para anular.
+# - Solo una pregunta tiene las opciones ocultas (reveal: hover en q002).
+# - Contenido variado: tablas, listas, citas, un mapa SVG y logo propio.
+format: assess/v1
+id: historia-ventana
+title: "Historia — La Revolución Industrial"
+language: es
+duration: 25m
+result_visibility: score
+
+instructions: |
+  > «La máquina de vapor cambió la forma de trabajar, de vivir y de viajar.»
+
+  Responde con calma. Hay una tabla y un mapa que te ayudarán.
+
+proctoring:
+  profile: standard
+  fullscreen: required
+  strike_limit: 5
+
+items:
+  - question: q001
+  - question: q002
+  - question: q003
+  - question: q004
+  - question: q005
+
+branding:
+  accent: "#b45309"
+  logo: assets/logo.svg

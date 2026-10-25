@@ -1,0 +1,24 @@
+# Answer key — never sent to the browser.
+format: assess/v1
+exam: programacion-go
+answers:
+  q001:
+    option: b
+    points: 2
+  q002:
+    options: [a, b, d]
+    partial: true
+    points: 3
+  q003:
+    value: false
+    points: 1
+  q004:
+    number: 120
+    points: 2
+  q005:
+    accept: [defer]
+    normalize: [trim, casefold]
+    points: 1
+  q006:
+    option: a
+    points: 1

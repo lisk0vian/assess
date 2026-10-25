@@ -1,0 +1,5 @@
+format: assess/v1
+exam: vigilancia-mal
+answers:
+  q001: { option: b, points: 1 }
+  q002: { value: false, points: 1 }

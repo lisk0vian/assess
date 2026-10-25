@@ -1,0 +1,5 @@
+format: assess/v1
+exam: campo-desconocido
+answers:
+  q001: { option: b, points: 1 }
+  q002: { value: false, points: 1 }

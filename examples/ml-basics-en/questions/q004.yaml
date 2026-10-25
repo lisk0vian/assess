@@ -1,0 +1,7 @@
+id: q004
+type: short
+input: number
+prompt: |
+  A classifier makes 80 correct predictions out of 100. What is its accuracy,
+  as a decimal between 0 and 1?
+placeholder: "e.g. 0.5"

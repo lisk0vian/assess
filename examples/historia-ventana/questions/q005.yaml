@@ -1,0 +1,7 @@
+id: q005
+type: short
+input: text
+prompt: |
+  ¿Qué inventor escocés perfeccionó la máquina de vapor en 1769?
+  Escribe solo el apellido.
+placeholder: "Apellido"

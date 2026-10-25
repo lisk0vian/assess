@@ -1,0 +1,6 @@
+id: q003
+type: short
+input: text
+prompt: |
+  ¿En qué continente está Perú?
+placeholder: "Nombre del continente"

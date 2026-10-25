@@ -1,0 +1,38 @@
+# Caso: examen de programación con el perfil más estricto.
+# - proctoring: strict → pantalla completa obligatoria, solo ordenador,
+#   opciones visibles solo al pasar el ratón, salir 15 s = aviso y −1 min.
+# - Código en enunciados y opciones, una pregunta con tiempo propio.
+# - result_visibility: review → al cerrar la sesión el alumno ve la corrección.
+format: assess/v1
+id: programacion-go
+title: "Programación en Go — Fundamentos"
+language: es
+duration: 30m
+result_visibility: review
+
+instructions: |
+  Este examen usa el modo **estricto**:
+
+  - Se hace en **pantalla completa** y desde un **ordenador**.
+  - Las opciones se leen **pasando el cursor** por encima (o con Tab).
+  - Salir de la pestaña o copiar cuenta como aviso. Con 3 avisos se anula.
+
+  Lee el código con calma: los detalles importan.
+
+order:
+  shuffle_questions: true
+  shuffle_options: true
+
+proctoring:
+  profile: strict
+
+items:
+  - question: q001
+  - question: q002
+  - question: q003
+  - question: q004
+  - question: q005
+  - question: q006
+
+branding:
+  accent: "#0e7c86"

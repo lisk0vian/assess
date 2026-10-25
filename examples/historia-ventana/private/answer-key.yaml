@@ -1,0 +1,21 @@
+# Answer key — never sent to the browser.
+format: assess/v1
+exam: historia-ventana
+answers:
+  q001:
+    option: c
+    points: 1
+  q002:
+    option: b
+    points: 1
+  q003:
+    options: [a, b, d]
+    partial: true
+    points: 2
+  q004:
+    value: true
+    points: 1
+  q005:
+    accept: [watt]
+    normalize: [trim, casefold, strip_accents]
+    points: 1

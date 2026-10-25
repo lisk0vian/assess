@@ -1,0 +1,7 @@
+id: q005
+type: short
+input: text
+prompt: |
+  ¿Qué palabra clave de Go retrasa la ejecución de una llamada hasta que la
+  función que la contiene termina?
+placeholder: "Una palabra"

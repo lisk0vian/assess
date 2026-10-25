@@ -1,0 +1,9 @@
+id: q001
+type: short
+input: number
+prompt: |
+  How many **trainable weights** (connections, ignoring biases) does this
+  network have?
+
+  ![A fully connected network with 2 inputs, 3 hidden units and 1 output](assets/network.svg)
+placeholder: "A whole number"

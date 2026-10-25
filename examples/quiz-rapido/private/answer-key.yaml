@@ -1,0 +1,17 @@
+# Answer key — never sent to the browser.
+format: assess/v1
+exam: quiz-rapido
+answers:
+  q001:
+    value: true
+    points: 1
+  q002:
+    option: b
+    points: 1
+  q003:
+    accept: [america, sudamerica, "america del sur"]
+    normalize: [trim, casefold, collapse_spaces, strip_accents]
+    points: 1
+  q004:
+    number: 1440
+    points: 1

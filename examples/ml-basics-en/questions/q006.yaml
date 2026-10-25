@@ -1,0 +1,7 @@
+id: q006
+type: short
+input: text
+prompt: |
+  What is the name of the algorithm that computes gradients layer by layer,
+  from the output back to the input?
+placeholder: "One word"

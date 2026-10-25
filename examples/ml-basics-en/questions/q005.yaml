@@ -1,0 +1,6 @@
+id: q005
+type: short
+input: number
+prompt: |
+  A model has precision $0.5$ and recall $0.5$. What is its $F_1$ score?
+placeholder: "e.g. 0.25"

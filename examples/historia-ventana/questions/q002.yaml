@@ -1,0 +1,17 @@
+id: q002
+type: single
+reveal: hover # solo esta pregunta oculta sus opciones
+prompt: |
+  Según el mapa, ¿qué ciudad unía la primera línea de pasajeros con
+  Manchester?
+
+  ![Mapa esquemático de las primeras líneas de ferrocarril](assets/rutas.svg)
+options:
+  - id: a
+    text: "Londres"
+  - id: b
+    text: "Liverpool"
+  - id: c
+    text: "Leeds"
+  - id: d
+    text: "Birmingham"

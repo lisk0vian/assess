@@ -1,0 +1,21 @@
+id: q001
+type: single
+prompt: |
+  Observa la tabla. ¿En qué década se duplicó la red ferroviaria británica?
+
+  | Año  | Kilómetros de vía |
+  |------|-------------------|
+  | 1830 | 157               |
+  | 1840 | 2 390             |
+  | 1850 | 9 797             |
+  | 1860 | 16 787            |
+options:
+  - id: a
+    text: "1830–1840"
+  - id: b
+    text: "1840–1850"
+  - id: c
+    text: "1850–1860"
+  - id: d
+    text: "En ninguna"
+    pin: true

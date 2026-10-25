@@ -1,0 +1,26 @@
+# Caso: prueba rápida sin vigilancia, para ensayar desde móviles.
+# - proctoring: off → sin compromiso, sin avisos, sin cortina.
+# - Orden fijo (sin barajar) y el alumno no ve la nota (result_visibility: none).
+# - Solo 5 minutos: útil para probar el fin automático por tiempo.
+format: assess/v1
+id: quiz-rapido
+title: "Quiz rápido de cultura general"
+language: es
+duration: 5m
+result_visibility: none
+
+instructions: |
+  Cuatro preguntas rápidas. No hay penalizaciones: es solo para practicar.
+
+order:
+  shuffle_questions: false
+  shuffle_options: false
+
+proctoring:
+  profile: off
+
+items:
+  - question: q001
+  - question: q002
+  - question: q003
+  - question: q004

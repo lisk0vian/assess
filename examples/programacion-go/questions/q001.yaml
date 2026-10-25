@@ -1,0 +1,27 @@
+id: q001
+type: single
+prompt: |
+  ¿Qué imprime este programa?
+
+  ```go
+  package main
+
+  import "fmt"
+
+  func main() {
+      s := []int{1, 2, 3}
+      t := s[:2]
+      t = append(t, 9)
+      fmt.Println(s)
+  }
+  ```
+options:
+  - id: a
+    text: "`[1 2 3]`"
+  - id: b
+    text: "`[1 2 9]`"
+  - id: c
+    text: "`[1 2 3 9]`"
+  - id: d
+    text: "No compila"
+    pin: true

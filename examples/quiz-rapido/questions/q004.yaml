@@ -1,0 +1,6 @@
+id: q004
+type: short
+input: number
+prompt: |
+  ¿Cuántos minutos tiene un día?
+placeholder: "Un número"

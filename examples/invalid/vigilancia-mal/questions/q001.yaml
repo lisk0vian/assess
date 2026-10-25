@@ -1,0 +1,9 @@
+id: q001
+type: single
+prompt: "¿Cuánto es 2 + 2?"
+time_limit: 1h
+options:
+  - id: a
+    text: "3"
+  - id: b
+    text: "4"

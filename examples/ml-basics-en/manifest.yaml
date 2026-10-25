@@ -1,0 +1,31 @@
+# Case: English UI, images from assets/, a question pool, standard proctoring.
+# - language: en → the whole student UI is in English.
+# - Two questions use SVG diagrams served from assets/.
+# - pool "metrics": each student gets 1 of 2 equivalent questions.
+format: assess/v1
+id: ml-basics-en
+title: "Machine Learning Basics"
+language: en
+duration: 20m
+result_visibility: score
+
+instructions: |
+  Answer each question; your answers save automatically.
+  Some questions include a **diagram** — read it carefully.
+
+proctoring:
+  profile: standard
+
+items:
+  - question: q001
+  - question: q002
+  - question: q003
+  - pool:
+      id: metrics
+      pick: 1
+      from: [q004, q005]
+  - question: q006
+
+branding:
+  accent: "#6d28d9"
+  logo: assets/logo.svg

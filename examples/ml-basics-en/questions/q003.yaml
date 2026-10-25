@@ -1,0 +1,13 @@
+id: q003
+type: multiple
+prompt: |
+  Which of these are **supervised** learning tasks? Select all that apply.
+options:
+  - id: a
+    text: "Predicting house prices from past sales"
+  - id: b
+    text: "Grouping customers with k-means"
+  - id: c
+    text: "Classifying e-mails as spam or not spam"
+  - id: d
+    text: "Reducing dimensions with PCA"

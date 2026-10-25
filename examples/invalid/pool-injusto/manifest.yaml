@@ -1,0 +1,11 @@
+# Error esperado: el pool elige todas sus preguntas y valen puntos distintos.
+
+format: assess/v1
+id: pool-injusto
+title: "Ejemplo inválido"
+duration: 10m
+items:
+  - pool:
+      id: azar
+      pick: 2
+      from: [q001, q002]

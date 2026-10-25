@@ -1,0 +1,13 @@
+id: q002
+type: single
+prompt: |
+  ¿Cuál es el planeta más grande del sistema solar?
+options:
+  - id: a
+    text: "Saturno"
+  - id: b
+    text: "Júpiter"
+  - id: c
+    text: "Neptuno"
+  - id: d
+    text: "La Tierra"

@@ -1,0 +1,16 @@
+id: q003
+type: multiple
+prompt: |
+  ¿Cuáles fueron **consecuencias** de la Revolución Industrial?
+
+  1. Piensa en el campo y en la ciudad.
+  2. Piensa en el trabajo.
+options:
+  - id: a
+    text: "Éxodo rural hacia las ciudades"
+  - id: b
+    text: "Aparición del proletariado industrial"
+  - id: c
+    text: "Desaparición total de la agricultura"
+  - id: d
+    text: "Crecimiento de la producción en fábricas"

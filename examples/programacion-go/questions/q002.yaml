@@ -1,0 +1,14 @@
+id: q002
+type: multiple
+prompt: |
+  ¿Cuáles de estas afirmaciones sobre las **goroutines** y los **canales** son
+  correctas? Marca todas las que lo sean.
+options:
+  - id: a
+    text: "Enviar a un canal sin búfer bloquea hasta que alguien recibe."
+  - id: b
+    text: "Recibir de un canal cerrado devuelve el valor cero del tipo."
+  - id: c
+    text: "Cerrar dos veces el mismo canal es seguro."
+  - id: d
+    text: "`sync.WaitGroup` sirve para esperar a que terminen varias goroutines."

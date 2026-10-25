@@ -1,0 +1,17 @@
+id: q004
+type: short
+input: number
+time_limit: 2m
+prompt: |
+  **Pregunta con tiempo (2 minutos desde que la abras).**
+  ¿Qué valor devuelve `f(5)`?
+
+  ```go
+  func f(n int) int {
+      if n <= 1 {
+          return 1
+      }
+      return n * f(n-1)
+  }
+  ```
+placeholder: "Un número entero"

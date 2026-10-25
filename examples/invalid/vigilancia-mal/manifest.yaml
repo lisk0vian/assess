@@ -1,0 +1,13 @@
+# Error esperado: valores de vigilancia fuera de rango y un time_limit mayor que el examen.
+
+format: assess/v1
+id: vigilancia-mal
+title: "Ejemplo inválido"
+duration: 10m
+proctoring:
+  profile: paranoico
+  fullscreen: siempre
+  strike_limit: 20
+items:
+  - question: q001
+  - question: q002

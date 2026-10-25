@@ -1,0 +1,11 @@
+# Error esperado: 'shufle_questions' no existe y la duración no es válida.
+
+format: assess/v1
+id: campo-desconocido
+title: "Ejemplo inválido"
+duration: cuarenta minutos
+order:
+  shufle_questions: true
+items:
+  - question: q001
+  - question: q002

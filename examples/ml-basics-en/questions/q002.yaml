@@ -1,0 +1,16 @@
+id: q002
+type: single
+prompt: |
+  Look at the learning curves. What is most likely happening after the
+  middle of training?
+
+  ![Training loss keeps falling while validation loss rises again](assets/curves.svg)
+options:
+  - id: a
+    text: "Underfitting: the model is too simple."
+  - id: b
+    text: "Overfitting: the model memorises the training data."
+  - id: c
+    text: "The learning rate is zero."
+  - id: d
+    text: "The data has no labels."

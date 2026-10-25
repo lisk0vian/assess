@@ -1,0 +1,9 @@
+# Error esperado: la clave usa una opción que no existe y le falta q002.
+
+format: assess/v1
+id: clave-incorrecta
+title: "Ejemplo inválido"
+duration: 10m
+items:
+  - question: q001
+  - question: q002
