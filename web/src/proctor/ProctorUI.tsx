@@ -45,7 +45,7 @@ export function Watermark({ me }: { me: MeView }) {
 
 export const hhmm = () => new Date().toLocaleTimeString(document.documentElement.lang, { hour: "2-digit", minute: "2-digit" });
 
-const enterFullscreen = () => {
+export const enterFullscreen = () => {
   if (fullscreenSupported() && !document.fullscreenElement) void document.documentElement.requestFullscreen().catch(() => undefined);
 };
 
@@ -119,10 +119,16 @@ export function Curtain({ away, me }: { away: Away; me: MeView }) {
   );
 }
 
-const verdictKinds = new Set(["hidden", "blur", "fullscreen_exit", "copy", "paste_input", "untrusted", "webdriver", "telemetry"]);
+const verdictKinds = new Set(["hidden", "blur", "fullscreen_exit", "copy", "screenshot", "paste_input", "untrusted", "webdriver", "telemetry"]);
 
 /** Shown on return when a signal cost a strike. */
-export function VerdictPanel({ verdict, onClose }: { verdict: Verdict; onClose: () => void }) {
+export function VerdictPanel({ verdict, fullscreen, onClose }: { verdict: Verdict; fullscreen: boolean; onClose: () => void }) {
+  // Coming back from another tab also left fullscreen: the same click restores
+  // it, so reading this panel does not cost a second strike.
+  const close = () => {
+    if (fullscreen) enterFullscreen();
+    onClose();
+  };
   const reason = verdictKinds.has(verdict.kind) ? (`verdict_${verdict.kind}` as const) : "verdict_generic";
   return (
     <div className="overlay" style={{ position: "fixed", zIndex: 44 }}>
@@ -140,8 +146,9 @@ export function VerdictPanel({ verdict, onClose }: { verdict: Verdict; onClose: 
           <Strikes n={verdict.strikes} limit={verdict.limit} />
         </div>
         <div className="actions">
-          <button className="btn btn--primary" onClick={onClose} autoFocus>
-            {t("verdict_ok")}
+          <button className="btn btn--primary" onClick={close} autoFocus>
+            {fullscreen && <Maximize {...iconProps} />}
+            {t(fullscreen ? "verdict_ok_fullscreen" : "verdict_ok")}
           </button>
         </div>
       </section>
@@ -159,6 +166,8 @@ export function warningText(v: Verdict, me: MeView): string | null {
       return t("warning_blur", { s: Math.round(th.blur_strike_ms / 1000) });
     case "copy":
       return t("warning_copy");
+    case "screenshot":
+      return t("warning_screenshot");
     case "paste_input":
       return t("warning_paste_input");
     default:
@@ -205,6 +214,7 @@ export function Pledge({ me, onPledge }: { me: MeView; onPledge: (fullscreen: bo
       [t("rule_hidden", { s: sec(th.hidden_strike_ms) }), t(strict ? "fx_strike_time" : "fx_strike")],
       [t("rule_blur", { s: sec(th.blur_strike_ms) }), t("fx_strike")],
       [t("rule_copy"), t(strict ? "fx_copy_strict" : "fx_copy_standard")],
+      [t("rule_screenshot"), t(strict ? "fx_copy_strict" : "fx_copy_standard")],
       [t("rule_paste"), t(strict ? "fx_strike" : "fx_warning")],
     ];
     if (p.fullscreen === "required") r.push([t("rule_fullscreen", { s: sec(th.fullscreen_strike_ms) }), t("fx_strike")]);

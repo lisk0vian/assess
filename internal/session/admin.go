@@ -67,7 +67,11 @@ func (s *Service) Readmit(ctx context.Context, attemptID, note string) (*Attempt
 		if att.State != AttemptWithdrawn && att.State != AttemptAnnulled {
 			return fmt.Errorf("%w: attempt is %s", ErrNotClosable, att.State)
 		}
-		if _, err := openSession(tx, att.SessionID); err != nil {
+		sess, err := openSession(tx, att.SessionID)
+		if err != nil {
+			return err
+		}
+		if err := s.spareStrikes(tx, sess, att); err != nil {
 			return err
 		}
 		att.State, att.SubmittedAt, att.SubmitReason, att.Score = AttemptActive, time.Time{}, "", 0
@@ -138,4 +142,32 @@ func (s *Service) AttemptOfStudent(ctx context.Context, sessionID, studentID str
 		return err
 	})
 	return att, err
+}
+
+// spareStrikes reverts the newest strikes of a readmitted attempt until one
+// strike is left before the limit: readmitting means one more chance, not an
+// annulment on the next signal. Reverted strikes stay in the record.
+func (s *Service) spareStrikes(tx Tx, sess *Session, att *Attempt) error {
+	pub, err := s.published(tx, sess.ExamHash)
+	if err != nil {
+		return err
+	}
+	limit := ProctorSettings(&pub.Exam.Manifest).StrikeLimit
+	if limit <= 0 {
+		return nil
+	}
+	ps, err := tx.ListPenalties(att.ID)
+	if err != nil {
+		return err
+	}
+	now := s.clock()
+	for i := len(ps) - 1; i >= 0 && ActiveStrikes(ps) >= limit; i-- {
+		if p := ps[i]; p.Kind == PenaltyStrike && p.Active() {
+			if err := tx.RevertPenalty(p.ID, now, "readmitido"); err != nil {
+				return err
+			}
+			p.RevertedAt = now
+		}
+	}
+	return nil
 }

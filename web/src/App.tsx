@@ -11,7 +11,8 @@ import { Exam } from "./screens/Exam";
 import { Result } from "./screens/Result";
 import { DeviceBlock, Pledge, VerdictPanel, warningText } from "./proctor/ProctorUI";
 import { telemetry } from "./proctor/telemetry";
-import { isTouchOnly } from "./proctor/useProctor";
+import { fullscreenSupported, isTouchOnly } from "./proctor/useProctor";
+import { uid } from "./uid";
 
 export function App() {
   const { phase, me, setMe, now, paused, messages, dismiss, reportAt, verdict, clearVerdict } = useAttempt();
@@ -29,7 +30,7 @@ export function App() {
     if (!verdict || !me || verdict.strike || verdict.annulled) return;
     const body = warningText(verdict, me);
     clearVerdict();
-    if (body) setWarnings((w) => [...w.filter((x) => x.body !== body), { id: crypto.randomUUID(), kind: "inverse", title: t("warning_title"), body }]);
+    if (body) setWarnings((w) => [...w.filter((x) => x.body !== body), { id: uid(), kind: "inverse", title: t("warning_title"), body }]);
   }, [verdict, me, clearVerdict]);
 
   if (blocked) {
@@ -52,7 +53,13 @@ export function App() {
     <>
       {screen()}
       <Toasts toasts={toasts} onClose={close} />
-      {verdict?.strike && !verdict.annulled && <VerdictPanel verdict={verdict} onClose={clearVerdict} />}
+      {verdict?.strike && !verdict.annulled && (
+        <VerdictPanel
+          verdict={verdict}
+          fullscreen={me?.proctoring.fullscreen === "required" && fullscreenSupported() && !document.fullscreenElement}
+          onClose={clearVerdict}
+        />
+      )}
       {paused && (
         <div className="overlay" style={{ position: "fixed", zIndex: 45 }}>
           <section className="panel panel--inverse" role="alert">

@@ -198,6 +198,12 @@ func (h *Handler) liveSocket(w http.ResponseWriter, r *http.Request, d *session.
 	out := h.live.add(d.Attempt.ID)
 	defer h.live.remove(out)
 
+	// An absence left open by a previous page (reload, closed tab) is counted
+	// unless this page re-announces it shortly.
+	h.away.unclaim(d.Attempt.ID)
+	claim := time.AfterFunc(claimWait, func() { h.closeAbandoned(context.WithoutCancel(ctx), d.Attempt.ID) })
+	defer claim.Stop()
+
 	go func() {
 		defer cancel()
 		var window time.Time

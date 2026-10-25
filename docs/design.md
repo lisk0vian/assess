@@ -224,6 +224,20 @@ reversed, edit it here and note why in the commit.
   an exposure bar counts down and the answer locks at zero. Voided questions
   say so and lock.
 - `devices: desktop` turns away touch-only devices before the exam.
+- Classroom HTTP on a LAN address is not a secure context: no
+  `crypto.randomUUID`, `crypto.subtle` or `navigator.clipboard`. The app must
+  run without them, and is tested from the LAN address, not localhost.
+- Screen captures cannot be blocked by a web page. Mitigations: the exam
+  hides while the Windows/Command key is held (Win+Shift+S, Cmd+Shift+4
+  start with it), PrintScreen replaces the clipboard image with a notice and
+  counts like a copy, printing is blocked (Ctrl+P and print CSS), options can
+  be hover-only, and the watermark names the student. A phone photo is the
+  known limit.
+- An absence whose page never reports its end (reload, closed tab) is closed
+  by the server with its own measurement when the student reconnects, unless
+  the new page re-announces it within 5 s.
+- Readmitting an attempt annulled by strikes reverts the newest strikes
+  (noted "readmitido") until one is left before the limit.
 
 ## Anti-cheat (browser APIs only — no installs, no Safe Exam Browser)
 

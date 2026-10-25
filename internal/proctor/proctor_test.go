@@ -39,6 +39,7 @@ func TestDecisions(t *testing.T) {
 		{"40 s away strikes without time (standard)", std, Signal{Kind: Hidden, DurationMs: 40000}, Decision{Severity: High, Warn: true, Strike: true}},
 		{"notification blur ignored", strict, Signal{Kind: Blur, DurationMs: 800}, Decision{Ignore: true}},
 		{"first copy strikes (strict)", strict, Signal{Kind: Copy, Count: 1}, Decision{Severity: High, Warn: true, Strike: true}},
+		{"a screenshot counts like a copy", std, Signal{Kind: Screenshot, Count: 1}, Decision{Severity: Warn, Warn: true}},
 		{"second copy voids the question (strict)", strict, Signal{Kind: Copy, Count: 2}, Decision{Severity: High, Warn: true, Strike: true, VoidQ: true}},
 		{"first copy only warns (standard)", std, Signal{Kind: Copy, Count: 1}, Decision{Severity: Warn, Warn: true}},
 		{"automation strikes", std, Signal{Kind: Untrusted}, Decision{Severity: High, Warn: true, Strike: true}},

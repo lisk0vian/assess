@@ -50,14 +50,15 @@ export function useProctor(o: ProctorOptions): Away | null {
     const q = () => opts.current.questionID;
     const evaluate = () => {
       const kind = currentAway(opts.current.fullscreenRequired);
-      if (!kind) {
-        if (episode) {
-          telemetry.report(episode.kind, { phase: "end", durationMs: performance.now() - episode.since, questionID: q() });
-          episode = null;
-          setAway(null);
-        }
-        return;
+      // Back from the worse state (e.g. the tab is visible again but out of
+      // fullscreen): that absence is over; what remains is a new episode the
+      // student can fix from the page.
+      if (episode && (!kind || rank[kind] < rank[episode.kind])) {
+        telemetry.report(episode.kind, { phase: "end", durationMs: performance.now() - episode.since, questionID: q() });
+        episode = null;
+        setAway(null);
       }
+      if (!kind) return;
       if (!episode) {
         episode = { kind, since: performance.now() };
         telemetry.report(kind, { phase: "start", questionID: q() });
@@ -69,6 +70,9 @@ export function useProctor(o: ProctorOptions): Away | null {
         setAway(episode);
       }
     };
+    telemetry.whenAttached(() => {
+      if (episode) telemetry.report(episode.kind, { phase: "start", questionID: q() });
+    });
     const events = ["visibilitychange", "fullscreenchange"] as const;
     events.forEach((e) => document.addEventListener(e, evaluate));
     window.addEventListener("blur", evaluate);
@@ -76,6 +80,7 @@ export function useProctor(o: ProctorOptions): Away | null {
     const poll = window.setInterval(evaluate, 1000); // focus can move without events
     evaluate();
     return () => {
+      telemetry.whenAttached(null);
       events.forEach((e) => document.removeEventListener(e, evaluate));
       window.removeEventListener("blur", evaluate);
       window.removeEventListener("focus", evaluate);
@@ -133,9 +138,28 @@ export function useProctor(o: ProctorOptions): Away | null {
     const block = (e: Event) => {
       if (!inField(e.target)) e.preventDefault();
     };
-    const onKeyUp = (e: KeyboardEvent) => {
-      if (e.key === "PrintScreen") once("copy", 1500);
+    // Screen captures. Browsers cannot block the OS, so: hide the exam while
+    // the Windows/Command key is held (Win+Shift+S, Cmd+Shift+4 start with
+    // it), replace a PrintScreen image in the clipboard with a notice, and
+    // never print.
+    const root = document.documentElement;
+    const shield = (on: boolean) => root.classList.toggle("is-shielded", on);
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Meta" || e.key === "OS") shield(true);
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "p") {
+        e.preventDefault();
+        once("screenshot", 1500);
+      }
     };
+    const onKeyUp = (e: KeyboardEvent) => {
+      if (e.key === "Meta" || e.key === "OS") shield(false);
+      if (e.key === "PrintScreen") {
+        poisonClipboard(opts.current.clipboardNote());
+        once("screenshot", 1500);
+      }
+    };
+    const unshield = () => shield(false);
+    const onBeforePrint = () => once("screenshot", 1500);
     const onUntrusted = (e: Event) => {
       if (!e.isTrusted) once("untrusted", 10_000);
     };
@@ -154,6 +178,9 @@ export function useProctor(o: ProctorOptions): Away | null {
     document.addEventListener("dragstart", block);
     document.addEventListener("drop", onDrop);
     document.addEventListener("keyup", onKeyUp);
+    document.addEventListener("keydown", onKeyDown, true);
+    window.addEventListener("focus", unshield);
+    window.addEventListener("beforeprint", onBeforePrint);
     for (const t of ["click", "keydown", "input"]) document.addEventListener(t, onUntrusted, true);
 
     if (navigator.webdriver) once("webdriver", Infinity);
@@ -195,6 +222,10 @@ export function useProctor(o: ProctorOptions): Away | null {
       document.removeEventListener("dragstart", block);
       document.removeEventListener("drop", onDrop);
       document.removeEventListener("keyup", onKeyUp);
+      document.removeEventListener("keydown", onKeyDown, true);
+      window.removeEventListener("focus", unshield);
+      window.removeEventListener("beforeprint", onBeforePrint);
+      shield(false);
       for (const t of ["click", "keydown", "input"]) document.removeEventListener(t, onUntrusted, true);
       mo.disconnect();
       window.removeEventListener("resize", onResize);
@@ -202,6 +233,27 @@ export function useProctor(o: ProctorOptions): Away | null {
   }, [o.enabled]);
 
   return away;
+}
+
+/**
+ * poisonClipboard replaces the clipboard (a PrintScreen image) with a notice.
+ * navigator.clipboard needs a secure context; execCommand("copy") still works
+ * on plain HTTP inside a key event. The textarea goes in #portal, which the
+ * injected-DOM watcher treats as ours.
+ */
+function poisonClipboard(text: string) {
+  const ta = document.createElement("textarea");
+  ta.value = text;
+  ta.setAttribute("readonly", "");
+  ta.style.cssText = "position:fixed;top:0;left:0;opacity:0;pointer-events:none";
+  (document.getElementById("portal") ?? document.body).appendChild(ta);
+  ta.select();
+  try {
+    document.execCommand("copy");
+  } catch {
+    /* nothing else to try over HTTP */
+  }
+  ta.remove();
 }
 
 /** Desktop-only exams turn away phones and tablets (no fine pointer at all). */

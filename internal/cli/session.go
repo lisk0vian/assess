@@ -116,7 +116,7 @@ func newStartCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			printStarted(out, st)
+			printStarted(out, st, false)
 			if noAttach {
 				return nil
 			}
@@ -129,7 +129,7 @@ func newStartCmd() *cobra.Command {
 	return cmd
 }
 
-func printStarted(w io.Writer, st *daemon.State) {
+func printStarted(w io.Writer, st *daemon.State, resumed bool) {
 	fmt.Fprintf(w, "Exam server running in the background (pid %d)\n\n", st.PID)
 	fmt.Fprintf(w, "  Exam      %s\n", st.ExamTitle)
 	fmt.Fprintf(w, "  Students  %s\n", st.StudentURL)
@@ -137,6 +137,10 @@ func printStarted(w io.Writer, st *daemon.State) {
 		fmt.Fprintf(w, "            %s\n", u)
 	}
 	fmt.Fprintf(w, "  Code      %s\n\n", st.Code)
+	if resumed {
+		fmt.Fprintln(w, "The session continues where it was; students reconnect on their own (`ax attach` opens the panel).")
+		return
+	}
 	fmt.Fprintln(w, "Students wait in the lobby until you start the exam (`ax attach`, then S).")
 }
 
@@ -341,7 +345,7 @@ func newResumeCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			printStarted(cmd.OutOrStdout(), st)
+			printStarted(cmd.OutOrStdout(), st, true)
 			if noAttach {
 				return nil
 			}

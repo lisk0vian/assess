@@ -39,7 +39,7 @@ func (m signalMsg) canonical() string {
 
 // knownSignals are the kinds a browser may report.
 var knownSignals = map[string]bool{
-	proctor.Hidden: true, proctor.Blur: true, proctor.Copy: true, proctor.PasteInput: true, proctor.Burst: true,
+	proctor.Hidden: true, proctor.Blur: true, proctor.Copy: true, proctor.Screenshot: true, proctor.PasteInput: true, proctor.Burst: true,
 	proctor.FullscreenExit: true, proctor.Untrusted: true, proctor.Webdriver: true, proctor.DOMInjection: true,
 	proctor.Resize: true, proctor.SecondTab: true,
 }
@@ -88,30 +88,95 @@ func seal(keyHex, questionID, optionID, text string) string {
 }
 
 // away remembers when timed signals started, per attempt, so durations do not
-// rest on the browser's word alone. Kept in memory.
+// rest on the browser's word alone, and so an absence still counts when the
+// browser never sends its end (the page was reloaded or closed). In memory.
 type away struct {
-	mu    sync.Mutex
-	since map[string]time.Time // attempt|kind -> start
+	mu        sync.Mutex
+	open      map[string]map[string]*awayStart // attempt -> kind -> start
+	finalized map[string]time.Time             // attempt -> when the server closed its absence
 }
 
+type awayStart struct {
+	at      time.Time
+	claimed bool // the current page knows about it (it sent this start)
+}
+
+// start records the beginning of an absence. A repeated start (the page
+// reconnected and re-announces it) keeps the original time.
 func (a *away) start(attemptID, kind string, at time.Time) {
 	a.mu.Lock()
 	defer a.mu.Unlock()
-	if a.since == nil {
-		a.since = map[string]time.Time{}
+	if a.open == nil {
+		a.open = map[string]map[string]*awayStart{}
 	}
-	// A start always wins: an episode the browser folded into another one
-	// (focus loss that became a hidden tab) never sent its end.
-	a.since[attemptID+"|"+kind] = at
+	if a.open[attemptID] == nil {
+		a.open[attemptID] = map[string]*awayStart{}
+	}
+	if s := a.open[attemptID][kind]; s != nil {
+		s.claimed = true
+		return
+	}
+	a.open[attemptID][kind] = &awayStart{at: at, claimed: true}
 }
 
-func (a *away) end(attemptID, kind string, at time.Time) (time.Duration, bool) {
+// end closes the absence. One absence may have announced several kinds
+// (focus loss that became a hidden tab): all of them close with it. ok is
+// false when there was no start; recent reports whether the server already
+// closed this absence on its own, so the late end must be ignored.
+func (a *away) end(attemptID, kind string, at time.Time) (d time.Duration, ok, recent bool) {
 	a.mu.Lock()
 	defer a.mu.Unlock()
-	t0, ok := a.since[attemptID+"|"+kind]
-	delete(a.since, attemptID+"|"+kind)
-	return at.Sub(t0), ok
+	s := a.open[attemptID][kind]
+	delete(a.open, attemptID)
+	if s == nil {
+		return 0, false, at.Sub(a.finalized[attemptID]) < 2*time.Minute
+	}
+	return at.Sub(s.at), true, false
 }
+
+// unclaim marks the absences of attemptID as unknown to the page that just
+// connected; claimOrClose later closes whatever it did not re-announce.
+func (a *away) unclaim(attemptID string) {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	for _, s := range a.open[attemptID] {
+		s.claimed = false
+	}
+}
+
+// takeUnclaimed removes and returns the most serious absence nobody claimed.
+func (a *away) takeUnclaimed(attemptID string, at time.Time) (kind string, d time.Duration, ok bool) {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	var first *awayStart
+	for k, s := range a.open[attemptID] {
+		if s.claimed {
+			continue // the new page is living this one
+		}
+		if first == nil || awayRank[k] > awayRank[kind] {
+			kind, first = k, s
+		}
+	}
+	if first == nil {
+		return "", 0, false
+	}
+	for k, s := range a.open[attemptID] {
+		if !s.claimed {
+			delete(a.open[attemptID], k)
+		}
+	}
+	if a.finalized == nil {
+		a.finalized = map[string]time.Time{}
+	}
+	a.finalized[attemptID] = at
+	return kind, at.Sub(first.at), true
+}
+
+var awayRank = map[string]int{proctor.Blur: 1, proctor.FullscreenExit: 2, proctor.Hidden: 3}
+
+// claimWait is how long a reconnecting page has to re-announce an absence
+// before the server closes it with its own measurement.
+var claimWait = 5 * time.Second
 
 // measureSlack absorbs network latency between the browser's start and end
 // messages when comparing with the server's own measurement.
@@ -145,20 +210,41 @@ func (h *Handler) handleSignal(ctx context.Context, d *session.AttemptDetail, ke
 			h.away.start(d.Attempt.ID, m.Kind, now)
 			return
 		}
-		if srv, ok := h.away.end(d.Attempt.ID, m.Kind, now); ok {
+		srv, ok, recent := h.away.end(d.Attempt.ID, m.Kind, now)
+		if recent {
+			return // already counted when the page came back
+		}
+		if ok {
 			report.Data = map[string]any{"client_ms": m.DurationMs, "server_ms": srv.Milliseconds()}
 			report.DurationMs = max(m.DurationMs, (srv - measureSlack).Milliseconds())
 		}
 	}
-	out, err := h.svc.ReportSignal(ctx, d.Attempt.ID, report)
+	h.record(ctx, d.Attempt.ID, report)
+}
+
+// closeAbandoned counts an absence whose page never sent the end (reloaded
+// or closed during it), measured by the server alone.
+func (h *Handler) closeAbandoned(ctx context.Context, attemptID string) {
+	kind, d, ok := h.away.takeUnclaimed(attemptID, h.svc.Now())
+	if !ok {
+		return
+	}
+	h.log.Info("absence closed by the server", "attempt", attemptID, "kind", kind, "ms", d.Milliseconds())
+	h.record(ctx, attemptID, session.SignalReport{Kind: kind, DurationMs: (d - measureSlack).Milliseconds(),
+		Data: map[string]any{"server_ms": d.Milliseconds(), "closed_by": "server"}})
+}
+
+// record applies a signal and tells the student what it cost.
+func (h *Handler) record(ctx context.Context, attemptID string, report session.SignalReport) {
+	out, err := h.svc.ReportSignal(ctx, attemptID, report)
 	if err != nil || out.Duplicate || out.Decision.Ignore {
 		return
 	}
 	if out.Decision.Warn || len(out.Penalties) > 0 {
-		h.live.send(d.Attempt.ID, verdict(report.Kind, report.QuestionID, out))
+		h.live.send(attemptID, verdict(report.Kind, report.QuestionID, out))
 	}
 	if out.Annulled {
-		h.log.Warn("attempt annulled by strikes", "attempt", d.Attempt.ID, "strikes", out.Strikes)
+		h.log.Warn("attempt annulled by strikes", "attempt", attemptID, "strikes", out.Strikes)
 	}
 }
 

@@ -10,6 +10,7 @@ import { Markdown } from "../components/Markdown";
 import { clock, iconProps, RecordRow, SaveStatus, timerStage, Toasts, Wordmark, type Toast } from "../components/ui";
 import { fullscreenSupported, useProctor } from "../proctor/useProctor";
 import { Curtain, hhmm, Strikes, Watermark } from "../proctor/ProctorUI";
+import { uid } from "../uid";
 
 interface Props {
   me: MeView;
@@ -73,7 +74,7 @@ export function Exam({ me, now, setMe, reportAt }: Props) {
   const stage = timerStage(remaining);
   const timeUp = remaining <= 0;
 
-  const toast = useCallback((n: Omit<Toast, "id">) => setToasts((all) => [...all.filter((x) => x.title !== n.title), { ...n, id: crypto.randomUUID() }]), []);
+  const toast = useCallback((n: Omit<Toast, "id">) => setToasts((all) => [...all.filter((x) => x.title !== n.title), { ...n, id: uid() }]), []);
 
   // Extra time granted: tell the student until they dismiss it.
   const lastDeadline = useRef(me.attempt.deadline ?? 0);
@@ -170,7 +171,7 @@ export function Exam({ me, now, setMe, reportAt }: Props) {
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (view !== "question" || e.ctrlKey || e.metaKey || e.altKey) return;
-      if ((e.target as HTMLElement).closest("input, textarea")) return;
+      if (e.target instanceof Element && e.target.closest("input, textarea")) return;
       if (e.key === "ArrowRight") go(index + 1);
       else if (e.key === "ArrowLeft") go(index - 1);
       else if (e.key.toLowerCase() === "f") toggleFlag();

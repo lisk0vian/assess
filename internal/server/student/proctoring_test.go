@@ -158,3 +158,106 @@ func TestHoverOptionsAreSealed(t *testing.T) {
 		}
 	}
 }
+
+func TestAbandonedAbsenceStillCounts(t *testing.T) {
+	defer func(w time.Duration) { claimWait = w }(claimWait)
+	claimWait = 50 * time.Millisecond
+
+	e := newEnv(t, "")
+	c := e.browser()
+	var me MeView
+	c.mustStatus(http.StatusOK, "POST", "/api/join", map[string]string{"code": e.sess.Code, "name": "Ana", "student_id": "A1"}, &me)
+	if _, err := e.svc.Start(context.Background(), e.sess.ID); err != nil {
+		t.Fatal(err)
+	}
+	e.clk.Advance(20 * time.Second)
+	key := me.Proctoring.Key
+
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+	first := c.dial(ctx)
+	// The tab is hidden, then the page reloads: its end never arrives.
+	send(ctx, t, first, sign(key, signalMsg{Seq: 1, Kind: "blur", Phase: "start"}))
+	send(ctx, t, first, sign(key, signalMsg{Seq: 2, Kind: "hidden", Phase: "start"}))
+	time.Sleep(100 * time.Millisecond)
+	first.CloseNow()
+	e.clk.Advance(45 * time.Second)
+
+	second := c.dial(ctx) // the reloaded page knows nothing about the absence
+	defer second.CloseNow()
+	v := nextVerdict(ctx, t, second)
+	if v["kind"] != "hidden" || v["strike"] != true || v["strikes"] != 1.0 {
+		t.Fatalf("abandoned absence verdict %v", v)
+	}
+	// A late end for the same absence must not count twice.
+	send(ctx, t, second, sign(key, signalMsg{Seq: 3, Kind: "hidden", Phase: "end", DurationMs: 45000}))
+	time.Sleep(200 * time.Millisecond)
+	c.mustStatus(http.StatusOK, "GET", "/api/me", nil, &me)
+	if me.Proctoring.Strikes != 1 {
+		t.Fatalf("strikes = %d, want 1", me.Proctoring.Strikes)
+	}
+}
+
+func TestReconnectingPageKeepsItsAbsence(t *testing.T) {
+	defer func(w time.Duration) { claimWait = w }(claimWait)
+	claimWait = 300 * time.Millisecond
+
+	e := newEnv(t, "")
+	c := e.browser()
+	var me MeView
+	c.mustStatus(http.StatusOK, "POST", "/api/join", map[string]string{"code": e.sess.Code, "name": "Ana", "student_id": "A1"}, &me)
+	if _, err := e.svc.Start(context.Background(), e.sess.ID); err != nil {
+		t.Fatal(err)
+	}
+	e.clk.Advance(20 * time.Second)
+	key := me.Proctoring.Key
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	first := c.dial(ctx)
+	send(ctx, t, first, sign(key, signalMsg{Seq: 1, Kind: "hidden", Phase: "start"}))
+	time.Sleep(100 * time.Millisecond)
+	first.CloseNow() // network blip while still away
+	e.clk.Advance(10 * time.Second)
+
+	second := c.dial(ctx)
+	defer second.CloseNow()
+	send(ctx, t, second, sign(key, signalMsg{Seq: 2, Kind: "hidden", Phase: "start"})) // re-announced
+	time.Sleep(500 * time.Millisecond)                                                 // past claimWait
+	e.clk.Advance(30 * time.Second)
+	send(ctx, t, second, sign(key, signalMsg{Seq: 3, Kind: "hidden", Phase: "end", DurationMs: 40000}))
+	if v := nextVerdict(ctx, t, second); v["strikes"] != 1.0 {
+		t.Fatalf("one absence must cost one strike: %v", v)
+	}
+}
+
+func TestReloadIntoAnotherAbsence(t *testing.T) {
+	defer func(w time.Duration) { claimWait = w }(claimWait)
+	claimWait = 100 * time.Millisecond
+
+	e := newEnvWith(t, func(p *exam.Published) { p.Exam.Manifest.Proctoring.Fullscreen = "required" })
+	c := e.browser()
+	var me MeView
+	c.mustStatus(http.StatusOK, "POST", "/api/join", map[string]string{"code": e.sess.Code, "name": "Ana", "student_id": "A1"}, &me)
+	if _, err := e.svc.Start(context.Background(), e.sess.ID); err != nil {
+		t.Fatal(err)
+	}
+	e.clk.Advance(20 * time.Second)
+	key := me.Proctoring.Key
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	first := c.dial(ctx)
+	send(ctx, t, first, sign(key, signalMsg{Seq: 1, Kind: "hidden", Phase: "start"}))
+	time.Sleep(100 * time.Millisecond)
+	first.CloseNow()
+	e.clk.Advance(40 * time.Second)
+
+	// The reloaded page is out of fullscreen: it announces that, not the old absence.
+	second := c.dial(ctx)
+	defer second.CloseNow()
+	send(ctx, t, second, sign(key, signalMsg{Seq: 2, Kind: "fullscreen_exit", Phase: "start"}))
+	if v := nextVerdict(ctx, t, second); v["kind"] != "hidden" || v["strikes"] != 1.0 {
+		t.Fatalf("the abandoned hidden tab must still count: %v", v)
+	}
+}

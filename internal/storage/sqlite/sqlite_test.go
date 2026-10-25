@@ -457,6 +457,18 @@ func TestStrikesAnnulAndRevert(t *testing.T) {
 	}
 	_, err = e.svc.ReportSignal(e.ctx, a.ID, session.SignalReport{Kind: "copy", Seq: 6})
 	expectErr(t, err, session.ErrAttemptClosed)
+
+	// Readmitting is one more chance: the newest strike is spared.
+	if _, err := e.svc.Readmit(e.ctx, a.ID, ""); err != nil {
+		t.Fatal(err)
+	}
+	ps, _ := e.svc.Penalties(e.ctx, a.ID)
+	if n := session.ActiveStrikes(ps); n != 2 {
+		t.Fatalf("after readmit: %d active strikes, want 2", n)
+	}
+	if s := e.signal(a, session.SignalReport{Kind: "untrusted", Seq: 7}); !s.Annulled {
+		t.Fatalf("the next strike annuls again: %+v", s)
+	}
 }
 
 func TestStrictPenalties(t *testing.T) {

@@ -46,7 +46,7 @@ var viewNames = [viewCount]string{"Alumnos", "Ranking", "Incidencias", "Enlace"}
 
 // signalNames are the teacher-facing names of integrity signals.
 var signalNames = map[string]string{
-	"hidden": "fuera de la pestaña", "blur": "en otra ventana", "copy": "copiar", "paste_input": "pegar en respuesta",
+	"hidden": "fuera de la pestaña", "blur": "en otra ventana", "copy": "copiar", "screenshot": "captura o impresión", "paste_input": "pegar en respuesta",
 	"burst": "escritura en ráfaga", "fullscreen_exit": "salió de pantalla completa", "untrusted": "clics o teclas sintéticos",
 	"webdriver": "navegador automatizado", "dom_injection": "extensión en la página", "resize": "ventana reducida",
 	"second_tab": "segunda pestaña", "telemetry": "telemetría alterada", "telemetry_gap": "canal en silencio",

@@ -4,6 +4,7 @@ import type { MeView } from "../api/types";
 import { setLanguage } from "../i18n";
 import { applyBrand } from "../brand";
 import { telemetry, type Verdict } from "../proctor/telemetry";
+import { uid } from "../uid";
 
 export type Phase = "loading" | "anonymous" | "ready" | "error";
 
@@ -80,7 +81,7 @@ export function useAttempt() {
         } catch {
           return;
         }
-        if (msg.type === "message" && msg.text) setMessages((m) => [...m, { id: crypto.randomUUID(), text: msg.text! }]);
+        if (msg.type === "message" && msg.text) setMessages((m) => [...m, { id: uid(), text: msg.text! }]);
         else if (msg.type === "pause") setPaused(!!msg.on);
         else if (msg.type === "verdict") setVerdict({ ...(msg as Verdict) });
         else void reload();

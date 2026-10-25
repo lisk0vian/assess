@@ -9,7 +9,8 @@ import "time"
 const (
 	Hidden         = "hidden"          // the exam tab was hidden for DurationMs
 	Blur           = "blur"            // the window lost focus while visible for DurationMs
-	Copy           = "copy"            // copy, cut or PrintScreen on the exam (right-click is only blocked)
+	Copy           = "copy"            // copy or cut on the exam (right-click is only blocked)
+	Screenshot     = "screenshot"      // PrintScreen, or trying to print the exam
 	PasteInput     = "paste_input"     // text pasted, dropped or inserted by an extension into an answer
 	Burst          = "burst"           // text appeared faster than anyone types
 	FullscreenExit = "fullscreen_exit" // left fullscreen for DurationMs (required mode)
@@ -129,7 +130,7 @@ func (s Settings) Decide(sig Signal) Decision {
 		default:
 			return Decision{Severity: High, Warn: true, Strike: true}
 		}
-	case Copy:
+	case Copy, Screenshot:
 		if sig.Count <= 1 {
 			return pick(Decision{Severity: High, Warn: true, Strike: true}, Decision{Severity: Warn, Warn: true})
 		}

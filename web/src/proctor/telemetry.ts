@@ -29,6 +29,7 @@ class Telemetry {
   private seq = 0;
   private outbox: string[] = [];
   private sink: ((msg: string) => void) | null = null;
+  private onAttach: (() => void) | null = null;
 
   /** Called with every fresh attempt state. Without a key nothing is sent. */
   configure(keyHex: string | undefined, serverSeq: number) {
@@ -43,7 +44,13 @@ class Telemetry {
 
   attach(sink: (msg: string) => void) {
     this.sink = sink;
+    this.onAttach?.(); // re-announce an absence in progress before anything else
     for (const m of this.outbox.splice(0)) sink(m);
+  }
+
+  /** Called on every (re)connection, so an ongoing absence is not taken as abandoned. */
+  whenAttached(fn: (() => void) | null) {
+    this.onAttach = fn;
   }
 
   detach() {

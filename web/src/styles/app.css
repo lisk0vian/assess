@@ -159,6 +159,11 @@ button.tf__opt { border: 0; background: transparent; color: inherit; }
   .exam > header .strikes span { margin-left: 4px; font-size: 13px; }
 }
 
+/* Screen-capture shield: the exam vanishes while the OS key is held, and is
+   never printed (print to PDF is a capture too). */
+.is-shielded .exam .desk, .is-shielded .exam .side-rail { visibility: hidden; }
+@media print { body { display: none !important; } }
+
 /* ---------- Exam branding (manifest branding.accent / branding.logo) ---------- */
 /* The exam's accent replaces the magenta; text and wash tones are derived. */
 :root[data-brand] {
