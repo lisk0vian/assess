@@ -7,8 +7,9 @@ import { points, t, type Key } from "../i18n";
 import { AnswerQueue } from "../state/answerQueue";
 import { Answer } from "../components/Answer";
 import { Markdown } from "../components/Markdown";
+import { Lens } from "../components/Lens";
 import { clock, iconProps, RecordRow, SaveStatus, timerStage, Toasts, Wordmark, type Toast } from "../components/ui";
-import { fullscreenSupported, useProctor } from "../proctor/useProctor";
+import { fullscreenSupported, isTouchOnly, useProctor } from "../proctor/useProctor";
 import { Curtain, hhmm, Strikes, Watermark } from "../proctor/ProctorUI";
 import { uid } from "../uid";
 
@@ -17,6 +18,8 @@ interface Props {
   now: () => number;
   setMe: (me: MeView) => void;
   reportAt: (questionID: string) => void;
+  /** The teacher paused this student (or everyone). */
+  paused: boolean;
 }
 
 const typeKey: Record<string, Key> = { single: "t_single", multiple: "t_multiple", truefalse: "t_truefalse", short: "t_short" };
@@ -24,7 +27,7 @@ const pad = (n: number) => String(n).padStart(2, "0");
 const portal = () => document.getElementById("portal") ?? undefined;
 const answered = (r: Response | undefined) => !!r && (!!r.option || !!r.options?.length || r.value !== undefined || !!r.text?.trim());
 
-export function Exam({ me, now, setMe, reportAt }: Props) {
+export function Exam({ me, now, setMe, reportAt, paused }: Props) {
   const questions = me.questions;
   // Where the student was, so a reload or a readmission resumes there.
   const posKey = `assess-pos:${me.exam.id}:${me.student.student_id}`;
@@ -52,6 +55,18 @@ export function Exam({ me, now, setMe, reportAt }: Props) {
   const [submitting, setSubmitting] = useState(false);
   // Timed questions the student chose to open in this page (opening starts their clock).
   const [opened, setOpened] = useState<Set<string>>(() => new Set(questions.filter((x) => x.closes_at).map((x) => x.id)));
+  // The student is focusing an answer: hold the automatic reading pass.
+  const [answering, setAnswering] = useState(false);
+
+  // Questions already read automatically in this page; the teacher can turn
+  // the automatic first pass off, but it never repeats on a revisit.
+  const autoSeen = useRef<Set<string>>(new Set());
+  // Where the student left the lens on each question (this page only).
+  const seenParts = useRef<Map<string, number>>(new Map());
+
+  useEffect(() => {
+    setAnswering(false);
+  }, [index, view]);
 
   // Flags are a study aid, kept in this browser only.
   const flagKey = `assess-flags:${me.exam.id}:${me.student.student_id}`;
@@ -133,15 +148,20 @@ export function Exam({ me, now, setMe, reportAt }: Props) {
 
   const current = questions[index];
   const question = current ? cache[current.id] : undefined;
+  const answerHint = question?.reveal === "hover" ? t(isTouchOnly() ? "reveal_touch" : "reveal_hint") : undefined;
 
   // Integrity: signals, curtain, strikes. Only with a telemetry key.
   const proc = me.proctoring;
   const watching = !!proc.key;
+  // Stillness counts only while a question is on screen: not in the review,
+  // before a timed question is opened, or while the teacher has paused.
+  const onSheet = view === "question" && !!question && !paused && !(current?.time_limit_ms && !opened.has(current.id));
   const away = useProctor({
     enabled: watching,
     fullscreenRequired: proc.fullscreen === "required",
     questionID: current?.id ?? "",
     clipboardNote: () => t("clipboard_note", { id: me.student.student_id, time: hhmm() }),
+    frozenMs: proc.frozen_pointer && onSheet ? proc.thresholds.frozen_ms : 0,
   });
   useEffect(() => {
     if (watching && proc.fullscreen === "suggested" && fullscreenSupported() && !document.fullscreenElement) {
@@ -187,7 +207,8 @@ export function Exam({ me, now, setMe, reportAt }: Props) {
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (view !== "question" || e.ctrlKey || e.metaKey || e.altKey) return;
-      if (e.target instanceof Element && e.target.closest("input, textarea")) return;
+      // The prompt takes Enter, Space and the arrows while it has focus.
+      if (e.target instanceof Element && e.target.closest("input, textarea, .lens")) return;
       if (e.key === "ArrowRight") go(index + 1);
       else if (e.key === "ArrowLeft") go(index - 1);
       else if (e.key.toLowerCase() === "f") toggleFlag();
@@ -333,8 +354,28 @@ export function Exam({ me, now, setMe, reportAt }: Props) {
                       <span className="exposure__time">{clock(qLeft)}</span>
                     </div>
                   )}
+                  {question.lens && (
+                    <p id="lens-hint" className="label reveal-hint lens-hint">
+                      <span className="lens-hint__point">{t(isTouchOnly() ? "lens_touch" : "lens_hint")}</span>
+                      <span className="lens-hint__keys">{t("lens_keys")}</span>
+                    </p>
+                  )}
                   <div id="prompt" className={question.prompt.length <= 140 && !question.prompt.includes("\n\n") ? "prompt" : "prompt prompt--long"}>
-                    <Markdown text={question.prompt} />
+                    <Lens
+                      key={current.id}
+                      on={question.lens}
+                      autoPlay={!!proc.auto_read && !autoSeen.current.has(current.id)}
+                      autoEnabled={!!proc.auto_read}
+                      answerHint={answerHint}
+                      hold={paused || answering}
+                      readSpeed={proc.read_speed}
+                      initialPart={seenParts.current.get(current.id)}
+                      onPartChange={(part) => seenParts.current.set(current.id, part)}
+                      describedBy="lens-hint"
+                      onAutoPlayed={() => autoSeen.current.add(current.id)}
+                    >
+                      <Markdown text={question.prompt} />
+                    </Lens>
                   </div>
                   {voided && (
                     <div className="sheet-note" role="note">
@@ -348,7 +389,16 @@ export function Exam({ me, now, setMe, reportAt }: Props) {
                       <span>{t("timed_closed")}</span>
                     </div>
                   )}
-                  <Answer question={question} value={answers[current.id]} disabled={locked} onChange={change} sealKey={proc.key} />
+                  <div
+                    onPointerDownCapture={() => setAnswering(true)}
+                    onFocusCapture={() => setAnswering(true)}
+                    onBlurCapture={(e) => {
+                      const next = e.relatedTarget as Node | null;
+                      if (!next || !e.currentTarget.contains(next)) setAnswering(false);
+                    }}
+                  >
+                    <Answer question={question} value={answers[current.id]} disabled={locked} onChange={change} sealKey={proc.key} hideHint={question.lens} />
+                  </div>
                 </>
               ) : (
                 <p className="muted" style={{ marginTop: 30 }}>{t("loading")}</p>

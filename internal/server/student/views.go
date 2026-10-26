@@ -44,6 +44,12 @@ type ProctoringView struct {
 	Thresholds proctor.Thresholds `json:"thresholds"`
 	// Percentage of the remaining time a long absence costs.
 	LosePercent int `json:"lose_percent"`
+	// Report a still pointer followed by an answer (frozen_pointer).
+	FrozenPointer bool `json:"frozen_pointer"`
+	// Read the prompt once when it opens, in ranges of words.
+	AutoRead bool `json:"auto_read"`
+	// Reading guide speed: slow | normal | fast.
+	ReadSpeed string `json:"read_speed"`
 }
 
 // PenaltyView is an active penalty, shown to the student for transparency.
@@ -117,6 +123,7 @@ type QuestionView struct {
 	ClosesAt    int64        `json:"closes_at,omitempty"`
 	Voided      bool         `json:"voided,omitempty"`
 	Reveal      string       `json:"reveal"` // always | hover
+	Lens        bool         `json:"lens"`   // read the prompt in ranges of words, one at a time
 }
 
 // OptionView is an option in the order this attempt sees it. With reveal
@@ -130,11 +137,13 @@ type OptionView struct {
 // ReviewItem is a per-question correction, shown only after the session ends
 // and only when result_visibility is "review".
 type ReviewItem struct {
-	QuestionID string  `json:"question_id"`
-	Points     float64 `json:"points"`
-	MaxPoints  float64 `json:"max_points"`
-	Correct    bool    `json:"correct"`
-	Key        KeyView `json:"key"`
+	QuestionID string       `json:"question_id"`
+	Prompt     string       `json:"prompt"`
+	Options    []OptionView `json:"options,omitempty"` // attempt order, text always visible
+	Points     float64      `json:"points"`
+	MaxPoints  float64      `json:"max_points"`
+	Correct    bool         `json:"correct"`
+	Key        KeyView      `json:"key"`
 }
 
 // KeyView is the correct answer of one question.
@@ -189,7 +198,8 @@ func buildMe(d *session.AttemptDetail, now time.Time) MeView {
 	v.Proctoring = ProctoringView{
 		Profile: set.Profile, Fullscreen: set.Fullscreen, Devices: set.Devices, StrikeLimit: set.StrikeLimit,
 		GraceMs: set.Grace.Milliseconds(), SignalSeq: a.SignalSeq, Pledged: !a.PledgedAt.IsZero(),
-		Thresholds: set.Thresholds(), LosePercent: int(set.LoseShare()*100 + 0.5),
+		Thresholds: set.Thresholds(), LosePercent: int(set.LoseShare()*100 + 0.5), FrozenPointer: set.FrozenPointer,
+		AutoRead: set.AutoRead, ReadSpeed: set.ReadSpeed,
 	}
 	if a.State == session.AttemptActive && set.Enabled() {
 		v.Proctoring.Key = session.TelemetryKey(d.Session, a.ID)
@@ -213,7 +223,14 @@ func buildMe(d *session.AttemptDetail, now time.Time) MeView {
 	}
 	if graded && vis == "review" && d.Session.State == session.StateEnded {
 		for _, sl := range a.Layout {
-			item := ReviewItem{QuestionID: sl.QuestionID, MaxPoints: sl.Points, Key: keyView(d.Exam.Exam.Key.Answers[sl.QuestionID])}
+			q := d.Exam.Exam.Questions[sl.QuestionID]
+			item := ReviewItem{
+				QuestionID: sl.QuestionID,
+				Prompt:     q.Prompt,
+				Options:    reviewOptions(sl, q),
+				MaxPoints:  sl.Points,
+				Key:        keyView(d.Exam.Exam.Key.Answers[sl.QuestionID]),
+			}
 			if ans, ok := byQ[sl.QuestionID]; ok {
 				item.Points, item.Correct = ans.Points, ans.Correct
 			}
@@ -225,6 +242,23 @@ func buildMe(d *session.AttemptDetail, now time.Time) MeView {
 
 func keyView(a exam.Answer) KeyView {
 	return KeyView{Option: a.Option, Options: a.Options, Value: a.Value, Number: a.Number, Accept: a.Accept}
+}
+
+// reviewOptions returns the options in the order this attempt saw them. The
+// attempt is over, so the text is never sealed.
+func reviewOptions(sl exam.Slot, q *exam.Question) []OptionView {
+	if len(sl.Options) == 0 {
+		return nil
+	}
+	text := make(map[string]string, len(q.Options))
+	for _, o := range q.Options {
+		text[o.ID] = o.Text
+	}
+	out := make([]OptionView, 0, len(sl.Options))
+	for _, id := range sl.Options {
+		out = append(out, OptionView{ID: id, Text: text[id]})
+	}
+	return out
 }
 
 // buildQuestion renders question id as the attempt sees it, or false when the
@@ -240,6 +274,7 @@ func buildQuestion(d *session.AttemptDetail, id string) (QuestionView, bool) {
 			Placeholder: q.Placeholder, Points: sl.Points, TimeLimitMs: q.TimeLimit.D().Milliseconds(),
 			ClosesAt: closesAt(d, id), Voided: voidedQuestions(d.Penalties)[id], Reveal: revealOf(d, q),
 		}
+		v.Lens = lensOf(d, q)
 		key := session.TelemetryKey(d.Session, d.Attempt.ID)
 		if v.Reveal == "hover" && key == "" {
 			v.Reveal = "always" // nothing to seal with (pre-phase-5 session)
@@ -277,6 +312,20 @@ func revealOf(d *session.AttemptDetail, q *exam.Question) string {
 		return q.Reveal
 	}
 	return set.Reveal
+}
+
+// lensOf is whether the question's prompt shows through the lens: its own
+// setting, else the exam's, unless the teacher switched the lens off for this
+// student. With proctoring off, never.
+func lensOf(d *session.AttemptDetail, q *exam.Question) bool {
+	set := session.ProctorSettings(&d.Exam.Exam.Manifest)
+	if !set.Enabled() || d.Attempt.NoLens {
+		return false
+	}
+	if q.Lens != nil {
+		return *q.Lens
+	}
+	return set.Lens
 }
 
 func closesAt(d *session.AttemptDetail, id string) int64 {

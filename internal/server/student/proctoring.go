@@ -41,7 +41,7 @@ func (m signalMsg) canonical() string {
 var knownSignals = map[string]bool{
 	proctor.Hidden: true, proctor.Blur: true, proctor.Copy: true, proctor.Screenshot: true, proctor.PasteInput: true, proctor.Burst: true,
 	proctor.FullscreenExit: true, proctor.Untrusted: true, proctor.Webdriver: true, proctor.DOMInjection: true,
-	proctor.Resize: true, proctor.SecondTab: true,
+	proctor.Resize: true, proctor.SecondTab: true, proctor.FrozenPointer: true,
 }
 
 // timedSignals have a start and an end; the server measures them too.

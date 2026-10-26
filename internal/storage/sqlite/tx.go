@@ -227,7 +227,7 @@ func (t *tx) ListParticipants(sessionID string) ([]*session.Participant, error) 
 // ---- attempts ----
 
 const attemptCols = `id, session_id, participant_id, seed, layout, state, extra_ms, created_at,
-	submitted_at, submit_reason, score, max_score, last_seq, signal_seq, pledged_at`
+	submitted_at, submit_reason, score, max_score, last_seq, signal_seq, pledged_at, no_lens`
 
 func scanAttempt(sc interface{ Scan(...any) error }) (*session.Attempt, error) {
 	var a session.Attempt
@@ -238,7 +238,7 @@ func scanAttempt(sc interface{ Scan(...any) error }) (*session.Attempt, error) {
 	var reason sql.NullString
 	var score sql.NullFloat64
 	if err := sc.Scan(&a.ID, &a.SessionID, &a.ParticipantID, &seed, &layout, &state, &extra, &created,
-		&submitted, &reason, &score, &a.MaxScore, &a.LastSeq, &a.SignalSeq, &pledged); err != nil {
+		&submitted, &reason, &score, &a.MaxScore, &a.LastSeq, &a.SignalSeq, &pledged, &a.NoLens); err != nil {
 		return nil, err
 	}
 	a.PledgedAt = fromMS(pledged)
@@ -259,18 +259,18 @@ func (t *tx) InsertAttempt(a *session.Attempt) error {
 	if err != nil {
 		return err
 	}
-	_, err = t.exec(`INSERT INTO attempts (`+attemptCols+`) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+	_, err = t.exec(`INSERT INTO attempts (`+attemptCols+`) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
 		a.ID, a.SessionID, a.ParticipantID, int64(a.Seed), layout, //nolint:gosec // G115: bit pattern, see scanAttempt
 		string(a.State), a.Extra.Milliseconds(),
-		ms(a.CreatedAt), ms(a.SubmittedAt), nullString(string(a.SubmitReason)), nullScore(a), a.MaxScore, a.LastSeq, a.SignalSeq, ms(a.PledgedAt))
+		ms(a.CreatedAt), ms(a.SubmittedAt), nullString(string(a.SubmitReason)), nullScore(a), a.MaxScore, a.LastSeq, a.SignalSeq, ms(a.PledgedAt), a.NoLens)
 	return err
 }
 
 func (t *tx) UpdateAttempt(a *session.Attempt) error {
 	_, err := t.exec(`UPDATE attempts SET state = ?, extra_ms = ?, submitted_at = ?, submit_reason = ?, score = ?, last_seq = ?,
-		signal_seq = ?, pledged_at = ? WHERE id = ?`,
+		signal_seq = ?, pledged_at = ?, no_lens = ? WHERE id = ?`,
 		string(a.State), a.Extra.Milliseconds(), ms(a.SubmittedAt), nullString(string(a.SubmitReason)), nullScore(a), a.LastSeq,
-		a.SignalSeq, ms(a.PledgedAt), a.ID)
+		a.SignalSeq, ms(a.PledgedAt), a.NoLens, a.ID)
 	return err
 }
 

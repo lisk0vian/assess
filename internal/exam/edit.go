@@ -539,7 +539,9 @@ func manifestNode(m *Manifest) *yaml.Node {
 		"instructions", str(m.Instructions),
 		"order", nonEmpty(mapping("shuffle_questions", boolPtr(m.Order.ShuffleQuestions), "shuffle_options", boolPtr(m.Order.ShuffleOptions))),
 		"proctoring", nonEmpty(mapping("profile", str(m.Proctoring.Profile), "fullscreen", str(m.Proctoring.Fullscreen),
-			"devices", str(m.Proctoring.Devices), "reveal", str(m.Proctoring.Reveal), "strike_limit", strikes)),
+			"devices", str(m.Proctoring.Devices), "reveal", str(m.Proctoring.Reveal), "strike_limit", strikes,
+			"lens", boolPtr(m.Proctoring.Lens), "frozen_pointer", boolPtr(m.Proctoring.FrozenPointer),
+			"auto_read", boolPtr(m.Proctoring.AutoRead), "read_speed", str(m.Proctoring.ReadSpeed))),
 		"items", items,
 		"branding", nonEmpty(mapping("accent", str(m.Branding.Accent), "logo", str(m.Branding.Logo))),
 	)
@@ -561,6 +563,7 @@ func questionNode(q *Question) *yaml.Node {
 		"prompt", str(q.Prompt),
 		"time_limit", duration(q.TimeLimit),
 		"reveal", str(q.Reveal),
+		"lens", boolPtr(q.Lens),
 		"placeholder", str(q.Placeholder),
 		"options", nonEmpty(opts),
 	)

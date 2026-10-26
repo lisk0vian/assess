@@ -24,7 +24,8 @@ const questionGrace = 5 * time.Second
 // ProctorSettings returns the effective proctoring options of an exam.
 func ProctorSettings(m *exam.Manifest) proctor.Settings {
 	p := m.Proctoring
-	return proctor.Resolve(m.Profile(), p.Fullscreen, p.Devices, p.Reveal, p.StrikeLimit)
+	return proctor.Resolve(m.Profile(), p.Fullscreen, p.Devices, p.Reveal, p.StrikeLimit).
+		AntiPhoto(p.Lens, p.FrozenPointer).Reading(p.AutoRead, p.ReadSpeed)
 }
 
 // TelemetryKey is the per-attempt key the browser signs its telemetry with:

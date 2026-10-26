@@ -49,6 +49,18 @@ export interface ProctoringView {
    * Percentage of the remaining time a long absence costs.
    */
   lose_percent: number /* int */;
+  /**
+   * Report a still pointer followed by an answer (frozen_pointer).
+   */
+  frozen_pointer: boolean;
+  /**
+   * Read the prompt once when it opens, in ranges of words.
+   */
+  auto_read: boolean;
+  /**
+   * Reading guide speed: slow | normal | fast.
+   */
+  read_speed: string;
 }
 /**
  * PenaltyView is an active penalty, shown to the student for transparency.
@@ -129,6 +141,7 @@ export interface QuestionView {
   closes_at?: number /* int64 */;
   voided?: boolean;
   reveal: string; // always | hover
+  lens: boolean; // read the prompt in ranges of words, one at a time
 }
 /**
  * OptionView is an option in the order this attempt sees it. With reveal
@@ -145,6 +158,8 @@ export interface OptionView {
  */
 export interface ReviewItem {
   question_id: string;
+  prompt: string;
+  options?: OptionView[]; // attempt order, text always visible
   points: number /* float64 */;
   max_points: number /* float64 */;
   correct: boolean;

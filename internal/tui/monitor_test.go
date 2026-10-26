@@ -235,3 +235,22 @@ func TestMonitorShowsAwayHits(t *testing.T) {
 		}
 	}
 }
+
+func TestMonitorLensAccommodation(t *testing.T) {
+	m := NewMonitor(&daemon.Client{}, &daemon.State{}, Options{})
+	b := board(session.StateRunning)
+	m.Update(boardMsg{board: b})
+	if strings.Contains(m.View().Content, "lupa") {
+		t.Fatal("V is offered only in exams that use the lens")
+	}
+	b.Lens = true
+	m.Update(boardMsg{board: b})
+	if v := m.View().Content; !strings.Contains(v, "sin lupa") {
+		t.Fatalf("V offers reading without the lens:\n%s", v)
+	}
+	b.Students[0].NoLens = true
+	m.Update(boardMsg{board: b})
+	if v := m.View().Content; !strings.Contains(v, "con lupa") || !strings.Contains(v, "· sin lupa") {
+		t.Fatalf("the row shows the accommodation and V gives the lens back:\n%s", v)
+	}
+}

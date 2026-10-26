@@ -85,6 +85,6 @@ export function App() {
     if (p.devices === "desktop" && isTouchOnly()) return <DeviceBlock />;
     if (p.key && !p.pledged) return <Pledge me={me} onPledge={async () => setMe(await api.pledge())} />;
     if (me.session.state === "lobby") return <Lobby me={me} />;
-    return <Exam me={me} now={now} setMe={setMe} reportAt={reportAt} />;
+    return <Exam me={me} now={now} setMe={setMe} reportAt={reportAt} paused={!!paused} />;
   }
 }

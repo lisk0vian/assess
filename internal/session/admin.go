@@ -87,6 +87,34 @@ func (s *Service) Readmit(ctx context.Context, attemptID, note string) (*Attempt
 	return att, err
 }
 
+// SetReading grants or takes back a reading accommodation: with noLens the
+// student reads prompts whole, without the lens. Their page refreshes.
+func (s *Service) SetReading(ctx context.Context, attemptID string, noLens bool) (*Attempt, error) {
+	var att *Attempt
+	err := s.store.Update(ctx, func(tx Tx) error {
+		var err error
+		if att, err = tx.GetAttempt(attemptID); err != nil {
+			return err
+		}
+		if att.State != AttemptActive {
+			return ErrAttemptClosed
+		}
+		if att.NoLens == noLens {
+			return nil
+		}
+		att.NoLens = noLens
+		if err := tx.UpdateAttempt(att); err != nil {
+			return err
+		}
+		return tx.InsertEvent(&Event{SessionID: att.SessionID, AttemptID: att.ID, Kind: "attempt.reading", Severity: SeverityInfo,
+			Data: map[string]any{"no_lens": noLens}, ReceivedAt: s.clock()})
+	})
+	if err == nil {
+		s.changed(att.SessionID)
+	}
+	return att, err
+}
+
 // RemoveParticipant drops a pre-registered student who never joined, or
 // withdraws one who did (their data is never deleted mid-session).
 func (s *Service) RemoveParticipant(ctx context.Context, participantID string) error {

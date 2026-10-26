@@ -93,6 +93,9 @@ type Attempt struct {
 	LastSeq       int64     // highest client sequence number received for answers
 	SignalSeq     int64     // highest sequence number of signed telemetry
 	PledgedAt     time.Time // when the student accepted the rules (zero if not yet)
+	// NoLens is a reading accommodation granted by the teacher: this student
+	// reads prompts whole, without the lens.
+	NoLens bool
 }
 
 // PenaltyKind is an automatic consequence of a signal.

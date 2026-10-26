@@ -36,6 +36,7 @@ type StudentRow struct {
 	Strikes       int                  `json:"strikes"`           // active strikes
 	Signals       int                  `json:"signals"`           // warn and high integrity signals
 	AwayHits      int                  `json:"away_hits"`         // correct answers right after leaving the exam
+	NoLens        bool                 `json:"no_lens,omitempty"` // reading accommodation: no lens
 }
 
 // Incident is one integrity signal in the live log, with what it cost.
@@ -59,6 +60,7 @@ type Board struct {
 	Requests    []student.Request `json:"requests"`
 	StrikeLimit int               `json:"strike_limit"` // 0: proctoring off
 	AllPaused   bool              `json:"all_paused"`   // the teacher paused everyone
+	Lens        bool              `json:"lens"`         // some prompts show through the lens
 	Incidents   []Incident        `json:"incidents"`    // newest first
 	AwayHits    []report.AwayHit  `json:"away_hits"`    // left and got it right, hardest questions first
 }
@@ -83,6 +85,10 @@ func (d *daemon) board(ctx context.Context) (*Board, error) {
 	}
 	if set := session.ProctorSettings(&pub.Exam.Manifest); set.Enabled() {
 		b.StrikeLimit = set.StrikeLimit
+		b.Lens = set.Lens
+		for _, q := range pub.Exam.Questions {
+			b.Lens = b.Lens || q.Lens != nil && *q.Lens
+		}
 	}
 	attempted := map[string]bool{}
 	byAttempt := map[string]*session.Attempt{}
@@ -96,6 +102,7 @@ func (d *daemon) board(ctx context.Context) (*Board, error) {
 			AttemptID: a.ID, ParticipantID: p.ID, StudentID: p.StudentID, Name: p.Name, State: a.State,
 			Online: pr.Online, Paused: pr.Paused, Total: len(a.Layout), MaxScore: a.MaxScore, ExtraMs: a.Extra.Milliseconds(),
 			Strikes: session.ActiveStrikes(snap.Penalties[a.ID]), Signals: snap.SignalCounts[a.ID],
+			NoLens: a.NoLens,
 		}
 		for i, sl := range a.Layout {
 			if sl.QuestionID == pr.Question {
@@ -244,6 +251,11 @@ func (c *controlServer) studentRoutes(mux *http.ServeMux) {
 		_, err := d.svc.ExtendAttempt(r.Context(), r.PathValue("id"), time.Duration(mins*float64(time.Minute)))
 		return err
 	}))
+	mux.HandleFunc("POST /attempts/{id}/reading", act(func(r *http.Request, body map[string]any) error {
+		noLens, _ := body["no_lens"].(bool)
+		_, err := d.svc.SetReading(r.Context(), r.PathValue("id"), noLens)
+		return err
+	}))
 	mux.HandleFunc("POST /attempts/{id}/withdraw", act(func(r *http.Request, body map[string]any) error {
 		_, err := d.svc.Withdraw(r.Context(), r.PathValue("id"), str(body, "note"))
 		return err
@@ -330,7 +342,7 @@ func (c *Client) RemoveParticipant(ctx context.Context, participantID string) (*
 	return c.board(ctx, "DELETE", "/participants/"+participantID, nil)
 }
 
-// AttemptAction runs extend|withdraw|annul|readmit|message|pause on an attempt.
+// AttemptAction runs extend|withdraw|annul|readmit|message|pause|reading on an attempt.
 func (c *Client) AttemptAction(ctx context.Context, attemptID, action string, body map[string]any) (*Board, error) {
 	return c.board(ctx, "POST", "/attempts/"+attemptID+"/"+action, body)
 }

@@ -55,7 +55,7 @@ func openDraft(t *testing.T, dir string) *Draft {
 }
 
 func TestDraftSaveWithoutChangesKeepsFiles(t *testing.T) {
-	for _, name := range []string{"algebra-01", "programacion-go", "historia-ventana", "ml-basics-en", "quiz-rapido"} {
+	for _, name := range []string{"algebra-01", "programacion-go", "historia-ventana", "ml-basics-en", "quimica-secundaria", "quiz-rapido"} {
 		t.Run(name, func(t *testing.T) {
 			dir := copyExampleNamed(t, name)
 			d := openDraft(t, dir)
@@ -94,6 +94,34 @@ func TestDraftEdits(t *testing.T) {
 	after := read(t, dir, ManifestFile)
 	if want := strings.Replace(before, "Ecuaciones lineales", "Repaso", 1); after != want {
 		t.Fatalf("manifest:\n%s\nwant:\n%s", after, want)
+	}
+
+	// Switching one photo protection off writes only that key.
+	off := false
+	m = d.Exam.Manifest
+	m.Proctoring.Lens = &off
+	if err := d.SaveManifest(m); err != nil {
+		t.Fatal(err)
+	}
+	if got := read(t, dir, ManifestFile); !strings.Contains(got, "  lens: false\n") || strings.Contains(got, "frozen_pointer:") {
+		t.Fatalf("manifest with the lens off:\n%s", got)
+	}
+	if p := openDraft(t, dir).Exam.Manifest.Proctoring; p.Lens == nil || *p.Lens || p.FrozenPointer != nil {
+		t.Fatalf("read back: %+v", p)
+	}
+
+	// The reading settings are written and read back too.
+	noAuto := false
+	m = d.Exam.Manifest
+	m.Proctoring.AutoRead, m.Proctoring.ReadSpeed = &noAuto, "fast"
+	if err := d.SaveManifest(m); err != nil {
+		t.Fatal(err)
+	}
+	if got := read(t, dir, ManifestFile); !strings.Contains(got, "  auto_read: false\n") || !strings.Contains(got, "  read_speed: fast\n") {
+		t.Fatalf("manifest with reading settings:\n%s", got)
+	}
+	if p := openDraft(t, dir).Exam.Manifest.Proctoring; p.AutoRead == nil || *p.AutoRead || p.ReadSpeed != "fast" {
+		t.Fatalf("reading settings read back: %+v", p)
 	}
 
 	// A new question: file, answer and item.

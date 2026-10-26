@@ -262,3 +262,59 @@ func TestReloadIntoAnotherAbsence(t *testing.T) {
 		t.Fatalf("the abandoned hidden tab must still count: %v", v)
 	}
 }
+
+func TestReadingSettingsPerExam(t *testing.T) {
+	no := false
+	e := newEnvWith(t, func(p *exam.Published) {
+		p.Exam.Manifest.Proctoring.AutoRead = &no
+		p.Exam.Manifest.Proctoring.ReadSpeed = "fast"
+	})
+	c := e.browser()
+	c.mustStatus(http.StatusOK, "POST", "/api/join", map[string]string{"code": e.sess.Code, "name": "Ana", "student_id": "A1"}, nil)
+	if _, err := e.svc.Start(context.Background(), e.sess.ID); err != nil {
+		t.Fatal(err)
+	}
+	var me MeView
+	c.mustStatus(http.StatusOK, "GET", "/api/me", nil, &me)
+	if me.Proctoring.AutoRead || me.Proctoring.ReadSpeed != "fast" {
+		t.Fatalf("reading settings: %+v", me.Proctoring)
+	}
+}
+
+func TestPhotoProtectionsPerQuestionAndStudent(t *testing.T) {
+	no, yes := false, true
+	e := newEnvWith(t, func(p *exam.Published) {
+		p.Exam.Manifest.Proctoring.Lens = &no
+		p.Exam.Questions["q002"].Lens = &yes
+	})
+	c := e.browser()
+	var me MeView
+	c.mustStatus(http.StatusOK, "POST", "/api/join", map[string]string{"code": e.sess.Code, "name": "Ana", "student_id": "A1"}, &me)
+	if _, err := e.svc.Start(context.Background(), e.sess.ID); err != nil {
+		t.Fatal(err)
+	}
+	if !me.Proctoring.FrozenPointer || !me.Proctoring.AutoRead || me.Proctoring.ReadSpeed != "normal" {
+		t.Fatalf("reading defaults: %+v", me.Proctoring)
+	}
+	get := func(id string) QuestionView {
+		var q QuestionView
+		c.mustStatus(http.StatusOK, "GET", "/api/questions/"+id, nil, &q)
+		return q
+	}
+	if q := get("q001"); q.Lens {
+		t.Fatalf("q001 follows the exam (no lens): %+v", q)
+	}
+	if q := get("q002"); !q.Lens {
+		t.Fatalf("q002 turns the lens on: %+v", q)
+	}
+	att, err := e.svc.AttemptOfStudent(context.Background(), e.sess.ID, "A1")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := e.svc.SetReading(context.Background(), att.ID, true); err != nil {
+		t.Fatal(err)
+	}
+	if q := get("q002"); q.Lens {
+		t.Fatalf("the accommodation turns the lens off: %+v", q)
+	}
+}

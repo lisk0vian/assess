@@ -4,7 +4,8 @@
 //
 // standard and strict protect the same way (pledge, curtain, copy and paste
 // blocked, capture shield, watermark, required fullscreen, hover-only
-// options); they differ in tolerance. standard ignores short glances, warns
+// options, and against photos: a prompt read in ranges of words and a
+// stillness warning); they differ in tolerance. standard ignores short glances, warns
 // before counting and annuls at 3 strikes. strict counts almost everything
 // at once and annuls at the second strike: the first one is the warning.
 // off turns every protection off.
@@ -28,6 +29,7 @@ const (
 	SecondTab      = "second_tab"      // the exam was opened in another tab
 	Telemetry      = "telemetry"       // signed telemetry failed verification
 	TelemetryGap   = "telemetry_gap"   // answers arrived while the live channel was silent
+	FrozenPointer  = "frozen_pointer"  // no pointer or key activity for DurationMs on an open question
 )
 
 // Severity of a decision, mirrored in events.
@@ -67,12 +69,25 @@ type Settings struct {
 	StrikeLimit int
 	// Grace ignores signals right after the start (page load, fullscreen prompt).
 	Grace time.Duration
+	// Against photos of the screen, each one switchable on its own.
+	Lens          bool   // the prompt is read in ranges of words, one at a time
+	FrozenPointer bool   // report a still pointer followed by an answer
+	AutoRead      bool   // read the prompt once when it opens
+	ReadSpeed     string // slow | normal | fast
 }
+
+// Read speeds, used by the student's reading guide.
+const (
+	ReadSlow   = "slow"
+	ReadNormal = "normal"
+	ReadFast   = "fast"
+)
 
 // Resolve applies a profile's defaults under explicit manifest choices. With
 // off, nothing is protected and the overrides are ignored.
 func Resolve(profile, fullscreen, devices, reveal string, strikeLimit int) Settings {
-	s := Settings{Profile: profile, Fullscreen: "required", Devices: "any", Reveal: "hover", StrikeLimit: 3, Grace: 15 * time.Second}
+	s := Settings{Profile: profile, Fullscreen: "required", Devices: "any", Reveal: "hover", StrikeLimit: 3, Grace: 15 * time.Second,
+		Lens: true, FrozenPointer: true, AutoRead: true, ReadSpeed: ReadNormal}
 	switch profile {
 	case "off":
 		return Settings{Profile: "off", Fullscreen: "off", Devices: "any", Reveal: "always"}
@@ -92,6 +107,37 @@ func Resolve(profile, fullscreen, devices, reveal string, strikeLimit int) Setti
 	}
 	if strikeLimit > 0 {
 		s.StrikeLimit = strikeLimit
+	}
+	return s
+}
+
+// AntiPhoto applies the manifest's choices for the photo protections; nil
+// keeps the profile's default. With off they stay off.
+func (s Settings) AntiPhoto(lens, frozenPointer *bool) Settings {
+	if !s.Enabled() {
+		return s
+	}
+	if lens != nil {
+		s.Lens = *lens
+	}
+	if frozenPointer != nil {
+		s.FrozenPointer = *frozenPointer
+	}
+	return s
+}
+
+// Reading applies the manifest's reading settings. Auto read only makes sense
+// with the lens; an unknown speed keeps the profile's default.
+func (s Settings) Reading(autoRead *bool, speed string) Settings {
+	if !s.Enabled() {
+		return s
+	}
+	if autoRead != nil {
+		s.AutoRead = *autoRead
+	}
+	switch speed {
+	case ReadSlow, ReadNormal, ReadFast:
+		s.ReadSpeed = speed
 	}
 	return s
 }
@@ -157,6 +203,12 @@ func (s Settings) Decide(sig Signal) Decision {
 	case Untrusted, Webdriver, Telemetry:
 		return strike
 	case Burst, DOMInjection, SecondTab, TelemetryGap:
+		return Decision{Severity: Warn}
+	case FrozenPointer:
+		// Only for the teacher: reading without moving is normal too.
+		if !s.FrozenPointer || d < th.Frozen {
+			return Decision{Ignore: true}
+		}
 		return Decision{Severity: Warn}
 	}
 	return Decision{Severity: Info}

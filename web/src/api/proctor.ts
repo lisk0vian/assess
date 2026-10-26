@@ -13,4 +13,9 @@ export interface Thresholds {
   blur_warn_ms: number /* int64 */;
   blur_strike_ms: number /* int64 */;
   fullscreen_strike_ms: number /* int64 */;
+  /**
+   * Frozen is how long the pointer and keyboard must stay still on an open
+   * question before the student's return is reported (frozen_pointer).
+   */
+  frozen_ms: number /* int64 */;
 }

@@ -9,7 +9,8 @@ func TestResolveDefaultsAndOverrides(t *testing.T) {
 			t.Fatalf("%q must protect fully: %+v", p, s)
 		}
 	}
-	if std := Resolve("", "", "", "", 0); std.Profile != "standard" || std.StrikeLimit != 3 || std.Devices != "any" {
+	if std := Resolve("", "", "", "", 0); std.Profile != "standard" || std.StrikeLimit != 3 || std.Devices != "any" ||
+		!std.AutoRead || std.ReadSpeed != ReadNormal {
 		t.Fatalf("standard defaults: %+v", std)
 	}
 	if strict := Resolve("strict", "", "", "", 0); strict.StrikeLimit != 2 || strict.Devices != "desktop" {
@@ -69,5 +70,50 @@ func TestDecisions(t *testing.T) {
 				t.Fatalf("got %+v, want %+v", got, tc.want)
 			}
 		})
+	}
+}
+
+func TestAntiPhotoSwitchesOneByOne(t *testing.T) {
+	no, yes := false, true
+	std := Resolve("standard", "", "", "", 0)
+	if !std.Lens || !std.FrozenPointer {
+		t.Fatalf("the photo protections default to on: %+v", std)
+	}
+	if s := std.AntiPhoto(&no, nil); s.Lens || !s.FrozenPointer {
+		t.Fatalf("only the lens off: %+v", s)
+	}
+	if s := std.AntiPhoto(nil, &no); !s.Lens || s.FrozenPointer {
+		t.Fatalf("only the stillness warning off: %+v", s)
+	}
+	if s := Resolve("off", "", "", "", 0).AntiPhoto(&yes, &yes); s.Lens || s.FrozenPointer {
+		t.Fatalf("off keeps them off: %+v", s)
+	}
+	if s := std.Reading(&no, ReadFast); s.AutoRead || s.ReadSpeed != ReadFast {
+		t.Fatalf("reading settings: %+v", s)
+	}
+	if s := std.Reading(nil, "nonsense"); s.ReadSpeed != ReadNormal || !s.AutoRead {
+		t.Fatalf("an unknown speed keeps the default: %+v", s)
+	}
+	if s := Resolve("off", "", "", "", 0).Reading(&yes, ReadSlow); s.AutoRead || s.ReadSpeed != "" {
+		t.Fatalf("off keeps reading settings off: %+v", s)
+	}
+}
+
+func TestFrozenPointerOnlyWarnsTheTeacher(t *testing.T) {
+	no := false
+	std := Resolve("standard", "", "", "", 0)
+	strict := Resolve("strict", "", "", "", 0)
+	still := func(ms int64) Signal { return Signal{Kind: FrozenPointer, DurationMs: ms} }
+	if d := std.Decide(still(25000)); d != (Decision{Severity: Warn}) {
+		t.Fatalf("25 s still (standard): %+v", d)
+	}
+	if d := std.Decide(still(15000)); !d.Ignore {
+		t.Fatalf("15 s still is reading (standard): %+v", d)
+	}
+	if d := strict.Decide(still(15000)); d != (Decision{Severity: Warn}) {
+		t.Fatalf("15 s still (strict): %+v", d)
+	}
+	if d := std.AntiPhoto(nil, &no).Decide(still(60000)); !d.Ignore {
+		t.Fatalf("switched off: %+v", d)
 	}
 }

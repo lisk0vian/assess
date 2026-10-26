@@ -220,9 +220,10 @@ export function Pledge({ me, onPledge }: { me: MeView; onPledge: (fullscreen: bo
       [t("rule_paste"), t(strict ? "fx_strike" : "fx_paste_standard")],
     ];
     if (p.fullscreen === "required") r.push([t("rule_fullscreen", { s: sec(th.fullscreen_strike_ms) }), t("fx_strike")]);
+    if (p.frozen_pointer) r.push([t("rule_frozen", { s: sec(th.frozen_ms) }), t("fx_teacher")]);
     r.push([t("rule_limit", { n: p.strike_limit }), t("fx_annul")]);
     return r;
-  }, [th, strict, p.fullscreen, p.strike_limit, p.lose_percent]);
+  }, [th, strict, p.fullscreen, p.frozen_pointer, p.strike_limit, p.lose_percent]);
 
   const start = async (fullscreen: boolean) => {
     if (!ok || busy) return;

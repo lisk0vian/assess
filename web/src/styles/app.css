@@ -112,6 +112,17 @@ button.tf__opt { border: 0; background: transparent; color: inherit; }
 
 /* Mobile fixes: the bar keeps its grid, record values never wrap, status lives in the strip. */
 .record__value { white-space: nowrap; }
+/* Long values shrink instead of pushing the sheet out of the layout. */
+.record__cell { min-width: 0; }
+.record__value, .record__num { overflow: hidden; text-overflow: ellipsis; }
+/* Lobby: the exam title is the one value that may wrap, while the counters
+   stay compact. @apply keeps the Tailwind flow utility out of the JSX. */
+.solo .record {
+  @apply grid-flow-row;
+  grid-template-columns: minmax(0, 1fr) max-content max-content;
+}
+.solo .record .record__cell:first-child { min-width: 0; }
+.solo .record .record__cell:first-child .record__value { white-space: normal; overflow-wrap: anywhere; }
 .exam > .strip { display: none; }
 @media (max-width: 960px) {
   .exam .bar.mobile-only { display: grid; }
@@ -133,6 +144,7 @@ button.tf__opt { border: 0; background: transparent; color: inherit; }
 
 /* Hover-only options: a ruled bar stands in for text that is not on the page. */
 .option.is-veiled .option__text { filter: none; opacity: 1; }
+.option__text { min-width: 0; } /* lets a long veil shrink on narrow screens */
 .veil { display: inline-block; max-width: 100%; height: 14px; vertical-align: middle; border: 1px solid var(--rule); background: var(--hatch-ink), var(--surface-2); opacity: .45; }
 .option.is-veiled:hover .veil, .option.is-veiled:focus-visible .veil { opacity: .7; }
 .reveal-hint { margin-top: 24px; }
@@ -198,3 +210,54 @@ button.tf__opt { border: 0; background: transparent; color: inherit; }
 }
 .wordmark { display: inline-flex; align-items: center; gap: 10px; }
 .wordmark__logo { height: .9em; width: auto; max-width: 3em; object-fit: contain; }
+
+/* ---------- Lens, against photos of the screen (components/Lens.tsx) ---------- */
+/* A range of words is readable at a time; the rest is veiled like hover-only
+   options, line by line. Hidden text is clipped, not removed, so screen
+   readers still read the whole prompt. */
+.lens-frame { display: block; }
+.lens-answer-head { display: flex; align-items: center; gap: 8px; margin-top: 8px; }
+.lens-answer-head .reveal-hint { flex: 1; min-width: 0; margin-top: 0; }
+.lens-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 4px;
+  margin: 0 0 0 auto;
+  opacity: .6;
+  transition: opacity var(--dur-quick) var(--ease-out);
+}
+.lens-toolbar:hover, .lens-toolbar:focus-within { opacity: 1; }
+.lens-toolbar .btn { width: 30px; height: 30px; min-width: 30px; padding: 0; }
+.prompt:has(.lens-toolbar) { margin-bottom: 8px; }
+@media (max-width: 960px) {
+  .lens-answer-head { gap: 6px; margin-top: 6px; }
+  .lens-answer-head .reveal-hint { font-size: 12px; line-height: 1.3; }
+}
+.lens { position: relative; overflow: clip; outline: none; border-radius: 2px; cursor: pointer; touch-action: pan-y; }
+.lens:focus-visible { box-shadow: 0 0 0 2px var(--surface), 0 0 0 4px var(--accent-line); }
+.lens__veils { position: absolute; inset: 0; pointer-events: none; overflow: clip; }
+.lens__veils .veil { position: absolute; transition: opacity var(--dur-quick) var(--ease-out); }
+.lens:hover .lens__veils .veil, .lens:focus-visible .lens__veils .veil { opacity: .6; }
+/* Meta guiding: a thin accent line under the word being read, with a soft
+   wash behind it. Both glide between words instead of jumping. */
+.reading-guide, .reading-wash { position: absolute; pointer-events: none; z-index: 1; }
+.reading-wash {
+  background: var(--accent-wash);
+  border-radius: 2px;
+  transition: left 140ms var(--ease-out), top 140ms var(--ease-out), width 140ms var(--ease-out), opacity 160ms linear;
+}
+.reading-guide {
+  height: 2px;
+  background: var(--accent);
+  border-radius: 1px;
+  box-shadow: 0 0 6px var(--accent-line);
+  transition: left 140ms var(--ease-out), top 140ms var(--ease-out), width 140ms var(--ease-out);
+}
+.reading-guide.is-waiting { animation: reading-pulse 1.2s ease-in-out infinite; }
+@keyframes reading-pulse { 0%, 100% { opacity: .35; } 50% { opacity: 1; } }
+.lens-hint + .prompt { margin-top: 14px; }
+/* With the keyboard, the hint says how to move the reading guide. */
+.lens-hint__keys { display: none; }
+.sheet:has(.lens:focus-visible) .lens-hint__point { display: none; }
+.sheet:has(.lens:focus-visible) .lens-hint__keys { display: inline; }

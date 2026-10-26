@@ -14,6 +14,8 @@ export interface AnswerProps {
   onChange: (r: Response) => void;
   /** Hex attempt key that unseals hover-only options. */
   sealKey?: string;
+  /** The hint is rendered on the lens controls line instead. */
+  hideHint?: boolean;
 }
 
 const KEYS = "ABCDEFGHIJ";
@@ -31,7 +33,7 @@ export function Answer(props: AnswerProps) {
   }
 }
 
-function Choice({ question, value, disabled, onChange, sealKey }: AnswerProps) {
+function Choice({ question, value, disabled, onChange, sealKey, hideHint }: AnswerProps) {
   const multi = question.type === "multiple";
   const chosen = new Set(multi ? (value?.options ?? []) : value?.option ? [value.option] : []);
 
@@ -40,14 +42,42 @@ function Choice({ question, value, disabled, onChange, sealKey }: AnswerProps) {
   const hover = question.reveal === "hover";
   const key = useMemo(() => (sealKey ? fromHex(sealKey) : null), [sealKey]);
   const [shown, setShown] = useState<string | null>(null);
+  const [leaving, setLeaving] = useState<string | null>(null);
   const tapReveal = useRef<string | null>(null);
   const hideTimer = useRef<number | undefined>(undefined);
-  useEffect(() => () => window.clearTimeout(hideTimer.current), []);
-  useEffect(() => setShown(null), [question.id]);
-  const hide = (id: string) => setShown((s) => (s === id ? null : s));
-  const textOf = (o: { id: string; text?: string; sealed?: string }) => {
+  const exitTimer = useRef<number | undefined>(undefined);
+  useEffect(
+    () => () => {
+      window.clearTimeout(hideTimer.current);
+      window.clearTimeout(exitTimer.current);
+    },
+    [],
+  );
+  useEffect(() => {
+    setShown(null);
+    setLeaving(null);
+    window.clearTimeout(hideTimer.current);
+    window.clearTimeout(exitTimer.current);
+  }, [question.id]);
+  const show = (id: string) => {
+    window.clearTimeout(hideTimer.current);
+    window.clearTimeout(exitTimer.current);
+    setLeaving(null);
+    setShown(id);
+  };
+  const hide = (id: string) => {
+    window.clearTimeout(exitTimer.current);
+    setLeaving(id);
+    exitTimer.current = window.setTimeout(() => {
+      setShown((s) => (s === id ? null : s));
+      setLeaving(null);
+    }, 140);
+  };
+  // A chosen option stays readable so the student can confirm it; the rest
+  // remain sealed until pointed at, focused or tapped.
+  const textOf = (o: { id: string; text?: string; sealed?: string }, chosenHere: boolean) => {
     if (!hover) return o.text ?? "";
-    if (shown !== o.id || !key || !o.sealed) return null;
+    if ((!chosenHere && shown !== o.id) || !key || !o.sealed) return null;
     return unseal(key, question.id, o.id, o.sealed);
   };
   const touchOnly = typeof matchMedia !== "undefined" && matchMedia("(pointer: coarse)").matches;
@@ -67,11 +97,11 @@ function Choice({ question, value, disabled, onChange, sealKey }: AnswerProps) {
   };
   return (
     <>
-      {hover && <p className="label reveal-hint">{t(touchOnly ? "reveal_touch" : "reveal_hint")}</p>}
+      {hover && !hideHint && <p className="label reveal-hint">{t(touchOnly ? "reveal_touch" : "reveal_hint")}</p>}
       <div className="options" role={multi ? "group" : "radiogroup"} aria-labelledby="prompt" style={{ marginTop: hover ? 10 : 24 }}>
         {(question.options ?? []).map((o, i) => {
           const on = chosen.has(o.id);
-          const text = textOf(o);
+          const text = textOf(o, on);
           return (
             <button
               key={o.id}
@@ -82,20 +112,19 @@ function Choice({ question, value, disabled, onChange, sealKey }: AnswerProps) {
               aria-label={text === null ? t("veiled", { k: KEYS[i] }) : undefined}
               className={`option ${multi ? "option--multi" : ""} ${on ? "is-selected" : ""} ${disabled ? "is-locked" : ""} ${text === null ? "is-veiled" : ""}`}
               onClick={() => toggle(o.id)}
-              onPointerEnter={hover ? (e) => e.pointerType !== "touch" && setShown(o.id) : undefined}
+              onPointerEnter={hover ? (e) => e.pointerType !== "touch" && show(o.id) : undefined}
               onPointerLeave={hover ? (e) => e.pointerType !== "touch" && hide(o.id) : undefined}
               onPointerDown={
                 hover
                   ? (e) => {
                       if (e.pointerType !== "touch" || shown === o.id) return;
                       tapReveal.current = o.id;
-                      setShown(o.id);
-                      window.clearTimeout(hideTimer.current);
+                      show(o.id);
                       hideTimer.current = window.setTimeout(() => hide(o.id), 4000);
                     }
                   : undefined
               }
-              onFocus={hover ? () => setShown(o.id) : undefined}
+              onFocus={hover ? () => show(o.id) : undefined}
               onBlur={hover ? () => hide(o.id) : undefined}
             >
               <span className="option__key">{KEYS[i]}</span>
@@ -103,7 +132,9 @@ function Choice({ question, value, disabled, onChange, sealKey }: AnswerProps) {
                 {text === null ? (
                   <span className="veil" style={{ width: `${Math.min(34, Math.max(8, Math.round(((o.sealed?.length ?? 0) * 3) / 4)))}ch` }} />
                 ) : (
-                  <Markdown text={text} inline />
+                  <span className={`option__reveal ${leaving === o.id ? "is-out" : "is-in"}`}>
+                    <Markdown text={text} inline />
+                  </span>
                 )}
               </span>
               {on ? (

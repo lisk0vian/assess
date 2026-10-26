@@ -19,6 +19,8 @@ export interface ProctorOptions {
   questionID: string;
   /** Poisoned clipboard text if a copy slips through. */
   clipboardNote: () => string;
+  /** Stillness worth reporting (frozen_pointer), ms; 0 turns it off. */
+  frozenMs: number;
 }
 
 export const fullscreenSupported = () => typeof document !== "undefined" && !!document.fullscreenEnabled;
@@ -237,6 +239,34 @@ export function useProctor(o: ProctorOptions): Away | null {
       window.removeEventListener("resize", onResize);
     };
   }, [o.enabled]);
+
+  // Stillness: no pointer, key or scroll activity on the exam for frozenMs,
+  // as when someone photographs the screen. Reported when the student moves
+  // again, so the teacher can see if an answer followed.
+  useEffect(() => {
+    if (!o.enabled || o.frozenMs <= 0) return;
+    let last = performance.now();
+    let frozen = false;
+    const onActivity = () => {
+      const now = performance.now();
+      if (frozen) telemetry.report("frozen_pointer", { durationMs: now - last, questionID: opts.current.questionID });
+      frozen = false;
+      last = now;
+    };
+    const poll = window.setInterval(() => {
+      if (currentAway(opts.current.fullscreenRequired)) {
+        // Away from the exam is its own signal, not stillness.
+        frozen = false;
+        last = performance.now();
+      } else if (performance.now() - last >= o.frozenMs) frozen = true;
+    }, 1000);
+    const events = ["pointermove", "pointerdown", "keydown", "wheel", "touchstart"] as const;
+    events.forEach((e) => document.addEventListener(e, onActivity, { capture: true, passive: true }));
+    return () => {
+      window.clearInterval(poll);
+      events.forEach((e) => document.removeEventListener(e, onActivity, { capture: true }));
+    };
+  }, [o.enabled, o.frozenMs]);
 
   return away;
 }
