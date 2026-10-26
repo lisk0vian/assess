@@ -225,6 +225,16 @@ func TestReviewOnlyAfterSessionEnds(t *testing.T) {
 	if len(me.Review) != 6 || !me.Review[0].Correct || me.Review[0].QuestionID != q {
 		t.Fatalf("unexpected review: %+v", me.Review)
 	}
+	options := false
+	for _, r := range me.Review {
+		if r.Prompt == "" {
+			t.Fatalf("review item without prompt: %+v", r)
+		}
+		options = options || len(r.Options) > 0
+	}
+	if !options {
+		t.Fatal("review has no option text")
+	}
 }
 
 func TestTimeUp(t *testing.T) {
