@@ -3,6 +3,7 @@ package config
 import (
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 )
@@ -151,46 +152,47 @@ func TestProblemsHaveLines(t *testing.T) {
 	}
 }
 
-func TestEnvironmentWinsOverFile(t *testing.T) {
+// The environment is never read: the file says what ax does.
+func TestEnvironmentIsIgnored(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "config.yaml")
 	if err := os.WriteFile(path, []byte("server:\n  port: 8080\n"), 0o644); err != nil {
 		t.Fatal(err)
 	}
 	t.Setenv("AX_SERVER_PORT", "9090")
+	t.Setenv("AX_LANGUAGE", "xx")
+	t.Setenv("AX_CONFIG", filepath.Join(t.TempDir(), "other.yaml"))
 	c, _ := Load(path)
-	if v := c.Get("server.port"); v.Raw != "9090" || v.Source != FromEnv {
+	if v := c.Get("server.port"); v.Raw != "8080" || v.Source != FromFile {
 		t.Fatalf("got %+v", v)
 	}
-	if c.StudentLanguage() != "en" {
-		t.Fatal("student language follows the terminal language")
+	if c.HasErrors() || c.Language() != "en" || c.StudentLanguage() != "en" {
+		t.Fatal("AX_LANGUAGE must not count")
 	}
-	t.Setenv("AX_STUDENT_LANGUAGE", "es")
-	if c, _ := Load(path); c.StudentLanguage() != "es" {
-		t.Fatal("student_language overrides")
-	}
-	t.Setenv("AX_LANGUAGE", "xx")
-	if c, _ := Load(path); !c.HasErrors() || c.Language() != "en" {
-		t.Fatal("a language without a catalog is an error")
+	if p, _ := Path(""); strings.HasSuffix(p, "other.yaml") {
+		t.Fatal("AX_CONFIG must not count")
 	}
 }
 
 func TestPath(t *testing.T) {
-	t.Setenv(EnvVar, "")
-	t.Setenv("XDG_CONFIG_HOME", filepath.Join("x", "cfg"))
-	p, _ := Path("")
-	if !strings.HasSuffix(p, filepath.Join("x", "cfg", "assess", "config.yaml")) {
-		t.Fatalf("XDG: %s", p)
-	}
-	t.Setenv("XDG_CONFIG_HOME", "")
 	home, _ := os.UserHomeDir()
-	if p, _ := Path(""); p != filepath.Join(home, ".config", "assess", "config.yaml") {
-		t.Fatalf("home: %s", p)
-	}
-	t.Setenv(EnvVar, filepath.Join(home, "other.yaml"))
-	if p, _ := Path(""); p != filepath.Join(home, "other.yaml") {
-		t.Fatalf("env: %s", p)
+	if runtime.GOOS != "linux" {
+		if p, _ := Path(""); p != filepath.Join(home, ".config", "assess", "config.yaml") {
+			t.Fatalf("home: %s", p)
+		}
 	}
 	if p, _ := Path(filepath.Join(home, "flag.yaml")); p != filepath.Join(home, "flag.yaml") {
 		t.Fatalf("flag: %s", p)
+	}
+}
+
+func TestPathValue(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, PortableFile)
+	if err := os.WriteFile(path, []byte("data_dir: data\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	c, _ := Load(path)
+	if !c.Portable() || c.PathValue("data_dir") != filepath.Join(dir, "data") {
+		t.Fatalf("portable data_dir = %q", c.PathValue("data_dir"))
 	}
 }

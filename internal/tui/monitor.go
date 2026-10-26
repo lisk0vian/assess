@@ -98,7 +98,10 @@ type Monitor struct {
 	altLabel  string // a third answer in a confirmation, e.g. "end and stop the server"
 	onAlt     func() tea.Cmd
 	lastInput time.Time
-	report    bool // quit to open the report of the ended session
+	report    bool     // quit to open the report of the ended session
+	urls      []string // every address students can use, the likeliest first
+	urlIdx    int      // the one shown with its QR
+	code      string
 }
 
 // WantsReport reports whether the panel closed to open the session report.
@@ -106,18 +109,29 @@ func (m *Monitor) WantsReport() bool { return m.report }
 
 // NewMonitor builds the panel for a connected daemon.
 func NewMonitor(c *daemon.Client, st *daemon.State, opts Options) *Monitor {
+	in := textinput.New()
+	in.CharLimit = 300
+	in.SetWidth(50)
+	m := &Monitor{client: c, opts: opts, width: 100, input: in, lastInput: time.Now(),
+		urls: append([]string{st.StudentURL}, st.OtherURLs...), code: st.Code}
+	m.makeQR()
+	return m
+}
+
+// makeQR draws the QR of the selected address. It carries the code too, so
+// scanning it pre-fills the join form.
+func (m *Monitor) makeQR() {
 	var b strings.Builder
-	// The QR carries the code too, so scanning it pre-fills the join form.
-	qrterminal.GenerateWithConfig(st.StudentURL+"?c="+st.Code, qrterminal.Config{
+	qrterminal.GenerateWithConfig(m.url()+"?c="+m.code, qrterminal.Config{
 		Level: qrterminal.L, Writer: &b, HalfBlocks: true, QuietZone: 1,
 		BlackChar: qrterminal.BLACK_BLACK, BlackWhiteChar: qrterminal.BLACK_WHITE,
 		WhiteChar: qrterminal.WHITE_WHITE, WhiteBlackChar: qrterminal.WHITE_BLACK,
 	})
-	in := textinput.New()
-	in.CharLimit = 300
-	in.SetWidth(50)
-	return &Monitor{client: c, opts: opts, qr: strings.TrimRight(b.String(), "\n"), width: 100, input: in, lastInput: time.Now()}
+	m.qr = strings.TrimRight(b.String(), "\n")
 }
+
+// url is the address shown to students.
+func (m *Monitor) url() string { return m.urls[m.urlIdx] }
 
 type tickMsg time.Time
 
@@ -373,6 +387,15 @@ func (m *Monitor) normalKey(k string) (tea.Model, tea.Cmd) {
 	case "shift+tab":
 		m.view = (m.view + viewCount - 1) % viewCount
 		m.sel = 0
+	case "left", "right":
+		if m.view == viewLink && len(m.urls) > 1 {
+			step := 1
+			if k == "left" {
+				step = len(m.urls) - 1
+			}
+			m.urlIdx = (m.urlIdx + step) % len(m.urls)
+			m.makeQR()
+		}
 	case "up", "k":
 		if m.sel > 0 {
 			m.sel--
@@ -605,7 +628,7 @@ func (m *Monitor) View() tea.View {
 		return m.finish(&b)
 	}
 
-	fmt.Fprintf(&b, "%s  %s   %s\n", mutedStyle.Render(T("cli.start.code")), accentStyle.Render(st.Code), boldStyle.Render(st.StudentURL))
+	fmt.Fprintf(&b, "%s  %s   %s\n", mutedStyle.Render(T("cli.start.code")), accentStyle.Render(st.Code), boldStyle.Render(m.url()))
 	b.WriteString(mutedStyle.Render(T("monitor.counts", "online", st.Online, "active", st.Active, "submitted", st.Submitted, "joined", st.Joined)))
 	if m.board.StrikeLimit > 0 {
 		strikes := 0
@@ -653,8 +676,18 @@ func (m *Monitor) View() tea.View {
 	switch m.view {
 	case viewLink:
 		b.WriteString(m.qr + "\n")
-		for _, u := range st.OtherURLs {
-			b.WriteString(mutedStyle.Render(T("monitor.also", "url", u)) + "\n")
+		if len(m.urls) > 1 {
+			for i, u := range m.urls {
+				if i == m.urlIdx {
+					b.WriteString(accentStyle.Render("› ") + boldStyle.Render(u) + "\n")
+				} else {
+					b.WriteString(mutedStyle.Render("  "+u) + "\n")
+				}
+			}
+			b.WriteString(mutedStyle.Render(T("monitor.other_address")) + "\n")
+		}
+		if m.noOneYet(st) {
+			b.WriteString("\n" + accentStyle.Render(T("monitor.nobody_hint")) + "\n")
 		}
 	case viewIncidents:
 		if len(m.board.AwayHits) > 0 {
@@ -910,4 +943,10 @@ func clock(d time.Duration) string {
 		return fmt.Sprintf("%d:%02d:%02d", h, mnt, s)
 	}
 	return fmt.Sprintf("%02d:%02d", mnt, s)
+}
+
+// noOneYet: two minutes in, no device has joined. The network may be
+// keeping students out (Windows firewall, client isolation).
+func (m *Monitor) noOneYet(st *daemon.StatusView) bool {
+	return st != nil && st.Joined == 0 && st.UptimeMs > (2*time.Minute).Milliseconds()
 }

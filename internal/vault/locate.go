@@ -49,6 +49,13 @@ func LoadRegistry(path string) (*Registry, error) {
 	if err := yaml.Unmarshal(data, r); err != nil {
 		return nil, fmt.Errorf("%s: %w", path, err)
 	}
+	// Paths are kept relative to the registry when they are below it, so a
+	// portable copy keeps working when the USB stick gets another letter.
+	for i, e := range r.Vaults {
+		if !filepath.IsAbs(e.Path) {
+			r.Vaults[i].Path = filepath.Join(filepath.Dir(path), e.Path)
+		}
+	}
 	return r, nil
 }
 
@@ -57,7 +64,15 @@ func (r *Registry) Save() error {
 	if err := os.MkdirAll(filepath.Dir(r.path), 0o755); err != nil {
 		return err
 	}
-	data, err := yaml.Marshal(r)
+	out := Registry{Vaults: make([]Entry, len(r.Vaults))}
+	base := filepath.Dir(r.path)
+	for i, e := range r.Vaults {
+		out.Vaults[i] = e
+		if rel, err := filepath.Rel(base, e.Path); err == nil && !strings.HasPrefix(rel, "..") && !filepath.IsAbs(rel) {
+			out.Vaults[i].Path = rel
+		}
+	}
+	data, err := yaml.Marshal(&out)
 	if err != nil {
 		return err
 	}
@@ -127,6 +142,7 @@ type Choice struct {
 	Flag     string    // --vault: a name or a path
 	Setting  string    // vault.path: a name or a path
 	Cwd      string    // where to look for .assess-vault/
+	Base     string    // relative paths in Setting are relative to it (the settings file's folder)
 	DataDir  string    // for the default vault
 	Registry *Registry // names
 }
@@ -138,6 +154,11 @@ func Locate(c Choice) (string, Source, error) {
 		if c.Registry != nil {
 			if e, ok := c.Registry.Find(v); ok {
 				return e.Path, nil
+			}
+		}
+		if c.Base != "" && !filepath.IsAbs(v) {
+			if p := filepath.Join(c.Base, v); IsVault(p) || IsVault(filepath.Join(p, LocalDir)) {
+				v = p
 			}
 		}
 		if IsVault(v) {

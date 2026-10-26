@@ -5,17 +5,21 @@ import (
 	"net/http"
 	"sync"
 	"time"
+
+	"github.com/lisk0vian/assess/internal/netutil"
 )
 
-// PrivateNetworksOnly rejects requests from public addresses, so a leaked
-// link or code is useless outside the classroom network. Loopback, private
-// (RFC 1918 / ULA) and link-local addresses pass.
-func PrivateNetworksOnly(next http.Handler) http.Handler {
+// LocalNetworksOnly rejects requests from outside the classroom network,
+// so a leaked link or code is useless elsewhere. It lets in loopback,
+// private, link-local and carrier-grade NAT addresses, and any address in
+// one of nets (the subnets of the teacher's computer), which covers
+// networks numbered with public ranges.
+func LocalNetworksOnly(next http.Handler, nets []*net.IPNet) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		host, _, err := net.SplitHostPort(r.RemoteAddr)
-		ip := net.ParseIP(host)
-		if err != nil || ip == nil || (!ip.IsLoopback() && !ip.IsPrivate() && !ip.IsLinkLocalUnicast()) {
-			writeError(w, http.StatusForbidden, "outside_network", "this exam only accepts devices on the classroom network")
+		if err != nil || !netutil.IsLocal(net.ParseIP(host), nets) {
+			writeError(w, http.StatusForbidden, "outside_network",
+				"this exam only accepts devices on the classroom network (the teacher can allow others with server.allow_public)")
 			return
 		}
 		next.ServeHTTP(w, r)

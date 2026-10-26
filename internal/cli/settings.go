@@ -2,7 +2,6 @@ package cli
 
 import (
 	"fmt"
-	"os"
 	"path/filepath"
 	"strings"
 
@@ -22,8 +21,8 @@ var cfg = config.Defaults()
 var configFlag string
 
 // loadSettings reads the settings file (named by --config in args, or
-// $AX_CONFIG, or the default place), the translations next to it, and
-// switches the language.
+// ax.yaml next to the program, or the default place), the translations
+// next to it, and switches the language.
 func loadSettings(args []string) {
 	path, err := config.Path(configArg(args))
 	if err != nil {
@@ -44,9 +43,6 @@ func loadSettings(args []string) {
 	c.Problems = append(c.Problems, localeProblems...)
 	cfg = c
 	applySettings()
-	if configArg(args) != "" {
-		_ = os.Setenv(config.EnvVar, path) // the exam server reads the same file
-	}
 }
 
 // applySettings pushes the settings into the packages that use them.
@@ -75,8 +71,8 @@ func configArg(args []string) string {
 // settings file and writes the file on the first run. A broken file stops
 // every command except `ax config`, which is how it gets fixed.
 func checkSettings(cmd *cobra.Command) error {
-	if cmd.Name() == "daemon" {
-		return nil // the server logs; its parent already reported
+	if cmd.Name() == "daemon" || cmd.Name() == "agent" {
+		return nil // background helpers; the command that started them reported
 	}
 	errw := cmd.ErrOrStderr()
 	for _, p := range cfg.Problems {

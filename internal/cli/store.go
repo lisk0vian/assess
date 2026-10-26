@@ -60,7 +60,8 @@ func loadRegistry(dataDir string) *vault.Registry {
 func activeVault(dataDir string) (*vault.Vault, vault.Source, error) {
 	cwd, _ := os.Getwd()
 	reg := loadRegistry(dataDir)
-	p, src, err := vault.Locate(vault.Choice{Flag: vaultFlag, Setting: cfg.Str("vault.path"), Cwd: cwd, DataDir: dataDir, Registry: reg})
+	p, src, err := vault.Locate(vault.Choice{Flag: vaultFlag, Setting: cfg.Str("vault.path"), Cwd: cwd, Base: cfg.Dir(),
+		DataDir: dataDir, Registry: reg})
 	if err != nil {
 		return nil, src, err
 	}

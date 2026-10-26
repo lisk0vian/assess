@@ -60,8 +60,6 @@ func (m *Settings) current(k config.Key) (string, string) {
 	switch v.Source {
 	case config.FromFile:
 		return v.Raw, T("cli.config.from_file", "line", v.Line)
-	case config.FromEnv:
-		return v.Raw, "$" + k.Env()
 	}
 	return v.Raw, T("cli.config.from_default")
 }
@@ -282,7 +280,7 @@ func (m *Settings) View() tea.View {
 	}
 	b.WriteString(mutedStyle.Render(strings.Repeat("─", w)) + "\n")
 	k := config.Keys[m.sel]
-	b.WriteString(boldStyle.Render(k.Name) + mutedStyle.Render("  ·  "+T("cli.config.info_default")+" "+display(k.Default)+"  ·  $"+k.Env()) + "\n")
+	b.WriteString(boldStyle.Render(k.Name) + mutedStyle.Render("  ·  "+T("cli.config.info_default")+" "+display(k.Default)) + "\n")
 	b.WriteString(config.Help(i18n.Language(), k) + "\n")
 	return m.finish(&b)
 }

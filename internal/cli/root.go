@@ -41,7 +41,7 @@ func newRootCmd() *cobra.Command {
 		},
 	}
 	root.SetVersionTemplate("ax {{.Version}}\n")
-	root.PersistentFlags().StringVar(&dataDirFlag, "data-dir", cfg.Str("data_dir"), T("cli.flag.data_dir"))
+	root.PersistentFlags().StringVar(&dataDirFlag, "data-dir", "", T("cli.flag.data_dir"))
 	root.PersistentFlags().StringVar(&configFlag, "config", "", T("cli.flag.config"))
 	root.PersistentFlags().StringVar(&vaultFlag, "vault", "", T("vault.flag"))
 	root.PersistentFlags().BoolP("help", "h", false, T("cli.flag.help"))
@@ -90,7 +90,7 @@ func newRootCmd() *cobra.Command {
 	add("session", newStartCmd(), newAttachCmd(), newStatusCmd(), newStopCmd(), newResumeCmd(), newLogsCmd(), newResultsCmd(), newReportCmd())
 	add("vault", newVaultCmd(), newStudentCmd(), newClassCmd(), newFindCmd(), newHistoryCmd(), newGradebookCmd(),
 		newExploreCmd(), newBackupCmd(), newRestoreCmd())
-	add("setup", newConfigCmd(), newI18nCmd(), newAdminCmd(), newVersionCmd())
+	add("setup", newConfigCmd(), newFirewallCmd(), newPortableCmd(), newI18nCmd(), newAdminCmd(), newVersionCmd())
 	root.AddCommand(newDaemonCmd())
 	return root
 }

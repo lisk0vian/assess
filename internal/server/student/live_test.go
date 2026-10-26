@@ -2,6 +2,7 @@ package student
 
 import (
 	"context"
+	"net"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -38,10 +39,14 @@ func TestJoinRateLimit(t *testing.T) {
 	c.mustStatus(http.StatusTooManyRequests, "POST", "/api/join", map[string]string{"code": e.sess.Code, "name": "A", "student_id": "1"}, nil)
 }
 
-func TestPrivateNetworksOnly(t *testing.T) {
+func TestLocalNetworksOnly(t *testing.T) {
 	ok := http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) { w.WriteHeader(http.StatusNoContent) })
-	h := PrivateNetworksOnly(ok)
+	_, school, _ := net.ParseCIDR("83.44.10.0/24")
+	h := LocalNetworksOnly(ok, []*net.IPNet{school})
 	for addr, want := range map[string]int{
+		"83.44.10.9:5000":   http.StatusNoContent, // the computer's own subnet, public range
+		"100.64.3.3:5000":   http.StatusNoContent,
+		"83.44.99.9:5000":   http.StatusForbidden,
 		"192.168.1.20:5000": http.StatusNoContent,
 		"10.0.0.7:5000":     http.StatusNoContent,
 		"127.0.0.1:5000":    http.StatusNoContent,

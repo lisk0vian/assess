@@ -313,9 +313,6 @@ func newVaultUseCmd() *cobra.Command {
 				return err
 			}
 			fmt.Fprintln(cmd.OutOrStdout(), T("vault.use.done", "name", e.Name))
-			if s := cfg.Get("vault.path"); s.Source == config.FromEnv {
-				fmt.Fprintln(cmd.ErrOrStderr(), T("vault.use.env_wins"))
-			}
 			return nil
 		},
 	}

@@ -13,6 +13,7 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/lisk0vian/assess/internal/config"
+	"github.com/lisk0vian/assess/internal/daemon"
 	"github.com/lisk0vian/assess/internal/i18n"
 	"github.com/lisk0vian/assess/internal/tui"
 )
@@ -29,11 +30,27 @@ func newConfigCmd() *cobra.Command {
 			if asJSON {
 				return printConfigJSON(cmd.OutOrStdout())
 			}
+			if isTerminal() {
+				return editSettings(cmd)
+			}
 			printConfig(cmd.OutOrStdout())
 			return nil
 		},
 	}
 	cmd.Flags().BoolVar(&asJSON, "json", false, T("cli.flag.json"))
+	list := &cobra.Command{
+		Use:   "list",
+		Short: T("cli.config.list_short"),
+		Args:  cobra.NoArgs,
+		RunE: func(cmd *cobra.Command, _ []string) error {
+			if asJSON {
+				return printConfigJSON(cmd.OutOrStdout())
+			}
+			printConfig(cmd.OutOrStdout())
+			return nil
+		},
+	}
+	list.Flags().BoolVar(&asJSON, "json", false, T("cli.flag.json"))
 
 	keyArg := func(_ *cobra.Command, args []string, _ string) ([]string, cobra.ShellCompDirective) {
 		if len(args) > 0 {
@@ -107,9 +124,7 @@ func newConfigCmd() *cobra.Command {
 				return err
 			}
 			fmt.Fprintln(cmd.OutOrStdout(), T("cli.config.set_done", "key", k.Name, "value", cfg.Get(k.Name).Raw))
-			if v := cfg.Get(k.Name); v.Source == config.FromEnv {
-				fmt.Fprintln(cmd.OutOrStdout(), T("cli.config.env_wins", "env", k.Env()))
-			}
+			restartHint(cmd, k.Name)
 			return nil
 		},
 	}
@@ -211,8 +226,20 @@ func newConfigCmd() *cobra.Command {
 			return nil
 		},
 	}
-	cmd.AddCommand(get, set, reset, edit, path, info)
+	cmd.AddCommand(list, get, set, reset, edit, path, info)
 	return cmd
+}
+
+// restartHint says when a change only applies to the next exam server.
+func restartHint(cmd *cobra.Command, key string) {
+	if !strings.HasPrefix(key, "server.") {
+		return
+	}
+	if dir, err := dataDir(); err == nil {
+		if h, _, _ := daemon.Check(dir); h == daemon.Running {
+			fmt.Fprintln(cmd.OutOrStdout(), T("cli.config.restart_hint"))
+		}
+	}
 }
 
 // editSettings opens the Settings screen and saves what changed.
@@ -242,6 +269,12 @@ func editSettings(cmd *cobra.Command) error {
 		return err
 	}
 	fmt.Fprintln(cmd.OutOrStdout(), T("cli.config.saved", "n", len(s.Changes), "path", cfg.Path))
+	for _, ch := range s.Changes {
+		if strings.HasPrefix(ch.Key, "server.") {
+			restartHint(cmd, ch.Key)
+			break
+		}
+	}
 	return nil
 }
 
@@ -279,8 +312,6 @@ func sourceText(v config.Value) string {
 	switch v.Source {
 	case config.FromFile:
 		return T("cli.config.from_file", "line", v.Line)
-	case config.FromEnv:
-		return "$" + v.Key.Env()
 	}
 	return T("cli.config.from_default")
 }
@@ -317,14 +348,13 @@ func printConfigJSON(w io.Writer) error {
 		Source  string   `json:"source"`
 		Line    int      `json:"line,omitempty"`
 		Default string   `json:"default"`
-		Env     string   `json:"env"`
 		Choices []string `json:"choices,omitempty"`
 		Help    string   `json:"help"`
 	}
 	var rows []row
 	for _, v := range cfg.All() {
 		rows = append(rows, row{Key: v.Key.Name, Value: v.Raw, Source: string(v.Source), Line: v.Line,
-			Default: v.Key.Default, Env: v.Key.Env(), Choices: v.Key.Choices, Help: i18n.T("config.key." + v.Key.Name)})
+			Default: v.Key.Default, Choices: v.Key.Choices, Help: i18n.T("config.key." + v.Key.Name)})
 	}
 	var problems []string
 	for _, p := range cfg.Problems {
@@ -350,7 +380,7 @@ func printKeyInfo(w io.Writer, k config.Key) {
 	}
 	fmt.Fprintf(w, "  %-10s %s (%s)\n", T("cli.config.info_value"), val, sourceText(v))
 	fmt.Fprintf(w, "  %-10s %s\n", T("cli.config.info_default"), def)
-	fmt.Fprintf(w, "  %-10s %s\n", T("cli.config.info_env"), k.Env())
+
 	fmt.Fprintf(w, "  %-10s ax config set %s <%s>\n", T("cli.config.info_change"), k.Name, T("cli.config.kind."+kindName(k.Kind)))
 }
 

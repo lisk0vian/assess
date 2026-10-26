@@ -171,7 +171,7 @@ func Run(ctx context.Context, cfg Config) error {
 	mux.Handle("/", web.Handler(lang))
 	var root http.Handler = mux
 	if !cfg.AllowPublic {
-		root = student.PrivateNetworksOnly(mux)
+		root = student.LocalNetworksOnly(mux, netutil.LocalNets())
 	}
 	studentSrv := &http.Server{Handler: root, ReadHeaderTimeout: 10 * time.Second}
 

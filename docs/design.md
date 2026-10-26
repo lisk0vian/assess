@@ -59,16 +59,23 @@ reversed, edit it here and note why in the commit.
   file readable only by the current user.
 - One active session per data directory.
 - Network: student port **27337** by default (avoids common dev ports; falls
-  back to the next free one), `--port`, `--host`; LAN address auto-detected
-  (asks when several); TUI shows URL, session code and a QR code. Plain HTTP on
-  the LAN; optional `--tls-cert/--tls-key`.
+  back to the next free one within 30 ports), `--port`, `--host`; listens on
+  every interface and advertises the real adapter's address first (virtual
+  ones last; ←→ in the panel picks another); TUI shows URL, session code and
+  a QR code. Plain HTTP on the LAN; optional `--tls-cert/--tls-key`.
+- Windows firewall: `ax firewall` checks without rights whether students can
+  get in; `ax firewall setup|script|remove` manage one rule by port, made
+  once per computer by an administrator or IT, so every copy of ax works.
+  See [classroom-network.md](classroom-network.md).
+- Portable copy: `ax.yaml` next to the program holds its settings and makes
+  `data/` (with the vault) live in the same folder (`ax portable init`).
 
 ## Data
 
 - Exams are referenced by **folder path**; there is no central library.
   Format: see [format.md](format.md).
-- Data dir: OS user data dir (`%AppData%\assess` on Windows), overridable with
-  `--data-dir` / `AX_DATA_DIR`.
+- Data dir: OS user data dir (`%AppData%\assess` on Windows), changed with
+  `--data-dir` or the `data_dir` setting.
 - Starting a session creates an **immutable published version** (with hash).
 - Randomization: shuffled questions/options (default on), pinned options,
   pools (`pick k of n`); the per-attempt seed is stored.
@@ -116,8 +123,11 @@ reversed, edit it here and note why in the commit.
   and integrity signals into one HMAC-signed channel (`telemetry_tampered`)
   lands with the anti-cheat signals in phase 5, when there is telemetry to
   protect.
-- Only private, loopback and link-local addresses reach the student server
-  (`--allow-public` opts out, for teachers using their own tunnel).
+- Only devices of the classroom network reach the student server: private,
+  loopback, link-local and carrier-grade NAT addresses, plus any address in
+  the subnets of the teacher's computer (for networks numbered with public
+  ranges). `server.allow_public` opts out, for teachers using their own
+  tunnel.
 - Joining closes `--join-window` after the start (default 15 min); students
   already in keep resuming. Join attempts are rate-limited per IP (12/min).
 - A second tab of the same browser shows "already open". Classroom HTTP is not
@@ -482,11 +492,13 @@ question design.
 ## Settings and translations (implemented in phase 8)
 
 - **Settings file**: `~/.config/assess/config.yaml` on every system (on
-  Windows, in the user folder), or `$XDG_CONFIG_HOME/assess`, `$AX_CONFIG` or
-  `--config`. Written on the first run with every setting commented out. Keys
+  Windows, in the user folder; `$XDG_CONFIG_HOME/assess` on Linux), or
+  `ax.yaml` next to the program for a portable copy, or `--config`. Written on the first run with every setting commented out. Keys
   are declared once in `internal/config` (kind, default, choices), which
   drives validation, `ax config`, the Settings screen and the file template.
-- **Precedence**: flag > `AX_<KEY>` environment variable > file > default.
+- **Precedence**: flag > file > default. Environment variables are never
+  read: what ax does is written in one place, and child processes (the exam
+  server, the unlock agent) receive `--config` explicitly.
   Flag defaults come from the settings, so `--help` shows them. Anti-cheat
   thresholds are not settings, the manifest always wins, and `new_exam.*`
   only pre-fills new exams.

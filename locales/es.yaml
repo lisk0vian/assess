@@ -209,9 +209,10 @@ config:
     usan su valor por defecto. Para cambiar uno, quita el "# " de delante o
     ejecuta:
       ax config set <clave> <valor>    por ejemplo: ax config set server.port 8080
-    `ax config` lista todos los ajustes con su valor actual y de dónde sale.
-    Las opciones de la línea de comandos y las variables AX_* mandan sobre
-    este archivo. Cada examen conserva lo que diga su propio manifest.
+    `ax config` abre el panel de ajustes; `ax config list` imprime todos con
+    su valor actual. Las opciones de la línea de comandos mandan sobre este
+    archivo. Las variables de entorno nunca se leen. Cada examen conserva lo
+    que diga su propio manifest.
   group:
     server: Servidor del examen (ax start)
     new_exam: Valores iniciales de los exámenes nuevos (ax new); los existentes no cambian
@@ -310,8 +311,8 @@ cli:
     short: Ayuda sobre cualquier comando
     unknown: "No hay ayuda sobre %#q"
   flag:
-    data_dir: "carpeta de datos (por defecto: data_dir de los ajustes, $AX_DATA_DIR o la del sistema)"
-    config: "archivo de ajustes (por defecto: $AX_CONFIG o ~/.config/assess/config.yaml)"
+    data_dir: "carpeta de datos (por defecto: data_dir de los ajustes o la del sistema)"
+    config: "archivo de ajustes (por defecto: ax.yaml junto a ax, o ~/.config/assess/config.yaml)"
     help: muestra la ayuda del comando
     version: muestra la versión
     host: "dirección a la que se conectan los alumnos (vacío: todas, se muestra la de la LAN)"
@@ -515,17 +516,19 @@ cli:
   config:
     short: Muestra y cambia los ajustes
     long: |-
-      Los ajustes se guardan en ~/.config/assess/config.yaml (o $AX_CONFIG, o
-      --config). Sin subcomando, config lista cada ajuste con su valor actual y
-      de dónde sale: el archivo (con su línea), una variable de entorno AX_*, o
-      el valor por defecto.
+      Los ajustes se guardan en ~/.config/assess/config.yaml, o en ax.yaml junto
+      al programa en una copia portátil (ver `ax portable`), o en el archivo que
+      indiques con --config. En una terminal, `ax config` abre el panel de
+      ajustes: cada ajuste con su valor, de dónde sale y para qué sirve, para
+      cambiarlo y guardarlo. `ax config list` los imprime.
 
-      Las opciones de la línea de comandos mandan sobre el entorno, y el entorno
-      sobre el archivo. El archivo se escribe la primera vez con todos los
-      ajustes comentados; `ax config set` cambia una línea y conserva tus
-      comentarios.
+      Solo cuenta el archivo (las opciones de la línea de comandos mandan para
+      un comando); las variables de entorno nunca se leen. El archivo se
+      escribe la primera vez con todos los ajustes comentados; los cambios
+      conservan tus comentarios.
     example: |2-
         ax config
+        ax config list
         ax config set language es
         ax config set server.port 8080
         ax config info new_exam.proctoring
@@ -541,7 +544,8 @@ cli:
     get_short: Muestra el valor actual de un ajuste
     set_short: Cambia un ajuste en el archivo
     set_done: "{key} = {value}"
-    env_wins: "Nota: ${env} está definida y manda sobre el archivo."
+    list_short: Imprime cada ajuste con su valor y de dónde sale
+    restart_hint: El examen en marcha conserva sus ajustes de servidor; se aplican la próxima vez que arranque (ax stop --suspend y luego ax resume).
     reset_short: Devuelve un ajuste, o el archivo entero, a los valores por defecto
     reset_long: |-
       Con una clave, reset vuelve a comentar ese ajuste para que se use su valor
@@ -561,7 +565,7 @@ cli:
     info_short: Explica un ajuste
     info_value: Actual
     info_default: Defecto
-    info_env: Variable
+
     info_change: Cambiar
     kind:
       text: texto
@@ -799,6 +803,8 @@ astate:
   active: "sin entregar"
 
 monitor:
+  other_address: "←→ otra dirección (si los alumnos no pueden abrir esta)"
+  nobody_hint: "Todavía no ha entrado nadie. Si sus dispositivos no abren la página, ejecuta `ax firewall` en otra terminal."
   enrolled: "Aprobado y añadido a {class}: {name} ({id})."
   view:
     students: "Alumnos"
@@ -1622,7 +1628,7 @@ vault:
     short: Elige la bóveda en uso
     long: Guarda el nombre de la bóveda en el ajuste vault.path. Una carpeta .assess-vault en la carpeta actual sigue teniendo prioridad.
     done: "Usando la bóveda «{name}»."
-    env_wins: AX_VAULT_PATH está definida y manda sobre el ajuste.
+
   forget:
     short: Quita una bóveda de la lista (su carpeta se queda)
     unknown: "No hay ninguna bóveda llamada {name}."
@@ -1723,3 +1729,96 @@ vault:
     running: Sigue en marcha un examen empezado con una versión anterior de ax; detenlo (ax stop) y vuelve a ejecutar este comando.
     done: "Tus datos han pasado a la bóveda {dir} ({n} sesiones terminadas archivadas). La base de datos antigua se guarda en {copy}."
     archive_failed: "Algunas sesiones no se pudieron archivar: {err}"
+
+firewall:
+  short: Comprueba que los alumnos llegan a este equipo y abre el puerto una vez
+  long: |-
+    En Windows, un programa que recibe conexiones necesita una regla del
+    cortafuegos, y crearla requiere un administrador: es la ventana que
+    Windows muestra la primera vez que ax empieza un examen. `ax firewall`
+    comprueba, sin permisos especiales, si la regla existe y qué redes cubre.
+
+    La regla que usa ax es por puerto, no por programa: una vez creada, sirve
+    para cualquier copia de ax, desde cualquier carpeta o USB y en cualquier
+    versión futura, así que un administrador solo tiene que intervenir una vez
+    por equipo:
+      ax firewall setup     pide la contraseña del administrador (una ventana de Windows) y abre el puerto
+      ax firewall script    escribe un script y una nota para el personal de informática (vale también como directiva de grupo)
+      ax firewall remove    quita la regla
+  check_short: Muestra si los alumnos llegan a ax en cada red
+  setup_short: Abre el puerto de los alumnos en el cortafuegos de Windows (pide un administrador una vez)
+  remove_short: Quita la regla del cortafuegos
+  setup_long: |-
+    Crea la regla de entrada «Assess (ax)» para los puertos TCP de server.port
+    y los siguientes que el servidor puede usar si uno está ocupado, en redes
+    de dominio y privadas (--public añade las públicas). Si ax no se ejecuta
+    como administrador, Windows pide la contraseña del administrador en su
+    propia ventana; después no hace falta que nadie se quede.
+  script_short: Escribe un script y una nota para informática que abren el puerto
+  script_long: |-
+    Escribe assess-firewall.cmd (para ejecutarlo como administrador o
+    distribuirlo a todos los equipos del aula con una directiva de grupo) y
+    una nota corta que explica qué abre y por qué.
+  flag_public: También en las redes que Windows llama públicas (no recomendable fuera del centro)
+  not_windows: En este sistema no hace falta ningún paso; los puertos por encima de 1024 aceptan conexiones sin permisos especiales.
+  profile:
+    Public: pública
+    Private: privada
+    DomainAuthenticated: dominio
+  covered: abierta para los alumnos
+  not_covered: cerrada (Windows bloquea a los alumnos)
+  blocked: bloqueada por una regla (se canceló un aviso de Windows)
+  app_only: "Los alumnos pueden llegar a esta copia de ax, gracias a la regla que Windows creó para su carpeta. Una copia en otra carpeta o USB volverá a pedir un administrador; `ax firewall setup` abre el puerto una vez para todas las copias."
+  no_network: No hay ninguna red conectada.
+  ready: "Los alumnos pueden llegar a este equipo (los puertos TCP {ports} están abiertos)."
+  rule_partial: "La regla para TCP {ports} existe, pero no para todas las redes conectadas: una red marcada como pública sigue cerrada. Pide que la marquen como privada, o ejecuta `ax firewall setup --public`."
+  no_rule: "Windows va a dejar fuera a los alumnos: no hay ninguna regla para TCP {ports}."
+  options: |-
+    Qué puedes hacer:
+      1. Una vez por equipo, con un administrador: `ax firewall setup` (Windows pide la contraseña; después no vuelve a hacer falta, esté ax en la carpeta que esté).
+      2. Sin esperar a nadie: entrega a informática los archivos de `ax firewall script`, mejor para aplicarlos a todos los equipos del aula.
+      3. Mientras tanto, usa ax en un equipo del que seas administrador (tu propio portátil): cópialo con `ax portable init <carpeta> --copy-vault`.
+    docs/classroom-network.md explica cada opción.
+  start_hint: "Aviso: puede que Windows bloquee a los alumnos en este equipo (no hay regla del cortafuegos para ax). `ax firewall` explica cómo abrirlo una sola vez."
+  elevating: Windows pedirá la contraseña de un administrador en una ventana propia…
+  elevate_failed: "No se creó la regla ({err}). Sin administrador, prueba `ax firewall script` para informática."
+  done: "Hecho: TCP {ports} está abierto para los alumnos. Sirve para cualquier copia de ax en este equipo."
+  public_hint: Una red conectada está marcada como pública y sigue cerrada; `ax firewall setup --public` también la abre.
+  removed: La regla del cortafuegos ya no está.
+  not_applied: El cortafuegos no cambió (puede que se cancelara la ventana del administrador).
+  readme_file: LEEME-INFORMATICA.txt
+  readme: |-
+    Assess (ax) sirve para hacer exámenes en el aula: el equipo del profesor
+    sirve una página web que los alumnos abren desde sus dispositivos en la
+    red del centro. Para ello, Windows debe aceptar conexiones TCP de entrada
+    en los puertos {ports} ({port} y los siguientes, que solo se usan si está
+    ocupado), en redes de dominio y privadas. La regla es por puerto, no por
+    programa, así que sigue sirviendo cuando ax se actualiza o se ejecuta
+    desde un USB. ax solo acepta dispositivos de la red local y no necesita
+    internet.
+    Ejecuta assess-firewall.cmd como administrador una vez por equipo, o
+    distribuye la misma regla con una directiva de grupo.
+  readme_undo: "Para deshacerlo:"
+  script_done: "Escritos {script} y {note}."
+
+portable:
+  short: Usa ax desde un USB o cualquier carpeta, con sus ajustes y datos
+  long: |-
+    Una copia portátil reúne en una carpeta el programa, sus ajustes (ax.yaml
+    a su lado) y sus datos (data/, con la bóveda), por ejemplo en un USB:
+    conéctalo a cualquier equipo y ejecuta ax desde ahí. Sin subcomando, dice
+    si esta copia es portátil.
+  init_short: Crea una copia portátil de ax en una carpeta
+  init_long: |-
+    Copia ax en la carpeta y escribe ax.yaml a su lado, para que esa copia
+    guarde sus ajustes y datos dentro de la carpeta. --copy-vault copia
+    además la bóveda en uso (una bóveda cifrada sigue cifrada).
+  init_example: |-
+    ax portable init E:\ax
+    ax portable init E:\ax --copy-vault
+  flag_copy_vault: Copiar la bóveda en uso a la copia portátil
+  exists: "{path} ya existe: esa carpeta ya tiene un ax portátil."
+  vault_copied: "Copiada la bóveda «{name}»."
+  done: "Copia portátil lista en {dir}. Ejecuta {exe} desde ahí: solo usa los ajustes y datos de esa carpeta."
+  is_portable: "Esta es una copia portátil: ajustes en {dir}, datos en {data}."
+  not_portable: "Esta copia usa los ajustes de este equipo ({path}). `ax portable init <carpeta>` crea una portátil."

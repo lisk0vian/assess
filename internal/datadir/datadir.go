@@ -9,17 +9,11 @@ import (
 	"runtime"
 )
 
-// EnvVar overrides the default location.
-const EnvVar = "AX_DATA_DIR"
-
-// Resolve returns the data directory: flag, then $AX_DATA_DIR, then the OS
-// default (%AppData%\assess, ~/Library/Application Support/assess,
-// $XDG_DATA_HOME/assess or ~/.local/share/assess). It creates it if needed.
-func Resolve(flag string) (string, error) {
-	dir := flag
-	if dir == "" {
-		dir = os.Getenv(EnvVar)
-	}
+// Resolve returns the data directory: dir (from --data-dir or the data_dir
+// setting), else the OS default (%AppData%\assess, ~/Library/Application
+// Support/assess, $XDG_DATA_HOME/assess or ~/.local/share/assess). It
+// creates it if needed.
+func Resolve(dir string) (string, error) {
 	if dir == "" {
 		var err error
 		if dir, err = defaultDir(); err != nil {

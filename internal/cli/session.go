@@ -10,6 +10,7 @@ import (
 	"log/slog"
 	"os"
 	"os/signal"
+	"path/filepath"
 	"strconv"
 	"strings"
 	"syscall"
@@ -28,7 +29,18 @@ import (
 // dataDirFlag is the persistent --data-dir flag shared by session commands.
 var dataDirFlag string
 
-func dataDir() (string, error) { return datadir.Resolve(dataDirFlag) }
+// dataDir is --data-dir, else the data_dir setting (relative to the
+// settings file), else a portable copy's data/ folder, else the system's.
+func dataDir() (string, error) {
+	d := dataDirFlag
+	if d == "" {
+		d = cfg.PathValue("data_dir")
+	}
+	if d == "" && cfg.Portable() {
+		d = filepath.Join(cfg.Dir(), "data")
+	}
+	return datadir.Resolve(d)
+}
 
 type serveFlags struct {
 	host        string
@@ -71,11 +83,15 @@ func (f *serveFlags) daemonArgs(cmd *cobra.Command) []string {
 // spawnDaemon starts the exam server on the active vault, handing it the
 // vault's key.
 func spawnDaemon(cmd *cobra.Command, dir string, args []string) (*daemon.State, error) {
+	defer firewallHint(cmd.ErrOrStderr())() // checked while the server starts
 	vdir, key, err := daemonKey(cmd.Context(), dir)
 	if err != nil {
 		return nil, err
 	}
 	args = append(args, "--vault", vdir, "--keep-backups", strconv.Itoa(cfg.Int("vault.keep_backups")))
+	if cfg.Path != "" {
+		args = append(args, "--config", cfg.Path) // the server reads the same settings
+	}
 	return daemon.Spawn(dir, args, key)
 }
 

@@ -3,10 +3,13 @@
 //
 // Every setting has a built-in default; the file only holds what the teacher
 // changed. A value is taken from, in order: a command-line flag (applied by
-// the CLI), the environment (AX_<KEY>, for example AX_SERVER_PORT), the
-// file, the default. Keys are described once, in Keys, which drives
-// validation, `ax config`, the Settings screen and the commented file
-// written on the first run.
+// the CLI), the file, the default. The environment is never read: what ax
+// does is always written in one place. Keys are described once, in Keys,
+// which drives validation, `ax config`, the Settings screen and the
+// commented file written on the first run.
+//
+// A portable copy keeps its settings in ax.yaml next to the program (see
+// PortableFile); relative paths in it are relative to that folder.
 package config
 
 import (
@@ -14,6 +17,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"runtime"
 	"slices"
 	"strconv"
 	"strings"
@@ -24,8 +28,9 @@ import (
 	"github.com/lisk0vian/assess/internal/i18n"
 )
 
-// EnvVar overrides the location of the settings file.
-const EnvVar = "AX_CONFIG"
+// PortableFile is the settings file of a portable copy of ax (a USB stick):
+// when it sits next to the program it is used instead of the user's.
+const PortableFile = "ax.yaml"
 
 // Kind is the type of a setting's value.
 type Kind int
@@ -67,11 +72,6 @@ func (k Key) Leaf() string {
 		return k.Name
 	}
 	return l
-}
-
-// Env is the environment variable that overrides the key.
-func (k Key) Env() string {
-	return "AX_" + strings.ToUpper(strings.ReplaceAll(k.Name, ".", "_"))
 }
 
 // Validate checks a value written as text.
@@ -196,15 +196,19 @@ func Groups() []string {
 	return out
 }
 
-// Path returns the settings file: flag, then $AX_CONFIG, then
-// $XDG_CONFIG_HOME/assess/config.yaml, then ~/.config/assess/config.yaml.
+// Path returns the settings file: the --config flag, then ax.yaml next to
+// the program (portable copy), then ~/.config/assess/config.yaml
+// ($XDG_CONFIG_HOME/assess on Linux, where that is the system's place).
 func Path(flag string) (string, error) {
 	p := flag
 	if p == "" {
-		p = os.Getenv(EnvVar)
+		p = PortablePath()
 	}
 	if p == "" {
-		base := os.Getenv("XDG_CONFIG_HOME")
+		base := ""
+		if runtime.GOOS == "linux" {
+			base = os.Getenv("XDG_CONFIG_HOME")
+		}
 		if base == "" {
 			home, err := os.UserHomeDir()
 			if err != nil {
@@ -217,6 +221,44 @@ func Path(flag string) (string, error) {
 	return filepath.Abs(p)
 }
 
+// PortablePath is ax.yaml next to the running program, or "" when there is
+// none.
+func PortablePath() string {
+	exe, err := os.Executable()
+	if err != nil {
+		return ""
+	}
+	if resolved, err := filepath.EvalSymlinks(exe); err == nil {
+		exe = resolved
+	}
+	p := filepath.Join(filepath.Dir(exe), PortableFile)
+	if _, err := os.Stat(p); err != nil {
+		return ""
+	}
+	return p
+}
+
+// Portable reports whether these are the settings of a portable copy.
+func (c *Config) Portable() bool { return c.Path != "" && filepath.Base(c.Path) == PortableFile }
+
+// Dir is the folder of the settings file.
+func (c *Config) Dir() string {
+	if c.Path == "" {
+		return ""
+	}
+	return filepath.Dir(c.Path)
+}
+
+// PathValue returns a setting that names a folder, relative paths taken
+// from the settings file's folder; "" stays "".
+func (c *Config) PathValue(name string) string {
+	v := c.Str(name)
+	if v == "" || filepath.IsAbs(v) || c.Path == "" {
+		return v
+	}
+	return filepath.Join(c.Dir(), v)
+}
+
 // Source says where a value came from.
 type Source string
 
@@ -224,7 +266,6 @@ type Source string
 const (
 	FromDefault Source = "default"
 	FromFile    Source = "file"
-	FromEnv     Source = "env"
 )
 
 // Value is a setting's effective value.
@@ -268,8 +309,7 @@ func (c *Config) HasErrors() bool {
 	return slices.ContainsFunc(c.Problems, func(p Problem) bool { return !p.Warning })
 }
 
-// Defaults is a configuration with no file: built-in values and the
-// environment.
+// Defaults is a configuration with no file: the built-in values.
 func Defaults() *Config {
 	c := &Config{values: map[string]Value{}}
 	c.fill()
@@ -363,17 +403,9 @@ func (c *Config) set(key Key, v *yaml.Node) {
 	c.values[key.Name] = Value{Key: key, Raw: raw, Source: FromFile, Line: v.Line}
 }
 
-// fill completes the values with the environment and the defaults.
+// fill completes the values with the defaults.
 func (c *Config) fill() {
 	for _, k := range Keys {
-		if env, ok := os.LookupEnv(k.Env()); ok {
-			err := k.accept(env)
-			if err == nil {
-				c.values[k.Name] = Value{Key: k, Raw: env, Source: FromEnv}
-				continue
-			}
-			c.Problems = append(c.Problems, Problem{File: "$" + k.Env(), Key: k.Name, Message: err.Error()})
-		}
 		if _, ok := c.values[k.Name]; !ok {
 			c.values[k.Name] = Value{Key: k, Raw: k.Default, Source: FromDefault}
 		}

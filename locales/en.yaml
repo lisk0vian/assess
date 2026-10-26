@@ -211,9 +211,10 @@ config:
     Assess settings (ax). Every setting below is commented out and uses its
     default. To change one, remove the "# " in front of it, or run:
       ax config set <key> <value>      for example: ax config set server.port 8080
-    `ax config` lists every setting with its current value and where it
-    comes from. Command-line flags and AX_* environment variables win over
-    this file. Exams always keep what their own manifest says.
+    `ax config` opens the settings panel; `ax config list` prints every
+    setting with its current value. Command-line flags win over this file.
+    Environment variables are never read. Exams always keep what their own
+    manifest says.
   group:
     server: Exam server (ax start)
     new_exam: Starting values for new exams (ax new); existing exams are not changed
@@ -312,8 +313,8 @@ cli:
     short: Help about any command
     unknown: "Unknown help topic %#q"
   flag:
-    data_dir: "data directory (default: data_dir in the settings, $AX_DATA_DIR or the system's)"
-    config: "settings file (default: $AX_CONFIG or ~/.config/assess/config.yaml)"
+    data_dir: "data directory (default: data_dir in the settings, or the system's)"
+    config: "settings file (default: ax.yaml next to ax, or ~/.config/assess/config.yaml)"
     help: show help for the command
     version: show the version
     host: "address students connect to (empty: all interfaces, LAN address shown)"
@@ -513,16 +514,18 @@ cli:
   config:
     short: Show and change the settings
     long: |-
-      Settings are kept in ~/.config/assess/config.yaml (or $AX_CONFIG, or
-      --config). Without a subcommand, config lists every setting with its
-      current value and where it comes from: the file (with its line), an AX_*
-      environment variable, or the built-in default.
+      Settings are kept in ~/.config/assess/config.yaml, or in ax.yaml next to
+      the program for a portable copy (see `ax portable`), or in the file given
+      with --config. In a terminal, `ax config` opens the settings panel: every
+      setting with its value, where it comes from and what it does, to change
+      and save. `ax config list` prints them instead.
 
-      Command-line flags win over the environment, which wins over the file.
-      The file is written on the first run with every setting commented out;
-      `ax config set` changes one line and keeps your comments.
+      Only the file counts (command-line flags win for one command);
+      environment variables are never read. The file is written on the first
+      run with every setting commented out; changes keep your comments.
     example: |2-
         ax config
+        ax config list
         ax config set language es
         ax config set server.port 8080
         ax config info new_exam.proctoring
@@ -538,7 +541,8 @@ cli:
     get_short: Print the current value of a setting
     set_short: Change a setting in the file
     set_done: "{key} = {value}"
-    env_wins: "Note: ${env} is set and wins over the file."
+    list_short: Print every setting with its value and where it comes from
+    restart_hint: The running exam keeps its server settings; they apply the next time it starts (ax stop --suspend, then ax resume).
     reset_short: Put one setting, or the whole file, back to the defaults
     reset_long: |-
       With a key, reset comments that setting out again so its default applies.
@@ -558,7 +562,7 @@ cli:
     info_short: Explain a setting
     info_value: Current
     info_default: Default
-    info_env: Variable
+
     info_change: Change
     kind:
       text: text
@@ -796,6 +800,8 @@ astate:
   active: "not submitted"
 
 monitor:
+  other_address: "←→ another address (if students cannot open this one)"
+  nobody_hint: "Nobody has joined yet. If their devices cannot open the page, run `ax firewall` in another terminal."
   enrolled: "Approved and added to {class}: {name} ({id})."
   view:
     students: "Students"
@@ -1615,7 +1621,7 @@ vault:
     short: Choose the vault in use
     long: Saves the vault's name in the vault.path setting. A .assess-vault folder in the current folder still wins.
     done: "Using the vault «{name}»."
-    env_wins: AX_VAULT_PATH is set and wins over the setting.
+
   forget:
     short: Remove a vault from the list (its folder stays)
     unknown: "There is no vault called {name}."
@@ -1714,3 +1720,94 @@ vault:
     running: An exam started with an earlier version of ax is still running; stop it (ax stop) and run this command again.
     done: "Your data moved into the vault {dir} ({n} finished sessions archived). The old database is kept in {copy}."
     archive_failed: "Some sessions could not be archived: {err}"
+
+firewall:
+  short: Check that students can reach this computer, and open the port once
+  long: |-
+    On Windows, a program that receives connections needs a firewall rule,
+    and creating one needs an administrator: that is the window Windows shows
+    the first time ax starts an exam. `ax firewall` checks, without any
+    special rights, whether the rule is there and which networks it covers.
+
+    The rule ax uses is by port, not by program: once it exists, every copy
+    of ax works, from any folder or USB stick and in any future version, so
+    an administrator only has to act once per computer:
+      ax firewall setup     asks for the administrator's password (a Windows window) and opens the port
+      ax firewall script    writes a script and a note for your IT staff (also usable as a group policy)
+      ax firewall remove    takes the rule away again
+  check_short: Show whether students can reach ax on each network
+  setup_short: Open the student port in the Windows firewall (asks for an administrator once)
+  remove_short: Remove the firewall rule
+  setup_long: |-
+    Creates the inbound rule «Assess (ax)» for TCP ports of server.port and
+    the next ones the server may use when one is busy, on domain and private
+    networks (--public adds public ones). When ax is not running as
+    administrator, Windows asks for the administrator's password in its own
+    window; nobody needs to stay afterwards.
+  script_short: Write a script and a note for IT that open the port
+  script_long: |-
+    Writes assess-firewall.cmd (run it as administrator, or deploy it to
+    every classroom computer as a group policy) and a short note explaining
+    what it opens and why.
+  flag_public: Also on networks Windows calls public (not recommended outside the school)
+  not_windows: No step is needed on this system; ports above 1024 accept connections without special rights.
+  profile:
+    Public: public
+    Private: private
+    DomainAuthenticated: domain
+  covered: open for students
+  not_covered: closed (Windows blocks students)
+  blocked: blocked by a rule (a Windows prompt was cancelled)
+  app_only: "Students can reach this copy of ax, through the rule Windows made for its folder. A copy in another folder or USB stick will ask for an administrator again; `ax firewall setup` opens the port once for every copy."
+  no_network: No connected network.
+  ready: "Students can reach this computer (TCP ports {ports} are open)."
+  rule_partial: "The rule for TCP {ports} exists, but not for every connected network: a network marked as public stays closed. Ask for it to be marked private, or run `ax firewall setup --public`."
+  no_rule: "Windows will keep students out: there is no rule for TCP {ports}."
+  options: |-
+    What you can do:
+      1. Once per computer, with an administrator: `ax firewall setup` (Windows asks for the password; then it is never needed again, whatever folder ax is in).
+      2. Without waiting for anyone: hand your IT staff the files of `ax firewall script`, ideally to apply to every classroom computer.
+      3. Meanwhile, run ax on a computer where you are the administrator (your own laptop): copy it with `ax portable init <folder> --copy-vault`.
+    docs/classroom-network.md explains each one.
+  start_hint: "Note: Windows may block students on this computer (no firewall rule for ax). `ax firewall` explains how to open it once."
+  elevating: Windows will ask for an administrator's password in a window of its own…
+  elevate_failed: "The rule was not created ({err}). Without an administrator, try `ax firewall script` for IT."
+  done: "Done: TCP {ports} is open for students. It works for every copy of ax on this computer."
+  public_hint: A connected network is marked public and stays closed; `ax firewall setup --public` opens it too.
+  removed: The firewall rule is gone.
+  not_applied: The firewall did not change (the administrator window may have been cancelled).
+  readme_file: README-IT.txt
+  readme: |-
+    Assess (ax) runs exams in the classroom: the teacher's computer serves a
+    web page that students open from their own devices on the school network.
+    For that, Windows must accept inbound TCP connections on ports {ports}
+    ({port} and the next ones, used only when it is busy), on domain and
+    private networks. The rule is by port, not by program, so it keeps
+    working when ax is updated or run from a USB stick. ax only accepts
+    devices from the local network and needs no internet.
+    Run assess-firewall.cmd as administrator once per computer, or deploy the
+    same rule with a group policy.
+  readme_undo: "To undo it:"
+  script_done: "Wrote {script} and {note}."
+
+portable:
+  short: Run ax from a USB stick or any folder, with its settings and data
+  long: |-
+    A portable copy keeps the program, its settings (ax.yaml next to it) and
+    its data (data/, with the vault) in one folder, for example on a USB
+    stick: plug it into any computer and run ax from there. Without a
+    subcommand, says whether this copy is portable.
+  init_short: Make a portable copy of ax in a folder
+  init_long: |-
+    Copies ax into the folder and writes ax.yaml next to it, so that copy
+    keeps its settings and data inside the folder. --copy-vault also copies
+    the vault in use (an encrypted vault stays encrypted).
+  init_example: |-
+    ax portable init E:\ax
+    ax portable init E:\ax --copy-vault
+  flag_copy_vault: Copy the vault in use into the portable copy
+  exists: "{path} already exists: that folder already holds a portable ax."
+  vault_copied: "Copied the vault «{name}»."
+  done: "Portable copy ready in {dir}. Run {exe} from there: it uses only the settings and data in that folder."
+  is_portable: "This is a portable copy: settings in {dir}, data in {data}."
+  not_portable: "This copy uses the settings of this computer ({path}). `ax portable init <folder>` makes a portable one."
