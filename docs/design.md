@@ -315,6 +315,14 @@ reversed, edit it here and note why in the commit.
 - `time_limit` is enforced by the server from the first opening of the
   question (plus 5 s grace); voided questions reject answers and score 0.
 - The honour pledge is recorded once per attempt (`POST /api/pledge`).
+- Photo protections, each switchable on its own (`proctoring.lens`,
+  `frozen_pointer`; questions override `lens`), on by default in `standard`
+  and `strict`. The server resolves exam → question → student and sends
+  `lens` per question. The teacher can switch the lens off for one student
+  (`attempt.reading`, V in the panel) as an accessibility accommodation.
+  `frozen_pointer` is a warn-only signal, measured only while a question is
+  on screen and the student is not paused; the panel lists it with "left
+  and got it right" when a correct answer follows.
 
 ## Student integrity UI (implemented in phase 5)
 
@@ -333,7 +341,9 @@ reversed, edit it here and note why in the commit.
   reason and a reminder that the teacher can revert it; warnings are a quiet
   notice.
 - Hover-only options show a ruled bar until pointed at, focused or tapped
-  (first tap reveals, second chooses); only one is readable at a time.
+  (first tap reveals, second chooses); only one unselected option is readable
+  at a time, while a chosen option stays readable so the student can confirm
+  it.
 - Timed questions ask before opening, because opening starts their clock;
   an exposure bar counts down and the answer locks at zero. Voided questions
   say so and lock.
@@ -341,12 +351,28 @@ reversed, edit it here and note why in the commit.
 - Classroom HTTP on a LAN address is not a secure context: no
   `crypto.randomUUID`, `crypto.subtle` or `navigator.clipboard`. The app must
   run without them, and is tested from the LAN address, not localhost.
+- Lens: the prompt's rendered words are measured (text ranges and atomic
+  images/math); one range of 4–15 words is readable at a time, the rest are
+  veiled like hover-only options. Each range starts with the last two words of
+  the previous one, so the next one has context, and ranges prefer a natural
+  pause. Tapping a zone jumps to the range containing that word; the controls
+  under the prompt, horizontal swipe and the keyboard move one range. The active range is
+  scrolled into view when it would fall outside the screen, and the position
+  is remembered per question while the page is open. The first view reads the
+  ranges automatically at the teacher's pace; moving the pointer or scrolling
+  does not stop it, while navigating, focusing an answer or pausing does. When
+  the automatic pass ends, the prompt is veiled again; tapping a zone or the
+  replay control starts it over. Manual navigation keeps the chosen range
+  visible. Only the automatic pass types word by word, at a readable pace.
+  Hidden text is clipped, not removed, so screen readers read the whole
+  prompt. Resize/fullscreen changes re-measure the boxes.
 - Screen captures cannot be blocked by a web page. Mitigations: the exam
   hides while the Windows/Command key is held (Win+Shift+S, Cmd+Shift+4
   start with it), PrintScreen replaces the clipboard image with a notice and
   counts like a copy, printing is blocked (Ctrl+P and print CSS), options can
-  be hover-only, and the watermark names the student. A phone photo is the
-  known limit.
+  be hover-only, and the watermark names the student. A phone photo is
+  answered by the photo protections above; a video of the screen still
+  defeats them.
 - An absence whose page never reports its end (reload, closed tab) is closed
   by the server with its own measurement when the student reconnects, unless
   the new page re-announces it within 5 s.
@@ -365,6 +391,9 @@ reversed, edit it here and note why in the commit.
   obfuscated with the attempt key.
 - **Privacy curtain**: the exam blurs instantly on blur/visibility loss.
 - Optional per-question `time_limit`.
+- **Against photos** (phone + vision AI): a lens that shows one range of words
+  of the prompt at a time, and a warn-only "stayed still, then answered"
+  signal. Each one switchable.
 - `fullscreen: off | suggested | required`.
 - Transparent notice listing what is recorded and the penalty table, plus a
   typed honor pledge, accepted before starting.
@@ -399,9 +428,15 @@ reversed, edit it here and note why in the commit.
   `off` disables everything (see "Anti-cheat engine").
 
 **Deliberately excluded:** devtools detection, random presence checks,
-VM/remote-desktop detection, `getDisplayMedia`, anti-OCR obfuscation, webcam,
-AI video analysis. **Known limit:** a second device (photo + vision AI) cannot
-be detected; mitigated by time pressure, variation and the teacher's presence.
+VM/remote-desktop detection, `getDisplayMedia`, webcam (it needs a secure
+context, and the classroom LAN is HTTP), AI video analysis, adversarial text
+aimed at AI models (brittle, model-specific). **Tried and dropped:** text
+drawn as moving noise (a still frame showed only noise, but students could
+not read it comfortably). **Known limit:** a second device cannot be
+detected; a photo catches one range of the prompt or one option, and an AI
+often answers from the prompt alone. A screen recording still captures the
+whole automatic pass. Mitigated by the teacher's presence, time pressure and
+question design.
 
 ## Student web app
 
@@ -444,6 +479,36 @@ be detected; mitigated by time pressure, variation and the teacher's presence.
   build, `size-limit`). Releases with GoReleaser (unsigned at first; SmartScreen
   warning documented).
 
+## Settings and translations (implemented in phase 8)
+
+- **Settings file**: `~/.config/assess/config.yaml` on every system (on
+  Windows, in the user folder), or `$XDG_CONFIG_HOME/assess`, `$AX_CONFIG` or
+  `--config`. Written on the first run with every setting commented out. Keys
+  are declared once in `internal/config` (kind, default, choices), which
+  drives validation, `ax config`, the Settings screen and the file template.
+- **Precedence**: flag > `AX_<KEY>` environment variable > file > default.
+  Flag defaults come from the settings, so `--help` shows them. Anti-cheat
+  thresholds are not settings, the manifest always wins, and `new_exam.*`
+  only pre-fills new exams.
+- **Errors**: an invalid value stops every command except `ax config` with
+  `file:line: error: key: message`; unknown keys are warnings.
+- **Commands**: `ax config [get|set|reset|edit|path|info]`, the Settings entry
+  of the menu, and a welcome screen on the first run that asks the language
+  (preselecting the system's).
+- **Translations**: one catalog per language in `locales/<lang>.yaml` (English
+  is the reference and the default; Spanish is built in), plus catalogs in
+  `~/.config/assess/locales/`. Missing keys fall back to English; plurals use
+  `one`/`other`. `ax i18n list|check|new` help contributors, and a test checks
+  that every key used in Go and in the web app exists and that the built-in
+  catalogs are complete.
+- **Student page**: its texts are the `web:` section of the catalogs. The
+  server injects the exam language's texts into `index.html`, so the bundle
+  carries no dictionaries; `/api/i18n` serves them to the Vite dev server.
+  The language is the manifest's `language`, else the `student_language`
+  setting, else the interface language.
+- Exam validation messages stay in English: they belong to the format
+  reference that AI assistants read.
+
 ## Phases
 
 0. **Foundations** — repo, module, this document, example exam, CI, license.
@@ -463,8 +528,11 @@ be detected; mitigated by time pressure, variation and the teacher's presence.
    `telemetry_tampered`.
 6. **Reports** — `ax report` with ntcharts and the analyses above.
 7. **TUI editor** — home menu, Huh forms, answer-key editing, `$EDITOR`.
-8. **Portability** — `.examx` with age, safe import, backup/restore.
-9. **Distribution & hardening** — GoReleaser, load/chaos tests, install,
+8. **Settings & translations** — `~/.config/assess/config.yaml`, `ax config`,
+   Settings screen, catalogs for the terminal and the student page.
+9. **Vault** — optional encryption, classes and students, session archive,
+   search, Explore, gradebook, `.examx`, backup/restore, several vaults.
+10. **Distribution & hardening** — GoReleaser, load/chaos tests, install,
    backup and upgrade docs.
 
 ## Dependencies

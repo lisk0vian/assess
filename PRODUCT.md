@@ -57,8 +57,9 @@ penalties instead of invasive proctoring (no webcam, no lockdown browser).
   granted per student; autosave with an offline queue.
 - Anti-cheat states the student can see: away-from-tab countdown, strike
   counter (3 strikes annul the attempt), privacy curtain on focus loss,
-  required/suggested fullscreen, options revealed on hover, watermark with the
-  student's name, second-tab block, annulled screen, typed honor pledge.
+  required/suggested fullscreen, prompt read in word ranges, options revealed
+  on hover, watermark with the student's name, second-tab block, annulled
+  screen, typed honor pledge.
 - Result after submission per exam: nothing, score, or full review after the
   session closes.
 - Branding per exam: optional institution logo and accent color from the

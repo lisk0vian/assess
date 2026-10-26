@@ -50,7 +50,7 @@ read it. Encryption applies only to exported `.examx` packages.
 | `format` | string | yes | — | Must be `assess/v1`. |
 | `id` | id | yes | — | Should match the folder name. |
 | `title` | string | yes | — | |
-| `language` | `es` \| `en` | no | `es` | Student UI language. |
+| `language` | language code | no | settings | Student UI language: `en`, `es`, or any language with a catalog in `locales/`. Omitted: the teacher's `student_language` setting (by default the interface language, English). An unknown code is a warning and shows English. |
 | `duration` | duration | yes | — | Overall exam time, enforced by the server. |
 | `result_visibility` | `none` \| `score` \| `review` | no | `score` | `review` is shown only after the session closes. |
 | `instructions` | Markdown | no | — | Shown before starting. |
@@ -61,6 +61,10 @@ read it. Encryption applies only to exported `.examx` packages.
 | `proctoring.devices` | `any` \| `desktop` | no | profile | `desktop` turns away phones and tablets. Default `desktop` for `strict`, `any` for `standard`. |
 | `proctoring.reveal` | `always` \| `hover` | no | `hover` | Default for every question: `hover` keeps options hidden until pointed at. |
 | `proctoring.strike_limit` | 1–10 | no | profile | Strikes that annul the attempt. Default 3 for `standard`, 2 for `strict`. |
+| `proctoring.lens` | bool | no | `true` | Against photos of the screen: the prompt is read in ranges of words (4–15), one range at a time. Each range repeats the last two words of the previous one for context. Tap a zone to jump to its range, or use the controls. Turn it off to show the whole prompt. |
+| `proctoring.auto_read` | bool | no | `true` | The first time a question opens, its ranges are read automatically. After that the student taps a zone or uses the controls; moving the pointer or scrolling does not stop the first pass, focusing an answer pauses it. Only applies with the lens on. |
+| `proctoring.read_speed` | `slow` \| `normal` \| `fast` | no | `normal` | Pace of the automatic read and of the reading guide. |
+| `proctoring.frozen_pointer` | bool | no | `true` | Records, for the teacher only, a student who stays still (20 s `standard`, 12 s `strict`) and then answers; never a strike. |
 | `items` | list | yes | — | Ordered list of `question` or `pool` entries. |
 | `branding.accent` | hex color | no | — | Accent color for the student UI. |
 | `branding.logo` | path | no | — | File under `assets/`. |
@@ -92,6 +96,7 @@ Common keys:
 | `prompt` | Markdown | yes | |
 | `time_limit` | duration | no | Per-question limit; the question locks when it expires. |
 | `reveal` | `always` \| `hover` | no | Overrides the proctoring profile for this question. |
+| `lens` | bool | no | Overrides `proctoring.lens`. |
 
 Type-specific keys:
 

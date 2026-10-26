@@ -28,7 +28,7 @@ valid exam (this is checked by the test suite).
 format: assess/v1
 id: revolucion-industrial        # must match the folder name
 title: "Historia — La Revolución Industrial"
-language: es                     # student UI language: es or en
+language: es                     # student UI language (en, es...); omitted: the teacher's setting
 duration: 30m                    # Go durations: 90s, 30m, 1h30m
 result_visibility: score         # none | score | review
 
@@ -168,6 +168,14 @@ answers:                         # one entry per question, keys by type
   (`"$\\frac{1}{2}$"`).
 - **Images**: put files in `assets/` and reference them relatively:
   `![Mapa](assets/mapa.svg)`. Only png, jpg, gif, webp and svg are served.
+- **Photo protections**: `standard` and `strict` show prompts through a
+  lens, one range of 4–15 words at a time (see `ax format`); each range
+  repeats the last two words of the previous one so the student keeps the
+  context. The first view reads them automatically; after that, tap the zone
+  you want to read or use the controls under the prompt, swipe or the
+  keyboard. Write `lens: false` on a question to show it whole, and use
+  `proctoring.auto_read: false` or `proctoring.read_speed` to tune the first
+  pass. Images and formulas count as one token when their turn comes.
 - **Durations**: `duration` and `time_limit` use Go syntax (`90s`, `45m`,
   `1h30m`); a `time_limit` is at least `5s` and not longer than the exam.
 
