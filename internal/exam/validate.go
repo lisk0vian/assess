@@ -1,6 +1,8 @@
 package exam
 
 import (
+	"github.com/lisk0vian/assess/internal/i18n"
+
 	"path"
 	"path/filepath"
 	"regexp"
@@ -18,12 +20,12 @@ var (
 )
 
 var (
-	languages     = []string{"es", "en"}
 	visibilities  = []string{"none", "score", "review"}
 	profiles      = []string{"off", "standard", "strict"}
 	reveals       = []string{"always", "hover"}
 	fullscreens   = []string{"off", "suggested", "required"}
 	devices       = []string{"any", "desktop"}
+	readSpeeds    = []string{"slow", "normal", "fast"}
 	inputs        = []string{"number", "text"}
 	normalizers   = []string{"trim", "casefold", "collapse_spaces", "strip_accents"}
 	questionTypes = []string{TypeSingle, TypeMultiple, TypeTrueFalse, TypeShort}
@@ -99,16 +101,24 @@ func (l *loader) validateManifest() {
 		l.errorf(f, fieldPath{"title"}, "longer than 200 characters")
 	}
 
-	l.checkEnum(f, fieldPath{"language"}, m.Language, languages)
+	if m.Language != "" {
+		if !i18n.ValidLang(m.Language) {
+			l.errorf(f, fieldPath{"language"}, "invalid language code %q (examples: en, es, pt-BR)", m.Language)
+		} else if !i18n.Has(m.Language) {
+			l.warnf(f, fieldPath{"language"}, "no translation for %q in this ax; students see English", m.Language)
+		}
+	}
 	l.checkEnum(f, fieldPath{"result_visibility"}, m.ResultVisibility, visibilities)
 	l.checkEnum(f, fieldPath{"proctoring", "profile"}, m.Proctoring.Profile, profiles)
 	l.checkEnum(f, fieldPath{"proctoring", "fullscreen"}, m.Proctoring.Fullscreen, fullscreens)
 	l.checkEnum(f, fieldPath{"proctoring", "devices"}, m.Proctoring.Devices, devices)
 	l.checkEnum(f, fieldPath{"proctoring", "reveal"}, m.Proctoring.Reveal, reveals)
+	l.checkEnum(f, fieldPath{"proctoring", "read_speed"}, m.Proctoring.ReadSpeed, readSpeeds)
 	if n := m.Proctoring.StrikeLimit; n < 0 || n > 10 {
 		l.errorf(f, fieldPath{"proctoring", "strike_limit"}, "must be between 1 and 10")
 	}
-	if p := m.Proctoring; p.Profile == "off" && (p.Fullscreen != "" || p.Devices != "" || p.Reveal != "" || p.StrikeLimit != 0) {
+	if p := m.Proctoring; p.Profile == "off" && (p.Fullscreen != "" || p.Devices != "" || p.Reveal != "" || p.StrikeLimit != 0 ||
+		p.Lens != nil || p.FrozenPointer != nil || p.AutoRead != nil || p.ReadSpeed != "") {
 		l.warnf(f, fieldPath{"proctoring"}, "ignored: profile off turns every protection off")
 	}
 

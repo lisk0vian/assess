@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"time"
 
 	tea "charm.land/bubbletea/v2"
 	"github.com/spf13/cobra"
@@ -23,16 +24,10 @@ func newReportCmd() *cobra.Command {
 	var sessionID string
 	var asJSON bool
 	cmd := &cobra.Command{
-		Use:   "report",
-		Short: "Analyse a finished session: grades, questions, incidents and evidence",
-		Long: "Report opens an interactive analysis of a finished session: score and time\n" +
-			"distributions, how each question behaved, the timeline of integrity signals,\n" +
-			"pairs of students with suspiciously similar answers, correct answers given\n" +
-			"right after leaving the exam, and questions that became much easier than in\n" +
-			"earlier sessions of the same exam. Evidence is not proof: review before acting.\n\n" +
-			"It is only available once the session has ended, and asks for the panel\n" +
-			"password if one is set. Defaults to the most recent session.",
-		Example: "  ax report\n  ax report --json > informe.json\n  ax report > informe.txt   # plain text when not a terminal",
+		Use:     "report",
+		Short:   T("cli.report.short"),
+		Long:    T("cli.report.long"),
+		Example: T("cli.report.example"),
 		Args:    cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			dir, err := dataDir()
@@ -59,8 +54,8 @@ func newReportCmd() *cobra.Command {
 			return runReport(cmd, dir, rep)
 		},
 	}
-	cmd.Flags().StringVar(&sessionID, "session", "", "session id (default: the most recent)")
-	cmd.Flags().BoolVar(&asJSON, "json", false, "print the analysis as JSON")
+	cmd.Flags().StringVar(&sessionID, "session", "", T("cli.flag.session"))
+	cmd.Flags().BoolVar(&asJSON, "json", false, T("cli.flag.json"))
 	return cmd
 }
 
@@ -75,7 +70,7 @@ func showReport(cmd *cobra.Command, dir, sessionID string) error {
 
 // runReport shows rep in the interactive panel.
 func runReport(cmd *cobra.Command, dir string, rep *report.Report) error {
-	idle := lockAfter
+	idle := time.Duration(cfg.Int("panel.lock_minutes")) * time.Minute
 	if !security.HasPassword(dir) {
 		idle = 0
 	}
@@ -84,7 +79,7 @@ func runReport(cmd *cobra.Command, dir string, rep *report.Report) error {
 		return err
 	}
 	if m.TimedOut {
-		fmt.Fprintln(cmd.OutOrStdout(), "Report closed after 5 idle minutes.")
+		fmt.Fprintln(cmd.OutOrStdout(), T("cli.report.timed_out", "n", int(idle.Minutes())))
 	}
 	return nil
 }
@@ -97,7 +92,7 @@ func loadReport(ctx context.Context, dir, sessionID string) (*report.Report, err
 		if sessionID == "" {
 			latest, err := svc.LatestSession(ctx)
 			if errors.Is(err, session.ErrNotFound) {
-				return errors.New("there are no sessions yet")
+				return errors.New(T("cli.no_sessions"))
 			}
 			if err != nil {
 				return err
@@ -106,13 +101,13 @@ func loadReport(ctx context.Context, dir, sessionID string) (*report.Report, err
 		}
 		cur, err := svc.Archive(ctx, sessionID)
 		if errors.Is(err, session.ErrNotFound) {
-			return fmt.Errorf("no session %q", sessionID)
+			return errors.New(T("cli.no_session", "id", sessionID))
 		}
 		if err != nil {
 			return err
 		}
 		if cur.Session.State != session.StateEnded {
-			return errors.New("the session has not ended yet; the report is available once it ends (`ax stop`, or E in the panel)")
+			return errors.New(T("cli.report.not_ended"))
 		}
 		all, err := svc.ExamSessions(ctx, cur.Published.Exam.Manifest.ID)
 		if err != nil {

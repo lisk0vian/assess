@@ -120,8 +120,10 @@ func Run(ctx context.Context, cfg Config) error {
 	students = student.New(svc, sess.ID, student.Options{JoinWindow: cfg.JoinWindow, Log: cfg.Log})
 	d.students = students
 	mux := http.NewServeMux()
+	lang := pub.Exam.Manifest.Lang()
 	mux.Handle("/api/", students)
-	mux.Handle("/", web.Handler())
+	mux.Handle("GET /api/i18n", web.StringsHandler(lang))
+	mux.Handle("/", web.Handler(lang))
 	var root http.Handler = mux
 	if !cfg.AllowPublic {
 		root = student.PrivateNetworksOnly(mux)

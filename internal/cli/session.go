@@ -39,15 +39,18 @@ type serveFlags struct {
 }
 
 func (f *serveFlags) register(cmd *cobra.Command) {
-	cmd.Flags().StringVar(&f.host, "host", "", "address students connect to (default: all interfaces, LAN address advertised)")
-	cmd.Flags().IntVar(&f.port, "port", netutil.DefaultPort, "port for students")
-	cmd.Flags().DurationVar(&f.joinWindow, "join-window", defaultServeFlags().joinWindow, "close joining this long after the start (0 keeps it open)")
-	cmd.Flags().BoolVar(&f.allowPublic, "allow-public", false, "accept students from outside private networks (behind your own tunnel)")
+	d := defaultServeFlags()
+	cmd.Flags().StringVar(&f.host, "host", d.host, T("cli.flag.host"))
+	cmd.Flags().IntVar(&f.port, "port", d.port, T("cli.flag.port"))
+	cmd.Flags().DurationVar(&f.joinWindow, "join-window", d.joinWindow, T("cli.flag.join_window"))
+	cmd.Flags().BoolVar(&f.allowPublic, "allow-public", d.allowPublic, T("cli.flag.allow_public"))
 }
 
-// defaultServeFlags are the flag defaults, for actions started from the menu.
+// defaultServeFlags are the flag defaults (from the settings), for actions
+// started from the menu.
 func defaultServeFlags() *serveFlags {
-	return &serveFlags{port: netutil.DefaultPort, joinWindow: 15 * time.Minute}
+	return &serveFlags{host: cfg.Str("server.host"), port: cfg.Int("server.port"),
+		joinWindow: cfg.Dur("server.join_window"), allowPublic: cfg.Bool("server.allow_public")}
 }
 
 func (f *serveFlags) daemonArgs(cmd *cobra.Command) []string {
@@ -82,18 +85,16 @@ func newStartCmd() *cobra.Command {
 	var noAttach bool
 	cmd := &cobra.Command{
 		Use:   "start <exam-folder>",
-		Short: "Publish an exam and start its session server in the background",
-		Long: "Start validates and publishes the exam, opens a session in the lobby and\n" +
-			"launches the exam server in the background. Closing the terminal or the\n" +
-			"TUI never stops the exam; use `ax stop` for that.",
-		Args: cobra.ExactArgs(1),
+		Short: T("cli.start.short"),
+		Long:  T("cli.start.long"),
+		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return startExam(cmd, &sf, args[0], duration, noAttach)
 		},
 	}
 	sf.register(cmd)
-	cmd.Flags().DurationVar(&duration, "duration", 0, "exam duration (default: the manifest's)")
-	cmd.Flags().BoolVar(&noAttach, "no-attach", false, "do not open the session panel")
+	cmd.Flags().DurationVar(&duration, "duration", 0, T("cli.start.flag_duration"))
+	cmd.Flags().BoolVar(&noAttach, "no-attach", false, T("cli.flag.no_attach"))
 	return cmd
 }
 
@@ -107,7 +108,7 @@ func startExam(cmd *cobra.Command, sf *serveFlags, examDir string, duration time
 		return err
 	}
 	if h, st, _ := daemon.Check(dir); h == daemon.Running {
-		return fmt.Errorf("an exam is already running (%s); use `ax attach` or `ax stop`", st.ExamTitle)
+		return errors.New(T("cli.start.already_running", "title", st.ExamTitle))
 	}
 	pub, probs, err := exam.Publish(examDir)
 	if errors.Is(err, exam.ErrInvalidExam) {
@@ -117,13 +118,17 @@ func startExam(cmd *cobra.Command, sf *serveFlags, examDir string, duration time
 	if err != nil {
 		return err
 	}
+	grace := cfg.Dur("server.late_answers")
+	if grace == 0 {
+		grace = -1 // none
+	}
 	err = withService(ctx, dir, func(svc *session.Service) error {
 		if open, err := svc.OpenSession(ctx); err == nil {
-			return fmt.Errorf("session %s is still open without a server; use `ax resume` to continue it or `ax stop` to end it", open.Code)
+			return errors.New(T("cli.start.still_open", "code", open.Code))
 		} else if !errors.Is(err, session.ErrNotFound) {
 			return err
 		}
-		_, err := svc.CreateSession(ctx, pub, session.CreateOptions{Duration: duration})
+		_, err := svc.CreateSession(ctx, pub, session.CreateOptions{Duration: duration, Grace: grace})
 		return err
 	})
 	if err != nil {
@@ -141,18 +146,19 @@ func startExam(cmd *cobra.Command, sf *serveFlags, examDir string, duration time
 }
 
 func printStarted(w io.Writer, st *daemon.State, resumed bool) {
-	fmt.Fprintf(w, "Exam server running in the background (pid %d)\n\n", st.PID)
-	fmt.Fprintf(w, "  Exam      %s\n", st.ExamTitle)
-	fmt.Fprintf(w, "  Students  %s\n", st.StudentURL)
+	fmt.Fprintln(w, T("cli.start.running", "pid", st.PID))
+	fmt.Fprintln(w)
+	fmt.Fprintf(w, "  %-9s %s\n", T("cli.start.exam"), st.ExamTitle)
+	fmt.Fprintf(w, "  %-9s %s\n", T("cli.start.students"), st.StudentURL)
 	for _, u := range st.OtherURLs {
-		fmt.Fprintf(w, "            %s\n", u)
+		fmt.Fprintf(w, "  %-9s %s\n", "", u)
 	}
-	fmt.Fprintf(w, "  Code      %s\n\n", st.Code)
+	fmt.Fprintf(w, "  %-9s %s\n\n", T("cli.start.code"), st.Code)
 	if resumed {
-		fmt.Fprintln(w, "The session continues where it was; students reconnect on their own (`ax attach` opens the panel).")
+		fmt.Fprintln(w, T("cli.start.resumed_hint"))
 		return
 	}
-	fmt.Fprintln(w, "Students wait in the lobby until you start the exam (`ax attach`, then S).")
+	fmt.Fprintln(w, T("cli.start.lobby_hint"))
 }
 
 // ---------------- status ----------------
@@ -161,7 +167,7 @@ func newStatusCmd() *cobra.Command {
 	var asJSON bool
 	cmd := &cobra.Command{
 		Use:   "status",
-		Short: "Show whether the exam server is running",
+		Short: T("cli.status.short"),
 		Args:  cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			out := cmd.OutOrStdout()
@@ -183,20 +189,20 @@ func newStatusCmd() *cobra.Command {
 			}
 			switch health {
 			case daemon.Running:
-				fmt.Fprintf(out, "● Running  %s\n", st.ExamTitle)
+				fmt.Fprintln(out, T("cli.status.running", "title", st.ExamTitle))
 				if sv != nil {
 					printStatus(out, sv)
 				}
 			case daemon.Crashed:
-				fmt.Fprintln(out, "✕ Crashed  the exam server stopped unexpectedly; answers saved so far are safe")
+				fmt.Fprintln(out, T("cli.status.crashed"))
 				printLogTail(out, dir, 10)
-				fmt.Fprintln(out, "\nRun `ax resume` to continue the session.")
+				fmt.Fprintln(out, "\n"+T("cli.status.resume_hint"))
 				return errSilent
 			default:
-				fmt.Fprintln(out, "○ Not running")
+				fmt.Fprintln(out, T("cli.status.not_running"))
 				_ = withService(cmd.Context(), dir, func(svc *session.Service) error {
 					if open, err := svc.OpenSession(cmd.Context()); err == nil {
-						fmt.Fprintf(out, "  Session %s is still open: `ax resume` continues it, `ax stop` ends it.\n", open.Code)
+						fmt.Fprintln(out, "  "+T("cli.status.still_open", "code", open.Code))
 					}
 					return nil
 				})
@@ -204,29 +210,26 @@ func newStatusCmd() *cobra.Command {
 			return nil
 		},
 	}
-	cmd.Flags().BoolVar(&asJSON, "json", false, "print machine-readable status")
+	cmd.Flags().BoolVar(&asJSON, "json", false, T("cli.flag.json"))
 	return cmd
 }
 
 func printStatus(w io.Writer, sv *daemon.StatusView) {
-	state := string(sv.State)
+	state := T("state." + string(sv.State))
 	if sv.State == session.StateRunning && sv.EndsAt > 0 {
-		left := time.Duration(sv.EndsAt-sv.ServerNow) * time.Millisecond
-		if left < 0 {
-			left = 0
-		}
-		state = fmt.Sprintf("running · %s left", clock(left))
+		left := max(time.Duration(sv.EndsAt-sv.ServerNow)*time.Millisecond, 0)
+		state = T("cli.status.running_left", "left", clock(left))
 	}
-	fmt.Fprintf(w, "  Session   %s (code %s)\n", state, sv.Code)
-	fmt.Fprintf(w, "  Students  %s\n", sv.StudentURL)
+	fmt.Fprintf(w, "  %-9s %s (%s %s)\n", T("cli.status.session"), state, T("cli.status.code"), sv.Code)
+	fmt.Fprintf(w, "  %-9s %s\n", T("cli.start.students"), sv.StudentURL)
 	if sv.State == session.StateLobby {
-		fmt.Fprintf(w, "  Joined %d · waiting in the lobby\n", sv.Joined)
+		fmt.Fprintln(w, "  "+T("cli.status.lobby_counts", "joined", sv.Joined))
 	} else {
-		fmt.Fprintf(w, "  Joined %d · online %d · answering %d · submitted %d\n", sv.Joined, sv.Online, sv.Active, sv.Submitted)
+		fmt.Fprintln(w, "  "+T("cli.status.counts", "joined", sv.Joined, "online", sv.Online, "active", sv.Active, "submitted", sv.Submitted))
 	}
-	fmt.Fprintf(w, "  PID %d · up %s\n", sv.PID, (time.Duration(sv.UptimeMs) * time.Millisecond).Truncate(time.Second))
+	fmt.Fprintln(w, "  "+T("cli.status.process", "pid", sv.PID, "up", (time.Duration(sv.UptimeMs)*time.Millisecond).Truncate(time.Second).String()))
 	if sv.LastError != "" {
-		fmt.Fprintf(w, "  Last error: %s\n", sv.LastError)
+		fmt.Fprintln(w, "  "+T("cli.status.last_error", "err", sv.LastError))
 	}
 }
 
@@ -245,11 +248,9 @@ func newStopCmd() *cobra.Command {
 	var suspend, yes bool
 	cmd := &cobra.Command{
 		Use:   "stop",
-		Short: "End the exam and stop the server (or --suspend to keep the session)",
-		Long: "Stop ends the exam for everyone, submits every attempt with what is saved\n" +
-			"and stops the server. With --suspend the server stops but the session stays\n" +
-			"open, the clock keeps running, and `ax resume` continues it.",
-		Args: cobra.NoArgs,
+		Short: T("cli.stop.short"),
+		Long:  T("cli.stop.long"),
+		Args:  cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			ctx := cmd.Context()
 			out := cmd.OutOrStdout()
@@ -260,8 +261,8 @@ func newStopCmd() *cobra.Command {
 			if err := requirePassword(cmd, dir); err != nil {
 				return err
 			}
-			if !suspend && !yes && !confirm(cmd, "End the exam for everyone and submit all attempts?") {
-				return errors.New("cancelled")
+			if !suspend && !yes && !confirm(cmd, T("cli.stop.confirm")) {
+				return errors.New(T("cli.cancelled"))
 			}
 			health, _, _ := daemon.Check(dir)
 			if health == daemon.Running {
@@ -273,7 +274,7 @@ func newStopCmd() *cobra.Command {
 					return err
 				}
 				if !waitStopped(dir, 10*time.Second) {
-					return errors.New("the server did not stop in time; check `ax status`")
+					return errors.New(T("cli.stop.timeout"))
 				}
 			} else if !suspend {
 				err := withService(ctx, dir, func(svc *session.Service) error {
@@ -291,15 +292,15 @@ func newStopCmd() *cobra.Command {
 				}
 			}
 			if suspend {
-				fmt.Fprintln(out, "Server stopped; the session stays open. `ax resume` continues it.")
+				fmt.Fprintln(out, T("cli.stop.suspended"))
 			} else {
-				fmt.Fprintln(out, "Exam ended and server stopped. Results are saved.")
+				fmt.Fprintln(out, T("cli.stop.ended"))
 			}
 			return nil
 		},
 	}
-	cmd.Flags().BoolVar(&suspend, "suspend", false, "stop the server but keep the session open")
-	cmd.Flags().BoolVarP(&yes, "yes", "y", false, "do not ask for confirmation")
+	cmd.Flags().BoolVar(&suspend, "suspend", false, T("cli.stop.flag_suspend"))
+	cmd.Flags().BoolVarP(&yes, "yes", "y", false, T("cli.flag.yes"))
 	return cmd
 }
 
@@ -315,7 +316,7 @@ func waitStopped(dir string, limit time.Duration) bool {
 }
 
 func confirm(cmd *cobra.Command, question string) bool {
-	fmt.Fprintf(cmd.OutOrStdout(), "%s [y/N] ", question)
+	fmt.Fprintf(cmd.OutOrStdout(), "%s %s ", question, T("cli.yes_no"))
 	line, _ := bufio.NewReader(cmd.InOrStdin()).ReadString('\n')
 	switch strings.ToLower(strings.TrimSpace(line)) {
 	case "y", "yes", "s", "si", "sí":
@@ -331,14 +332,14 @@ func newResumeCmd() *cobra.Command {
 	var noAttach bool
 	cmd := &cobra.Command{
 		Use:   "resume",
-		Short: "Restart the server for a session that is still open",
+		Short: T("cli.resume.short"),
 		Args:  cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			return resumeSession(cmd, &sf, noAttach)
 		},
 	}
 	sf.register(cmd)
-	cmd.Flags().BoolVar(&noAttach, "no-attach", false, "do not open the session panel")
+	cmd.Flags().BoolVar(&noAttach, "no-attach", false, T("cli.flag.no_attach"))
 	return cmd
 }
 
@@ -350,12 +351,12 @@ func resumeSession(cmd *cobra.Command, sf *serveFlags, noAttach bool) error {
 		return err
 	}
 	if h, _, _ := daemon.Check(dir); h == daemon.Running {
-		return errors.New("the exam server is already running; use `ax attach`")
+		return errors.New(T("cli.resume.already_running"))
 	}
 	err = withService(ctx, dir, func(svc *session.Service) error {
 		_, err := svc.OpenSession(ctx)
 		if errors.Is(err, session.ErrNotFound) {
-			return errors.New("there is no open session to resume; use `ax start <exam-folder>`")
+			return errors.New(T("cli.resume.nothing_open"))
 		}
 		return err
 	})
@@ -380,7 +381,7 @@ func newLogsCmd() *cobra.Command {
 	var lines int
 	cmd := &cobra.Command{
 		Use:   "logs",
-		Short: "Show the exam server log",
+		Short: T("cli.logs.short"),
 		Args:  cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			dir, err := dataDir()
@@ -397,15 +398,15 @@ func newLogsCmd() *cobra.Command {
 			return followLog(ctx, out, datadir.Log(dir))
 		},
 	}
-	cmd.Flags().BoolVarP(&follow, "follow", "f", false, "keep printing new lines")
-	cmd.Flags().IntVarP(&lines, "lines", "n", 40, "number of lines to show")
+	cmd.Flags().BoolVarP(&follow, "follow", "f", false, T("cli.logs.flag_follow"))
+	cmd.Flags().IntVarP(&lines, "lines", "n", 40, T("cli.logs.flag_lines"))
 	return cmd
 }
 
 func printLogTail(w io.Writer, dir string, n int) {
 	data, err := os.ReadFile(datadir.Log(dir))
 	if err != nil {
-		fmt.Fprintln(w, "  (no log yet)")
+		fmt.Fprintln(w, "  "+T("cli.logs.empty"))
 		return
 	}
 	all := strings.Split(strings.TrimRight(string(data), "\n"), "\n")
@@ -463,6 +464,9 @@ func newDaemonCmd() *cobra.Command {
 				return err
 			}
 			log := slog.New(slog.NewJSONHandler(os.Stderr, &slog.HandlerOptions{Level: slog.LevelInfo}))
+			for _, p := range cfg.Problems {
+				log.Warn("settings", "problem", p.Error())
+			}
 			ctx, stop := signal.NotifyContext(cmd.Context(), os.Interrupt, syscall.SIGTERM)
 			defer stop()
 			err = daemon.Run(ctx, daemon.Config{DataDir: dir, Host: host, Port: port, PortFallback: fallback,
@@ -486,7 +490,7 @@ func newDaemonCmd() *cobra.Command {
 func newAttachCmd() *cobra.Command {
 	return &cobra.Command{
 		Use:   "attach",
-		Short: "Open the panel of the running session",
+		Short: T("cli.attach.short"),
 		Args:  cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			dir, err := dataDir()

@@ -20,12 +20,13 @@ import (
 
 // Menu actions.
 const (
-	actEdit   = "edit"
-	actNew    = "new"
-	actStart  = "start"
-	actResume = "resume"
-	actReport = "report"
-	actQuit   = "quit"
+	actEdit     = "edit"
+	actNew      = "new"
+	actStart    = "start"
+	actResume   = "resume"
+	actReport   = "report"
+	actSettings = "settings"
+	actQuit     = "quit"
 )
 
 // homeState is what the menu needs to know about the data directory.
@@ -62,35 +63,35 @@ func readHomeState(cmd *cobra.Command, dir string) homeState {
 func homeOptions(st homeState) []huh.Option[string] {
 	var out []huh.Option[string]
 	if st.open != nil {
-		out = append(out, huh.NewOption(fmt.Sprintf("Reanudar «%s» (sesión %s, sin servidor)", st.lastTitles[st.open.ID], st.open.Code), actResume))
+		out = append(out, huh.NewOption(T("home.resume", "title", st.lastTitles[st.open.ID], "code", st.open.Code), actResume))
 	}
 	out = append(out,
-		huh.NewOption("Editar un examen", actEdit),
-		huh.NewOption("Crear un examen nuevo, paso a paso", actNew))
+		huh.NewOption(T("home.edit"), actEdit),
+		huh.NewOption(T("home.new"), actNew))
 	if st.open == nil {
-		out = append(out, huh.NewOption("Iniciar un examen", actStart))
+		out = append(out, huh.NewOption(T("home.start"), actStart))
 	}
 	if st.lastEnded != nil {
-		out = append(out, huh.NewOption(fmt.Sprintf("Informe de la última sesión («%s», %s)", st.lastTitles[st.lastEnded.ID], st.lastEnded.Code), actReport))
+		out = append(out, huh.NewOption(T("home.report", "title", st.lastTitles[st.lastEnded.ID], "code", st.lastEnded.Code), actReport))
 	}
-	return append(out, huh.NewOption("Salir", actQuit))
+	return append(out, huh.NewOption(T("home.settings"), actSettings), huh.NewOption(T("home.quit"), actQuit))
 }
 
 // home is the menu of a bare `ax` when no exam is running.
 func home(cmd *cobra.Command, dir string) error {
 	for {
 		st := readHomeState(cmd, dir)
-		note := "No hay ningún examen en marcha."
+		note := T("home.idle")
 		switch {
 		case st.health == daemon.Crashed:
-			note = "El servidor se detuvo sin terminar el examen: puedes reanudarlo y nadie pierde sus respuestas."
+			note = T("home.crashed")
 		case st.open != nil:
-			note = "Hay una sesión abierta sin servidor."
+			note = T("home.open")
 		}
 		choice := actQuit
 		err := runForm(huh.NewForm(huh.NewGroup(
 			huh.NewNote().Title("ASSESS").Description(note),
-			huh.NewSelect[string]().Title("¿Qué quieres hacer?").Options(homeOptions(st)...).Value(&choice),
+			huh.NewSelect[string]().Title(T("home.question")).Options(homeOptions(st)...).Value(&choice),
 		)))
 		if errors.Is(err, huh.ErrUserAborted) || choice == actQuit {
 			return nil
@@ -110,6 +111,10 @@ func home(cmd *cobra.Command, dir string) error {
 			}
 		case actNew:
 			return newExamWizard(cmd)
+		case actSettings:
+			if err := editSettings(cmd); err != nil {
+				return err
+			}
 		case actEdit, actStart:
 			folder, err := askExamFolder(choice == actStart)
 			if errors.Is(err, huh.ErrUserAborted) {
@@ -131,9 +136,9 @@ func runForm(f *huh.Form) error { return tui.StyleForm(f).WithShowHelp(true).Run
 // askExamFolder offers the exam folders found under the current folder,
 // or any path.
 func askExamFolder(starting bool) (string, error) {
-	title := "¿Qué examen quieres editar?"
+	title := T("home.pick_edit")
 	if starting {
-		title = "¿Qué examen quieres iniciar?"
+		title = T("home.pick_start")
 	}
 	const other = "\x00other"
 	found := findExams(".", 3)
@@ -143,7 +148,7 @@ func askExamFolder(starting bool) (string, error) {
 		for _, e := range found {
 			opts = append(opts, huh.NewOption(fmt.Sprintf("%s  ·  %s", e.title, e.dir), e.dir))
 		}
-		opts = append(opts, huh.NewOption("Otra carpeta…", other))
+		opts = append(opts, huh.NewOption(T("home.other_folder"), other))
 		choice = found[0].dir
 		if err := runForm(huh.NewForm(huh.NewGroup(huh.NewSelect[string]().Title(title).Options(opts...).Value(&choice)))); err != nil {
 			return "", err
@@ -153,10 +158,10 @@ func askExamFolder(starting bool) (string, error) {
 		return choice, nil
 	}
 	var path string
-	err := runForm(huh.NewForm(huh.NewGroup(huh.NewInput().Title(title).Description("Ruta de la carpeta del examen (la que tiene manifest.yaml).").
+	err := runForm(huh.NewForm(huh.NewGroup(huh.NewInput().Title(title).Description(T("home.folder_hint")).
 		Value(&path).Validate(func(s string) error {
 		if _, err := os.Stat(filepath.Join(strings.TrimSpace(s), exam.ManifestFile)); err != nil {
-			return errors.New("ahí no hay un manifest.yaml")
+			return errors.New(T("home.no_manifest"))
 		}
 		return nil
 	}))))

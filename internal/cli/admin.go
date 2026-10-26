@@ -14,14 +14,12 @@ import (
 func newAdminCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "admin",
-		Short: "Manage the teacher panel password",
-		Long: "The password protects `ax attach`, `ax stop` and the panel (which locks itself\n" +
-			"after 5 idle minutes or with L). It does not encrypt the database: anyone using\n" +
-			"your OS account can read it, so lock your computer too.",
+		Short: T("cli.admin.short"),
+		Long:  T("cli.admin.long"),
 	}
 	set := &cobra.Command{
 		Use:   "set-password",
-		Short: "Set or change the panel password",
+		Short: T("cli.admin.set_short"),
 		Args:  cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			dir, err := dataDir()
@@ -29,7 +27,7 @@ func newAdminCmd() *cobra.Command {
 				return err
 			}
 			if !isTerminal() {
-				return errors.New("run this in a terminal")
+				return errors.New(T("cli.need_terminal"))
 			}
 			if err := requirePassword(cmd, dir); err != nil {
 				return err
@@ -40,27 +38,27 @@ func newAdminCmd() *cobra.Command {
 				fmt.Fprintln(cmd.OutOrStdout())
 				return string(b), err
 			}
-			pw, err := read("New password: ")
+			pw, err := read(T("cli.admin.new_password"))
 			if err != nil {
 				return err
 			}
-			again, err := read("Repeat it: ")
+			again, err := read(T("cli.admin.repeat"))
 			if err != nil {
 				return err
 			}
 			if pw != again {
-				return errors.New("the passwords do not match")
+				return errors.New(T("cli.admin.mismatch"))
 			}
 			if err := security.SetPassword(dir, pw); err != nil {
 				return err
 			}
-			fmt.Fprintln(cmd.OutOrStdout(), "Password set. The panel now locks after 5 idle minutes.")
+			fmt.Fprintln(cmd.OutOrStdout(), T("cli.admin.set_done", "n", cfg.Int("panel.lock_minutes")))
 			return nil
 		},
 	}
 	clearCmd := &cobra.Command{
 		Use:   "clear-password",
-		Short: "Remove the panel password",
+		Short: T("cli.admin.clear_short"),
 		Args:  cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			dir, err := dataDir()
@@ -73,7 +71,7 @@ func newAdminCmd() *cobra.Command {
 			if err := security.ClearPassword(dir); err != nil {
 				return err
 			}
-			fmt.Fprintln(cmd.OutOrStdout(), "Password removed.")
+			fmt.Fprintln(cmd.OutOrStdout(), T("cli.admin.cleared"))
 			return nil
 		},
 	}

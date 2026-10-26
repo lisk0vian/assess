@@ -6,8 +6,8 @@
   "description": "Student web app for Assess. Built into internal/server/web/dist and embedded in the ax binary.",
   "scripts": {
     "dev": "vite",
-    "build": "tsc --noEmit && vite build",
-    "typecheck": "tsc --noEmit",
+    "build": "node scripts/keys.mjs && tsc --noEmit && vite build",
+    "typecheck": "node scripts/keys.mjs && tsc --noEmit",
     "preview": "vite preview"
   },
   "dependencies": {

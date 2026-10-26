@@ -16,7 +16,7 @@ func view(m tea.Model) string { return ansi.Strip(m.View().Content) }
 // A teacher creates an exam from nothing, only with the keyboard.
 func TestWizardCreatesAnExam(t *testing.T) {
 	dir := filepath.Join(t.TempDir(), "historia-tema-3")
-	m := NewWizard()
+	m := NewWizard(testWizardDefaults)
 	runCmd(m, m.Init())
 	drive(m, tea.WindowSizeMsg{Width: 120, Height: 45})
 	if v := view(m); !strings.Contains(v, "Nuevo examen") || !strings.Contains(v, "1 Datos") {
@@ -31,7 +31,7 @@ func TestWizardCreatesAnExam(t *testing.T) {
 
 	// 2. A single-choice question: the second option is right.
 	drive(m, keys("enter", "¿En qué año patentó Watt su máquina de vapor?", "enter", "enter",
-		"1712", "ctrl+j", "1769", "ctrl+j", "1825", "enter", "down", "enter", "enter", "enter")...)
+		"1712", "ctrl+j", "1769", "ctrl+j", "1825", "enter", "down", "enter", "enter", "enter", "enter")...)
 	v := view(m)
 	if len(m.questions) != 1 || m.form != nil || !strings.Contains(v, "Pregunta 1 añadida") {
 		t.Fatalf("question not added:\n%s", v)
@@ -43,7 +43,7 @@ func TestWizardCreatesAnExam(t *testing.T) {
 	// A true/false one, worth 2 points, true.
 	drive(m, keys("a", "down", "down", "enter", "La máquina de vapor impulsó el ferrocarril.", "enter")...)
 	drive(m, tea.KeyPressMsg{Code: tea.KeyBackspace})
-	drive(m, keys("2", "enter", "left", "enter", "enter")...)
+	drive(m, keys("2", "enter", "left", "enter", "enter", "enter")...)
 	if len(m.questions) != 2 || m.questions[1].q.Type != exam.TypeTrueFalse || m.questions[1].a.Points != 2 ||
 		m.questions[1].a.Value == nil || !*m.questions[1].a.Value {
 		t.Fatalf("second question: %+v %+v\n%s", m.questions[1].q, m.questions[1].a, view(m))
@@ -58,12 +58,12 @@ func TestWizardCreatesAnExam(t *testing.T) {
 		t.Fatal("shift+up should move the question up")
 	}
 
-	// 3. Proctoring: strict, keep shuffling.
+	// 3. Proctoring: strict, keep shuffling and the lens, no stillness warning.
 	drive(m, keys("tab")...)
 	if m.step != stepProctoring || !strings.Contains(view(m), "Pantalla completa") {
 		t.Fatalf("tab should go to proctoring, explained:\n%s", view(m))
 	}
-	drive(m, keys("down", "enter", "enter", "enter")...)
+	drive(m, keys("down", "enter", "enter", "enter", "enter", "enter", "enter", "right", "enter")...)
 	if m.step != stepReview || m.profile != "strict" {
 		t.Fatalf("proctoring: step %d profile %s\n%s", m.step, m.profile, view(m))
 	}
@@ -71,7 +71,7 @@ func TestWizardCreatesAnExam(t *testing.T) {
 	// 4. Review: validated in a scratch folder, nothing written yet.
 	m.Update(m.check()())
 	v = view(m)
-	for _, want := range []string{"Historia — Tema 3", "45 minutos", "2 (1 una opción, 1 V/F) · 3 puntos", "estricta", "✓ Todo correcto"} {
+	for _, want := range []string{"Historia — Tema 3", "45 minutos", "2 (1 una opción, 1 V/F) · 3 puntos", "estricta", "lupa", "✓ Todo correcto"} {
 		if !strings.Contains(v, want) {
 			t.Fatalf("review missing %q:\n%s", want, v)
 		}
@@ -100,10 +100,14 @@ func TestWizardCreatesAnExam(t *testing.T) {
 		q2.Options[1].Text != "1769" || ex.Key.Answers["q002"].Option != q2.Options[1].ID || !strings.Contains(ex.Manifest.Instructions, "Lee cada pregunta") {
 		t.Fatalf("exam on disk: %+v\n%+v %+v\n%+v", ex.Manifest, q1, q2, ex.Key)
 	}
+	if p := ex.Manifest.Proctoring; p.Lens != nil || p.FrozenPointer == nil || *p.FrozenPointer ||
+		p.AutoRead != nil || p.ReadSpeed != "" {
+		t.Fatalf("only the stillness warning should be written, switched off: %+v", p)
+	}
 }
 
 func TestWizardAsksBeforeLosingWork(t *testing.T) {
-	m := NewWizard()
+	m := NewWizard(testWizardDefaults)
 	runCmd(m, m.Init())
 	drive(m, keys("Algo", "esc")...)
 	if !strings.Contains(view(m), "¿Salir sin crear el examen?") {

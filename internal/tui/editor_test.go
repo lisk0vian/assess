@@ -15,7 +15,7 @@ import (
 
 // Every example question goes through the form unchanged.
 func TestQuestionFormRoundTrip(t *testing.T) {
-	for _, name := range []string{"algebra-01", "programacion-go", "historia-ventana", "ml-basics-en", "quiz-rapido"} {
+	for _, name := range []string{"algebra-01", "programacion-go", "historia-ventana", "ml-basics-en", "quimica-secundaria", "quiz-rapido"} {
 		ex, probs, err := exam.Load(filepath.Join("..", "..", "examples", name))
 		if err != nil || probs.HasErrors() {
 			t.Fatalf("%s: %v %v", name, err, probs)
@@ -40,6 +40,27 @@ func TestQuestionFormRoundTrip(t *testing.T) {
 		if !reflect.DeepEqual(got, m) {
 			t.Errorf("%s manifest changed:\n got %+v\nwant %+v", name, got, m)
 		}
+	}
+}
+
+func TestManifestReadingSettingsRoundTrip(t *testing.T) {
+	ex, _, err := exam.Load(filepath.Join("..", "..", "examples", "quimica-secundaria"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	no := false
+	m := ex.Manifest
+	m.Proctoring.AutoRead, m.Proctoring.ReadSpeed = &no, "fast"
+	v := manifestValuesOf(m)
+	if v.AutoRead || v.ReadSpeed != "fast" {
+		t.Fatalf("form values: %+v", v)
+	}
+	got, err := v.build()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if p := got.Proctoring; p.AutoRead == nil || *p.AutoRead || p.ReadSpeed != "fast" {
+		t.Fatalf("reading settings changed: %+v", p)
 	}
 }
 
@@ -169,7 +190,7 @@ func TestEditorAddsAQuestion(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	m := NewEditor(d)
+	m := NewEditor(d, "")
 	drive(m, tea.WindowSizeMsg{Width: 110, Height: 40})
 	before := len(d.Exam.Questions)
 	next := d.NextQuestionID()
@@ -180,7 +201,7 @@ func TestEditorAddsAQuestion(t *testing.T) {
 	if m.form == nil || !strings.Contains(m.View().Content, "Tipo de pregunta") {
 		t.Fatalf("N should open the question form:\n%s", m.View().Content)
 	}
-	drive(m, keys("enter", "enter", "¿Capital de Francia?", "enter", "enter", "Roma", "ctrl+j", "París", "enter", "down", "enter", "enter", "enter")...)
+	drive(m, keys("enter", "enter", "¿Capital de Francia?", "enter", "enter", "Roma", "ctrl+j", "París", "enter", "down", "enter", "enter", "enter", "enter")...)
 	if m.form != nil {
 		t.Fatalf("the form should be done:\n%s", m.View().Content)
 	}
@@ -220,7 +241,7 @@ func TestEditorAddsAQuestion(t *testing.T) {
 func TestEditorSettingsAndMove(t *testing.T) {
 	dir := copyExam(t, "quiz-rapido")
 	d, _ := exam.OpenDraft(dir)
-	m := NewEditor(d)
+	m := NewEditor(d, "")
 	drive(m, tea.WindowSizeMsg{Width: 110, Height: 40})
 	first := d.Exam.Manifest.Items[0].Question
 
@@ -256,7 +277,7 @@ func TestEditorConfirmWithoutChanges(t *testing.T) {
 	for _, name := range []string{"algebra-01", "programacion-go"} {
 		dir := copyExam(t, name)
 		d, _ := exam.OpenDraft(dir)
-		m := NewEditor(d)
+		m := NewEditor(d, "")
 		drive(m, tea.WindowSizeMsg{Width: 110, Height: 40})
 		snapshot := func() map[string]string {
 			out := map[string]string{}

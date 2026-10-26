@@ -1,0 +1,1206 @@
+# English: the reference catalog. Every other language is compared with it
+# (`ax i18n check`), and any key a translation lacks is shown from here.
+#
+# Values are plain text with {name} placeholders. Plurals are a map with
+# `one` and `other`, chosen by the {n} argument.
+language: English
+
+web:
+  join_title: "Join the exam"
+  join_code: "Session code"
+  join_code_hint: "It is shown on the classroom screen."
+  join_name: "Full name"
+  join_name_hint: "As it appears on your class list."
+  join_id: "Student ID"
+  join_submit: "Join"
+  err_bad_code: "No open exam uses that code. Check the classroom screen."
+  err_already_joined: "That ID is already in the exam on another device. Your teacher must approve this one."
+  err_session_closed: "This exam has ended."
+  err_invalid_input: "Check your name and student ID."
+  err_network: "Cannot reach the exam server. Check the classroom network."
+  err_generic: "Something went wrong. Try again."
+  lobby_title: "You're in"
+  lobby_body: "Your teacher will start the exam shortly. Keep this tab open."
+  connected_as: "Online · {name}"
+  duration: "Duration"
+  questions: "Questions"
+  points: "Points"
+  exam: "Exam"
+  student: "Student"
+  time_left: "Time left"
+  last_10: "Last 10 minutes"
+  last_5: "5 minutes left"
+  last_1: "Last minute"
+  warnings: "Warnings"
+  of: "of"
+  in_progress: "Exam in progress"
+  route: "Route · {n} questions"
+  legend: "Legend"
+  st_answered: "Answered"
+  st_flagged: "To review"
+  st_pending: "Pending"
+  st_here: "Here"
+  your_answer: "Your answer"
+  chosen: "Chosen"
+  question: "Question"
+  value: "Value"
+  type: "Type"
+  status: "Status"
+  saved: "Saved"
+  unsaved: "Unanswered"
+  t_single: "Single choice"
+  t_multiple: "Multiple choice"
+  t_truefalse: "True or false"
+  t_short: "Short answer"
+  true: "True"
+  false: "False"
+  pts_one: "{n} point"
+  pts_many: "{n} points"
+  prev: "Previous"
+  next: "Next"
+  flag: "Flag for review"
+  flagged: "Flagged for review"
+  review_submit: "Review and submit"
+  review_hint: "You can review first"
+  next_sheet: "Next · question {n}"
+  answer_number_hint: "Type a number. It saves itself."
+  answer_text_hint: "Type your answer. It saves itself."
+  save_saved: "Saved"
+  save_saving: "Saving…"
+  save_offline: "Offline · {n} changes waiting"
+  save_closed: "Answers closed"
+  review_title: "Review before submitting"
+  review_go: "Go"
+  submit_exam: "Submit exam"
+  back_to_exam: "Back to the exam"
+  confirm_title: "Submit the exam?"
+  confirm_body: "After submitting you cannot change your answers."
+  confirm_answered: "Answered"
+  confirm_empty: "Unanswered"
+  confirm_flagged: "To review"
+  keep_reviewing: "Keep reviewing"
+  submit_now: "Submit now"
+  result_title: "Exam submitted"
+  result_body: "Your teacher will publish the results. You can close this tab."
+  result_submitted_at: "Submitted at {time}."
+  result_review_later: "The review with correct answers will be available when the session ends."
+  result_timeout: "Time is up: your exam was submitted automatically with what was saved."
+  result_ended: "Your teacher ended the exam: what you had saved was submitted."
+  correct: "Correct"
+  incorrect: "Incorrect"
+  correct_answer: "Correct answer"
+  annulled_title: "Exam annulled"
+  annulled_body: "Your answers are saved. Talk to your teacher: they can readmit you."
+  withdrawn_title: "Removed from the exam"
+  withdrawn_body: "Your teacher removed you from this exam. Talk to them if this is a mistake."
+  time_up_title: "Time is up"
+  time_up_body: "We are submitting what you have saved. Keep this tab open."
+  extra_time_title: "You have {n} more minutes"
+  extra_time_body: "Your teacher gave you extra time."
+  warn_title_5: "5 minutes left"
+  warn_body_5: "Check your flagged questions. When time ends, what is saved is submitted."
+  close: "Close"
+  index: "Question index"
+  loading: "Loading…"
+  figure: "Figure"
+  wait_title: "Waiting for your teacher"
+  wait_body: "Your teacher has to approve this device. Keep this tab open."
+  err_rejected: "Your teacher did not approve this device."
+  msg_title: "Message from your teacher"
+  pause_title: "Exam paused"
+  pause_body: "Your teacher paused your exam to talk with you. Your time keeps running; they can give you extra time."
+  pause_body_all: "Your teacher paused the exam for the whole class. Wait for instructions; your answers are saved."
+  msg_title_all: "Message to the whole class"
+  tab_title: "Already open"
+  tab_body: "Your exam is open in another tab of this browser. Close this one and go back to it; your answers are safe."
+  err_join_closed: "Joining this exam has closed. Ask your teacher to let you in."
+  err_too_many: "Too many attempts in a row. Wait a minute and try again."
+
+  # Integrity
+  rules_title: "Before you start: what is recorded"
+  rules_recorded: "Recorded"
+  rules_effect: "Consequence"
+  rule_hidden: "Leaving the tab for more than {s} s"
+  rule_blur: "Using another window for more than {s} s"
+  rule_copy: "Copying exam content"
+  rule_screenshot: "Capturing or printing the screen"
+  verdict_screenshot: "The exam screen was captured or printed."
+  warning_screenshot: "The exam screen cannot be captured or printed. Next time it counts as a strike."
+  rule_paste: "Pasting text into an answer"
+  rule_fullscreen: "Leaving fullscreen for more than {s} s"
+  rule_limit: "{n} strikes"
+  rule_frozen: "Staying still for more than {s} s without touching mouse or keyboard"
+  fx_teacher: "Only your teacher sees it; never a strike"
+  fx_strike: "Strike"
+  fx_strike_time: "Strike and −{p} % of your remaining time"
+  fx_warning: "Warning"
+  fx_copy_strict: "Strike, and the question is voided"
+  fx_copy_standard: "Warning; then a strike, and the question is voided"
+  fx_paste_standard: "Warning; then a strike"
+  rules_intro_strict: "Strict mode: the first strike is your only warning. {n} strikes annul the exam."
+  rules_intro_standard: "Brief slips do not count: you are warned first. {n} strikes annul the exam."
+  fx_annul: "Exam annulled"
+  rules_note: "No camera is used and nothing outside this tab is read. Your teacher can review and revert any strike."
+  pledge_label: "Type to start"
+  pledge_text: "I will answer without outside help."
+  pledge_hint: "Type it as shown; pasting is disabled."
+  start: "Start"
+  start_fullscreen: "Start in fullscreen"
+  start_windowed: "Without fullscreen"
+  strikes_of: "{n} of {limit}"
+  strikes_last: "{n} of {limit} · one more annuls the exam"
+  curtain_title: "Exam hidden"
+  curtain_body: "Come back to this window to continue. It is only a curtain: nothing is lost."
+  away_title: "Back to the exam"
+  away_body: "If you are not back before it reaches zero, it counts as strike {n} of {limit}."
+  away_over: "It already counts as a strike. Come back to continue: your teacher can review it."
+  away_tab: "Back to the exam"
+  fs_title: "Fullscreen"
+  fs_body: "This exam is taken in fullscreen. If you leave it, you have {s} s to come back."
+  fs_enter: "Enter fullscreen"
+  fs_suggest_title: "Better in fullscreen"
+  fs_suggest_body: "Fewer distractions while you answer."
+  verdict_title: "Strike {n} of {limit}"
+  verdict_hidden: "You were away from the tab for too long."
+  verdict_blur: "You were in another window for too long."
+  verdict_fullscreen_exit: "You were out of fullscreen for too long."
+  verdict_copy: "Exam content was copied."
+  verdict_paste_input: "Text was pasted into an answer."
+  verdict_untrusted: "Clicks or keys were generated by a program."
+  verdict_webdriver: "This browser is controlled by a program."
+  verdict_telemetry: "This browser's integrity data is not valid."
+  verdict_generic: "An incident was recorded."
+  verdict_lost: "{time} were taken off your time."
+  verdict_void: "The question is voided."
+  verdict_revert: "If it was a mistake, tell your teacher: they can revert it."
+  verdict_ok: "Got it, continue"
+  verdict_ok_fullscreen: "Got it, back to fullscreen"
+  warning_title: "Warning"
+  warning_hidden: "You left the tab. Past {s} s it counts as a strike."
+  warning_blur: "You used another window. Past {s} s it counts as a strike."
+  warning_copy: "Exam content cannot be copied. Next time it counts as a strike."
+  warning_paste_input: "Pasting into answers is disabled."
+  warning_generic: "Your teacher can see this incident."
+  device_title: "Use a computer"
+  device_body: "This exam is taken on a computer. Ask your teacher for a classroom one if you need it."
+  voided_title: "Question voided"
+  voided_body: "This question no longer takes answers and scores 0. Your teacher can revert it."
+  st_voided: "Voided"
+  timed_title: "Timed question"
+  timed_body: "You get {time} from the moment you open it. The clock keeps running if you switch questions."
+  timed_open: "Open question"
+  timed_left: "Question time"
+  timed_closed: "Time is up: the saved answer is the one that counts."
+  st_closed: "Closed"
+  reveal_hint: "Point at or focus an option to read it"
+  lens_hint: "Tap the part you want to read; use the controls below if you need to move"
+  lens_keys: "← previous · → next · Enter next"
+  lens_touch: "Tap the part you want to read; swipe or use the controls"
+  lens_toolbar: "Reading controls"
+  lens_prev: "Previous"
+  lens_next: "Next"
+  lens_restart: "Replay reading"
+  lens_pause: "Pause"
+  lens_resume: "Resume"
+  reveal_touch: "Tap to read; tap again to choose"
+  veiled: "Option {k}, hidden"
+  clipboard_note: "Protected content — Assess · {id} · {time}"
+
+config:
+  file_header: |-
+    Assess settings (ax). Every setting below is commented out and uses its
+    default. To change one, remove the "# " in front of it, or run:
+      ax config set <key> <value>      for example: ax config set server.port 8080
+    `ax config` lists every setting with its current value and where it
+    comes from. Command-line flags and AX_* environment variables win over
+    this file. Exams always keep what their own manifest says.
+  group:
+    server: Exam server (ax start)
+    new_exam: Starting values for new exams (ax new); existing exams are not changed
+    panel: Session panel
+    results: Results export (ax results)
+  key:
+    language: Language of the terminal (menus, panel, reports, help).
+    student_language: |-
+      Language of the student web page when an exam does not set one.
+      Empty: the same as language.
+    data_dir: Folder for the database, logs and server state. Empty uses the system's default.
+    editor: |-
+      Command that opens files from the editor (E). Empty uses $VISUAL,
+      $EDITOR, or Notepad / vi.
+    server.port: Port students connect to. If it is busy, the next free one is used.
+    server.host: Address students connect to. Empty listens everywhere and shows the LAN address.
+    server.join_window: How long after the start students may still join on their own (0 keeps it open).
+    server.late_answers: How long after the deadline answers still sent by students are accepted.
+    server.allow_public: Accept students from outside private networks (only behind your own tunnel).
+    new_exam.duration: Duration of a new exam.
+    new_exam.result_visibility: What students see after submitting.
+    new_exam.proctoring: Anti-cheating profile.
+    new_exam.shuffle_questions: Shuffle the order of the questions for each student.
+    new_exam.shuffle_options: Shuffle the options of each question.
+    new_exam.instructions: Instructions shown before the exam starts.
+    panel.lock_minutes: Minutes without activity before a password-protected panel locks (0 never).
+    results.format: Format of `ax results`.
+    results.separator: CSV field separator. Use ";" for Excel in many European languages.
+    results.bom: Start CSV files with a byte order mark, so Excel reads accents correctly.
+
+state:
+  lobby: in the lobby
+  running: running
+  ended: ended
+
+home:
+  idle: No exam is running.
+  crashed: "The server stopped before the exam ended: you can resume it and nobody loses their answers."
+  open: There is an open session without a server.
+  question: What do you want to do?
+  resume: "Resume «{title}» (session {code}, no server)"
+  edit: Edit an exam
+  new: Create a new exam, step by step
+  start: Start an exam
+  report: "Report of the last session («{title}», {code})"
+  settings: Settings
+  quit: Quit
+  pick_edit: Which exam do you want to edit?
+  pick_start: Which exam do you want to start?
+  other_folder: Another folder…
+  folder_hint: Path of the exam folder (the one with manifest.yaml).
+  no_manifest: There is no manifest.yaml there.
+
+cli:
+  error_prefix: "error:"
+  need_terminal: Run this in a terminal.
+  cancelled: cancelled
+  yes_no: "[y/N]"
+  no_sessions: there are no sessions yet
+  no_session: "no session \"{id}\""
+  root:
+    short: Assess — create, run and proctor exams from the terminal
+    long: |-
+      Assess runs exams in a classroom network: you prepare and supervise them
+      here, in the terminal, and students answer from their browsers without
+      installing anything.
+
+      Run `ax` alone for the menu. Settings live in ~/.config/assess/config.yaml
+      (`ax config`).
+  group:
+    exam: Exams
+    session: Sessions
+    setup: Setup
+  usage:
+    usage: Usage
+    aliases: Aliases
+    examples: Examples
+    commands: Commands
+    more_commands: Additional commands
+    flags: Flags
+    global_flags: Global flags
+    help_topics: Additional help topics
+    more_info: "Use \"{{.CommandPath}} [command] --help\" for more information about a command."
+  help:
+    short: Help about any command
+    unknown: "Unknown help topic %#q"
+  flag:
+    data_dir: "data directory (default: data_dir in the settings, $AX_DATA_DIR or the system's)"
+    config: "settings file (default: $AX_CONFIG or ~/.config/assess/config.yaml)"
+    help: show help for the command
+    version: show the version
+    host: "address students connect to (empty: all interfaces, LAN address shown)"
+    port: port for students
+    join_window: close joining this long after the start (0 keeps it open)
+    allow_public: accept students from outside private networks (behind your own tunnel)
+    no_attach: do not open the session panel
+    json: print as JSON
+    session: "session id (default: the most recent)"
+    yes: do not ask for confirmation
+  version:
+    short: Print the ax version
+  new:
+    short: "Create a new exam: a guided wizard, or a folder from a template"
+    long: |-
+      Without a folder, new opens a wizard in the terminal that asks for the
+      details, the questions (with a live preview and the answer marked), how it
+      is proctored, and checks everything before writing the folder.
+
+      With a folder, it writes a valid exam with one sample question of each type,
+      ready to edit by hand, with `ax edit`, or by an AI (see `ax format`).
+
+      Starting values (duration, proctoring...) come from the settings (`ax config`).
+    example: |2-
+        ax new                                   # wizard
+        ax new ./exams/algebra-01 --title "Algebra 1"
+        ax new quiz --lang es
+    no_terminal: the wizard needs a terminal; pass a folder to create one from the template
+    bad_lang: "\"{lang}\" is not a language code (examples: en, es, pt-BR)"
+    created: |
+      Created {dir}
+    files: |-
+        manifest.yaml            exam settings and question order
+        questions/q00N.yaml      one file per question
+        private/answer-key.yaml  correct answers and points (never sent to students)
+        assets/                  images used in questions
+    next: "\nNext: `ax edit {dir}` to write your questions (or edit the files and run `ax validate`)"
+    wizard_done: "Created {dir}. `ax start {q}` runs it; `ax edit {q}` changes it."
+    flag_id: "exam id (default: derived from the folder name)"
+    flag_title: exam title
+    flag_lang: "student page language (en, es...)"
+  edit:
+    short: "Edit an exam in the terminal: settings, questions and answers"
+    long: |-
+      Edit opens the exam folder in an interactive editor. Forms change the
+      settings, add, edit, reorder and delete questions together with their
+      answers; E opens the file in your editor (the `editor` setting, $VISUAL,
+      $EDITOR, or Notepad / vi) for anything else. Every change is saved and
+      validated at once, and your comments and layout in the YAML files are
+      kept. S starts the exam.
+    example: |2-
+        ax edit examples/algebra-01
+        EDITOR="code -w" ax edit ./my-exam
+    no_terminal: the editor needs a terminal; edit the YAML files and run `ax validate`
+    flag_duration: "exam duration when started with S (default: the manifest's)"
+    saved: "Saved. `ax start {dir}` runs it."
+  format:
+    short: "Print the exam format: a guide to writing exams as files, and the reference"
+    long: |-
+      Format prints how to write an exam as YAML files: a step-by-step guide with a
+      complete, valid example and a checklist (made for AI assistants, readable by
+      anyone), followed by the full reference. Teachers can use `ax new` instead.
+    flag_guide: print only the authoring guide
+    flag_reference: print only the format reference
+  admin:
+    short: Manage the teacher panel password
+    long: |-
+      The password protects `ax attach`, `ax stop` and the panel (which locks itself
+      after a few idle minutes, the panel.lock_minutes setting, or with L). It does
+      not encrypt the database: anyone using your OS account can read it, so lock
+      your computer too.
+    set_short: Set or change the panel password
+    clear_short: Remove the panel password
+    new_password: "New password: "
+    repeat: "Repeat it: "
+    mismatch: the passwords do not match
+    set_done:
+      one: Password set. The panel now locks after {n} idle minute.
+      other: Password set. The panel now locks after {n} idle minutes.
+    cleared: Password removed.
+  attach:
+    short: Open the panel of the running session
+    start_hint: "start one with `ax start <exam-folder>` or `ax resume`"
+    closed: "Panel closed. The exam keeps running; `ax attach` reopens it."
+    protected: this panel is password protected; run the command in a terminal
+    password_prompt: "Panel password: "
+    wrong_password: Wrong password.
+    wrong_password_err: wrong password
+  start:
+    short: Publish an exam and start its session server in the background
+    long: |-
+      Start validates and publishes the exam, opens a session in the lobby and
+      launches the exam server in the background. Closing the terminal or the
+      TUI never stops the exam; use `ax stop` for that.
+
+      Port, address and joining window come from the settings (`ax config`)
+      unless given as flags.
+    flag_duration: "exam duration (default: the manifest's)"
+    already_running: "an exam is already running ({title}); use `ax attach` or `ax stop`"
+    still_open: "session {code} is still open without a server; use `ax resume` to continue it or `ax stop` to end it"
+    running: "Exam server running in the background (pid {pid})"
+    exam: Exam
+    students: Students
+    code: Code
+    resumed_hint: "The session continues where it was; students reconnect on their own (`ax attach` opens the panel)."
+    lobby_hint: "Students wait in the lobby until you start the exam (`ax attach`, then S)."
+  status:
+    short: Show whether the exam server is running
+    running: "● Running  {title}"
+    crashed: "✕ Crashed  the exam server stopped unexpectedly; answers saved so far are safe"
+    resume_hint: "Run `ax resume` to continue the session."
+    not_running: "○ Not running"
+    still_open: "Session {code} is still open: `ax resume` continues it, `ax stop` ends it."
+    running_left: "running · {left} left"
+    session: Session
+    code: code
+    lobby_counts: "Joined {joined} · waiting in the lobby"
+    counts: "Joined {joined} · online {online} · answering {active} · submitted {submitted}"
+    process: "PID {pid} · up {up}"
+    last_error: "Last error: {err}"
+  stop:
+    short: End the exam and stop the server (or --suspend to keep the session)
+    long: |-
+      Stop ends the exam for everyone, submits every attempt with what is saved
+      and stops the server. With --suspend the server stops but the session stays
+      open, the clock keeps running, and `ax resume` continues it.
+    confirm: End the exam for everyone and submit all attempts?
+    timeout: "the server did not stop in time; check `ax status`"
+    suspended: "Server stopped; the session stays open. `ax resume` continues it."
+    ended: Exam ended and server stopped. Results are saved.
+    flag_suspend: stop the server but keep the session open
+  resume:
+    short: Restart the server for a session that is still open
+    already_running: "the exam server is already running; use `ax attach`"
+    nothing_open: "there is no open session to resume; use `ax start <exam-folder>`"
+  logs:
+    short: Show the exam server log
+    flag_follow: keep printing new lines
+    flag_lines: number of lines to show
+    empty: (no log yet)
+  results:
+    short: Export the results of a session as CSV or JSON
+    long: |-
+      Results exports one row per student: score, submission time, reason and
+      the points of every question they received. It reads the database directly,
+      so it works while the server runs or after it stopped. Defaults to the most
+      recent session. Format, separator and byte order mark come from the
+      settings (results.*) unless given as flags.
+    example: |2-
+        ax results > grades.csv
+        ax results --sep ";" --out grades.csv   # Excel in many European languages
+        ax results --format json
+    bad_format: "unknown format \"{format}\" (use csv or json)"
+    bad_sep: --sep must be a single character
+    wrote:
+      one: "Wrote {n} row to {file}"
+      other: "Wrote {n} rows to {file}"
+    flag_format: csv or json
+    flag_out: write to a file instead of stdout
+    flag_sep: CSV field separator
+    flag_no_bom: omit the UTF-8 byte order mark
+  report:
+    short: "Analyse a finished session: grades, questions, incidents and evidence"
+    long: |-
+      Report opens an interactive analysis of a finished session: score and time
+      distributions, how each question behaved, the timeline of integrity signals,
+      pairs of students with suspiciously similar answers, correct answers given
+      right after leaving the exam, and questions that became much easier than in
+      earlier sessions of the same exam. Evidence is not proof: review before acting.
+
+      It is only available once the session has ended, and asks for the panel
+      password if one is set. Defaults to the most recent session.
+    example: |2-
+        ax report
+        ax report --json > report.json
+        ax report > report.txt   # plain text when not a terminal
+    timed_out:
+      one: Report closed after {n} idle minute.
+      other: Report closed after {n} idle minutes.
+    not_ended: "the session has not ended yet; the report is available once it ends (`ax stop`, or E in the panel)"
+  validate:
+    short: Check exam folders for errors before publishing them
+    long: |-
+      Validate checks every file of an exam folder against the assess/v1 format:
+      unknown fields, ids, references, answer keys, pools, assets and limits.
+      It exits with status 1 when any folder has errors.
+    flag_strict: treat warnings as errors
+    cannot_open: cannot open exam
+    ok: "ok  {name}: {questions} questions, {per_attempt} per attempt, {points} points per attempt"
+    fail: "FAIL {name}: {errors}, {warnings}"
+    errors:
+      one: "{n} error"
+      other: "{n} errors"
+    warnings:
+      one: "{n} warning"
+      other: "{n} warnings"
+  config:
+    short: Show and change the settings
+    long: |-
+      Settings are kept in ~/.config/assess/config.yaml (or $AX_CONFIG, or
+      --config). Without a subcommand, config lists every setting with its
+      current value and where it comes from: the file (with its line), an AX_*
+      environment variable, or the built-in default.
+
+      Command-line flags win over the environment, which wins over the file.
+      The file is written on the first run with every setting commented out;
+      `ax config set` changes one line and keeps your comments.
+    example: |2-
+        ax config
+        ax config set language es
+        ax config set server.port 8080
+        ax config info new_exam.proctoring
+        ax config reset server.port
+        ax config edit
+    fix_hint: "Fix the settings with `ax config edit` (or `ax config reset`)."
+    file: "Settings file: {path}"
+    no_file: "  (not created yet: every value is the default)"
+    empty: (empty)
+    from_file: "file, line {line}"
+    from_default: default
+    hint: "Change a setting with `ax config set <key> <value>`; `ax config info <key>` explains it."
+    get_short: Print the current value of a setting
+    set_short: Change a setting in the file
+    set_done: "{key} = {value}"
+    env_wins: "Note: ${env} is set and wins over the file."
+    reset_short: Put one setting, or the whole file, back to the defaults
+    reset_long: |-
+      With a key, reset comments that setting out again so its default applies.
+      Without one, it writes a fresh file with every setting commented out; the
+      old file is kept next to it as config.yaml.bak.
+    reset_key: "{key} is back to its default ({value})"
+    reset_confirm: Replace the settings file with a fresh one (the current one is kept as a backup)?
+    reset_all: "Settings reset. The previous file is in {backup}."
+    edit_short: Open the settings file in your editor and check it on close
+    edit_long: |-
+      Edit opens the settings file in the `editor` setting, $VISUAL, $EDITOR, or
+      Notepad / vi. When you close it, the file is checked; if something is wrong
+      you see each problem with its line and can open it again.
+    edit_ok: Settings saved and valid.
+    edit_again: Open the file again to fix it?
+    path_short: Print where the settings file is
+    info_short: Explain a setting
+    info_value: Current
+    info_default: Default
+    info_env: Variable
+    info_change: Change
+    kind:
+      text: text
+      number: number
+      bool: true|false
+      duration: duration
+      choice: value
+    unknown_key: "unknown setting \"{key}\" (`ax config` lists them)"
+    saved:
+      one: "Saved {n} change in {path}."
+      other: "Saved {n} changes in {path}."
+  i18n:
+    short: Translations of the interface
+    long: |-
+      The interface (terminal and student page) is translated with catalogs, one
+      YAML file per language. English and Spanish are built in; more can be put
+      in ~/.config/assess/locales/. Missing texts are shown in English.
+    list_short: List the available languages and how complete they are
+    check_short: List missing or wrong texts in the translations
+    problems:
+      one: "{n} problem."
+      other: "{n} problems."
+    complete: Every translation is complete.
+    new_short: Print a catalog to start a new translation
+    new_long: |-
+      New prints the English catalog. Save it as <language>.yaml in
+      ~/.config/assess/locales/, translate the values (keep the keys and the
+      placeholders in braces), and select it with `ax config set language <language>`.
+      To share it with everyone, send it to the project as locales/<language>.yaml.
+
+form:
+  err:
+    points: "write a number greater than 0 and up to {max}"
+    number: "write a number, for example 4 or 2.5"
+    optional_number: "write a positive number or leave it empty"
+    time_limit: "use a duration such as 90s or 2m (at least 5s), or leave it empty"
+    min_options: "write at least {n} options, one per line"
+    max_options: "{n} options at most"
+    points_field: "points: write a number"
+    time_limit_field: "time limit: use a duration such as 2m"
+    answer_field: "answer: write a number"
+    tolerance_field: "tolerance: write a number"
+    id: "only lowercase letters, digits, - and _"
+    id_taken: "there is already a question with that id"
+    prompt: "write the question"
+    mark_one: "mark at least one"
+    accept: "write at least one answer"
+    duration_field: "duration: use for example 45m or 1h30m"
+    strikes_field: "strikes: write a whole number"
+    title: "write a title"
+    duration: "use a duration between 1m and 24h, such as 45m"
+    strikes: "between 1 and 10, or empty"
+  type:
+    title: "Question type"
+    single: "One right option"
+    multiple: "Several right options"
+    truefalse: "True or false"
+    short: "Short answer (number or text)"
+  id:
+    title: "Identifier"
+    hint: "It is also the file name: questions/<id>.yaml"
+    fixed: "The type and the identifier are not changed here; press E to edit the file."
+  prompt:
+    title: "Question"
+    hint: "Markdown, and formulas between $…$. Alt+Enter or Ctrl+J for a new line."
+  points: "Points"
+  options:
+    title: "Options"
+    hint: "One per line, in the order you write them (they can be shuffled for students)."
+  correct_one: "Which one is right?"
+  correct_many: "Which ones are right?"
+  correct_many_hint: "Space marks or unmarks."
+  partial:
+    title: "Partial credit?"
+    hint: "Yes: each right option adds its share. No: all or nothing."
+  statement: "The statement is…"
+  true: "True"
+  false: "False"
+  input:
+    title: "The student writes…"
+    number: "A number"
+    text: "A short text"
+  number: "Right answer"
+  tolerance:
+    title: "Tolerance"
+    hint: "Accepted difference, for example 0.01. Empty: exact."
+  accept:
+    title: "Accepted answers"
+    hint: "One per line. Case, accents and extra spaces are ignored."
+  time_limit:
+    title: "Time limit for the question"
+    hint: "Optional, for example 2m. The question closes when it runs out."
+  reveal:
+    title: "Show the options"
+    always: "Always"
+    hover: "When pointed at"
+  inherit: "As the exam says"
+  lens:
+    title: "Lens over the question"
+    hint: "It is read in ranges of words: a photo captures only one range."
+  read_speed:
+    slow: "Slow"
+    normal: "Normal"
+    fast: "Fast"
+  manifest:
+    title: "Exam settings"
+    id: "Identifier: {id} (not changed here: it links the history of sessions)"
+    exam_title: "Title"
+    duration: "Duration"
+    duration_hint: "For example 45m or 1h30m."
+    language: "Language of the student page"
+    visibility: "After submitting, the student sees…"
+    instructions: "Instructions"
+    instructions_hint: "Shown in the lobby. Markdown."
+    shuffle_q: "Shuffle the order of the questions?"
+    shuffle_o: "Shuffle the order of the options?"
+    proctoring: "Proctoring"
+    strikes: "Strikes that annul"
+    strikes_hint: "Empty: the profile's."
+    photos: "Against photos of the screen"
+    photos_hint: "Each protection is switched on separately. With proctoring off, none applies."
+    lens: "Lens over the question?"
+    lens_hint: "It is read in ranges of words; a photo captures only one range. Turn it off to show the whole question."
+    auto_read: "Read the question automatically when it opens?"
+    auto_read_hint: "Only the first time, in ranges. After that the student taps the part they want or uses the controls."
+    read_speed: "Reading speed"
+    read_speed_hint: "Pace of the auto-read and the guide."
+    frozen: "Warn when a student stays still and then answers?"
+    frozen_hint: "It only shows in Incidents; it is never a strike."
+  visibility:
+    none: "Nothing"
+    score: "Their score"
+    review: "Their score and the corrections (once the session closes)"
+  profile:
+    standard: "Standard: warns the first time, 3 strikes annul"
+    strict: "Strict: no margin, 2 strikes annul"
+    off: "Off"
+
+keys:
+  back: "back"
+  next: "next"
+  save: "save"
+  choose: "choose"
+  confirm: "confirm"
+  newline: "new line"
+  editor: "open in your editor"
+  complete: "complete"
+  up: "up"
+  down: "down"
+  filter: "filter"
+  top: "top"
+  bottom: "bottom"
+  half_up: "½ page up"
+  half_down: "½ page down"
+  space: "space"
+  mark: "mark"
+  mark_all: "mark all"
+  mark_none: "unmark all"
+  toggle: "switch"
+
+editor:
+  name: "editor"
+  open_hint: "(E opens the file)"
+  edited: "File edited; the exam has been validated again."
+  done: "Done."
+  cancelled: "Cancelled."
+  confirm_delete: "Delete question {id}, its file and its answer?"
+  reloaded: "Folder read and validated again."
+  fix_first: "fix the errors before starting the exam"
+  discarded: "Changes discarded."
+  saved: "Saved."
+  esc_discards: "esc discards the changes"
+  col:
+    question: "QUEST."
+    type: "TYPE"
+    points: "POINTS"
+    prompt: "QUESTION"
+  range: "… {from}-{to} of {total}"
+  key:
+    edit: "edit"
+    new: "new"
+    delete: "delete"
+    move: "move"
+    external: "open in the editor"
+    answers: "answer key"
+    start: "start"
+    quit: "quit"
+  shuffle:
+    true_true: "shuffles questions and options"
+    true_false: "shuffles questions"
+    false_true: "shuffles options"
+    false_false: "no shuffling"
+  visibility:
+    none: "no score shown"
+    score: "score shown"
+    review: "score and corrections"
+  settings_row: "⚙ Settings   {duration} · {lang} · {visibility} · proctoring {profile} · {shuffle}"
+  pool_row: "◇ pool {id} · each student gets {pick} of {of}"
+  missing_file: "{file} is missing"
+  not_in_items: "not in items"
+  no_problems: "No problems"
+  ready: ": ready to start (S, or `ax start {dir}`)."
+  fix_hint: "fixed by saving the form or with E"
+  more_problems: "… and {n} more (`ax validate {dir}`)"
+
+profile:
+  standard: "standard"
+  strict: "strict"
+  off: "off"
+
+common:
+  thousands: ","
+  months: "Jan Feb Mar Apr May Jun Jul Aug Sep Oct Nov Dec"
+  date_time: "{month} {day}, {year} {time}"
+  yes: "Yes"
+  no: "No"
+  yes_short: "yes"
+  no_short: "no"
+  yes_key: "y"
+  no_key: "n"
+  decimal: "."
+  minutes: "{n} min"
+
+qtype:
+  single: "one option"
+  multiple: "several"
+  truefalse: "T/F"
+  short: "short"
+
+astate:
+  submitted: "submitted"
+  annulled: "annulled"
+  withdrawn: "withdrawn"
+  active: "not submitted"
+
+monitor:
+  view:
+    students: "Students"
+    ranking: "Ranking"
+    incidents: "Incidents"
+    link: "Link"
+  password_placeholder: "password"
+  unlocked: "Panel unlocked."
+  err:
+    minutes: "Write a number of minutes greater than 0."
+  extended: "{n} more minutes for {name}."
+  message_sent: "Message sent to {name}."
+  prompt:
+    add_name: "Full name of {id}:"
+    add_name_placeholder: "First Last"
+    revert: "Revert «{signal}» of {name}. Note (optional):"
+    revert_placeholder: "reason"
+    message_all: "Message for ALL students:"
+    message_all_placeholder: "10 minutes left"
+    add_id: "Identifier of the new student:"
+    minutes: "Extra minutes for {name}:"
+    message: "Message for {name}:"
+    message_placeholder: "Remember to keep this tab active"
+  added: "Student added: {name}."
+  message_all_sent: "Message sent to everyone."
+  reverted: "Penalty reverted."
+  nothing_to_revert: "There are no active penalties to revert."
+  no_password: "Set a password with `ax admin set-password` to be able to lock."
+  started: "Exam started."
+  extended_all: "5 more minutes for everyone."
+  confirm_end: "End the exam for everyone and submit what is saved?"
+  ended: "Exam ended: submissions saved. The server keeps running to see results."
+  end_and_stop: "end and stop the server"
+  confirm_stop: "Stop the server? Results stay saved (`ax results`)."
+  resumed_all: "Everyone can continue."
+  confirm_pause_all: "Pause the exam for everyone? Their time keeps running."
+  paused_all: "Exam paused for everyone (the time keeps running)."
+  approved: "Approved: {name} ({id})."
+  rejected: "Rejected: {name} ({id})."
+  confirm_remove: "Remove {name} from the list?"
+  confirm_withdraw: "Withdraw {name}? Their answers are kept and you can readmit them."
+  removed: "{name} removed."
+  resumed: "{name} can continue."
+  paused: "{name} is paused (their time keeps running)."
+  readmitted: "{name} readmitted."
+  lens_off: "{name} reads the questions whole, without the lens."
+  lens_on: "{name} reads with the lens again."
+  confirm_annul: "Annul the exam of {name}? Everything is kept and you can readmit them."
+  annulled: "Exam of {name} annulled."
+  no_connection: "No connection with the server:"
+  connecting: "Connecting…"
+  locked: "Session in progress — panel locked"
+  locked_counts: "{online} online · {submitted} submitted"
+  unlock_prompt: "Type the password and press Enter:"
+  counts: "{online} online · {active} answering · {submitted} submitted · {joined} in total"
+  strikes_total: "{n} strikes (annuls at {limit})"
+  server_error: "Server error:"
+  request:
+    device: "wants to join from another device"
+    late: "wants to join after joining closed"
+    more: "(+{n} more)"
+  tab_hint: "Tab switches view"
+  also: "Also: {url}"
+  away:
+    title: "LEFT AND GOT IT RIGHT"
+    hint: "answered right just after coming back to the question; difficulty is provisional until everyone submits"
+    difficulty: "{pct} % of the others miss it"
+    line: "{signal} {away}s → right after {after}s · {difficulty}"
+  no_incidents: "No incidents."
+  proctoring_off: "Proctoring is off in this exam (proctoring: off)."
+  col:
+    time: "TIME"
+    student: "STUDENT"
+    signal: "SIGNAL"
+    question: "QUEST."
+    effect: "CONSEQUENCE"
+    state: "STATE"
+    answered: "ANSW."
+    online: "CONN."
+    strikes: "STRIKES"
+    score: "SCORE"
+    used: "TIME"
+  nobody_submitted: "Nobody has submitted yet."
+  nobody_joined: "Nobody has joined yet. Share the code or the QR (Link view)."
+  state:
+    active: "answering"
+    submitted: "submitted"
+    withdrawn: "withdrawn"
+    annulled: "annulled"
+    not_joined: "not joined"
+    lobby: "in the lobby"
+    paused: "paused"
+  no_lens: "no lens"
+  reverted_mark: "(reverted)"
+  warning: "Warning:"
+  prompt_hint: "Enter confirms · Esc cancels"
+  key:
+    approve: "approve"
+    reject: "reject"
+    quit: "quit (the exam keeps running)"
+    pause: "pause"
+    resume: "resume"
+    time: "time"
+    message: "message"
+    lens_off: "no lens"
+    lens_on: "with lens"
+    annul: "annul"
+    readmit: "readmit"
+    withdraw: "withdraw"
+    add: "new student"
+    revert_last: "revert last strike"
+    revert: "revert"
+    start: "start"
+    pause_all: "pause everyone"
+    resume_all: "resume everyone"
+    extend_all: "5 min for everyone"
+    message_all: "message everyone"
+    end: "end"
+    report: "report"
+    stop: "stop the server"
+    lock: "lock"
+  lobby: "Lobby"
+  running: "Running"
+  ended_state: "Ended"
+
+signal:
+  hidden: "out of the tab"
+  blur: "in another window"
+  copy: "copy"
+  screenshot: "screenshot or print"
+  paste_input: "paste into an answer"
+  burst: "burst typing"
+  fullscreen_exit: "left fullscreen"
+  untrusted: "synthetic clicks or keys"
+  webdriver: "automated browser"
+  dom_injection: "extension in the page"
+  resize: "window shrunk"
+  second_tab: "second tab"
+  telemetry: "tampered telemetry"
+  telemetry_gap: "silent channel"
+  frozen_pointer: "still, without touching mouse or keyboard"
+
+penalty:
+  strike: "strike"
+  void: "question voided"
+  points: "points"
+
+severity:
+  info: "logged"
+  warn: "warning"
+  high: "serious"
+
+report:
+  view:
+    summary: "Summary"
+    questions: "Questions"
+    incidents: "Incidents"
+    evidence: "Evidence"
+    history: "History"
+  key:
+    view: "view"
+    goto: "go to"
+    scroll: "scroll ({from}-{to} of {total})"
+  name: "report"
+  session: "session {code}"
+  n:
+    students:
+      one: "{n} student"
+      other: "{n} students"
+    submitted:
+      one: "{n} submitted"
+      other: "{n} submitted"
+    annulled:
+      one: "{n} annulled"
+      other: "{n} annulled"
+    withdrawn:
+      one: "{n} withdrawn"
+      other: "{n} withdrawn"
+    strikes:
+      one: "{n} strike"
+      other: "{n} strikes"
+    pairs:
+      one: "{n} similar pair"
+      other: "{n} similar pairs"
+    away:
+      one: "left and got it right {n} time"
+      other: "left and got it right {n} times"
+    warnings:
+      one: "{n} warning"
+      other: "{n} warnings"
+    serious:
+      one: "{n} serious signal"
+      other: "{n} serious signals"
+    reverted:
+      one: "{n} penalty reverted"
+      other: "{n} penalties reverted"
+    voided:
+      one: "{n} question voided"
+      other: "{n} questions voided"
+    saved_answers:
+      one: "{n} answer saved"
+      other: "{n} answers saved"
+  nobody_submitted: "Nobody submitted the exam: there are no scores to analyse."
+  stats: "Mean {mean}   Median {median}   Std. dev. {sd}   Min {min}   Max {max}   Median time {time}"
+  scores:
+    title: "SCORES"
+    hint: "% of the maximum, submitted exams"
+  times:
+    title: "TIME USED"
+    hint: "minutes since each student started"
+  review:
+    title: "TO REVIEW"
+    hint: "students with strikes or evidence"
+    none: "Nobody has strikes or evidence."
+  rates:
+    title: "% RIGHT PER QUESTION"
+    hint: "among those who received it"
+  col:
+    right: "RIGHT"
+    blank: "BLANK"
+    discrimination: "DISCRIM."
+    kind: "BY KIND"
+    warnings: "WARNINGS"
+    serious: "SERIOUS"
+  note:
+    unseen: "nobody received it (pool)"
+    negative: "those doing worst get it right more: check the key or the wording"
+    weak: "barely tells apart who knows from who does not"
+    leak: "much easier than in earlier sessions: it may be circulating"
+    away:
+      one: "{n} right answer after leaving the exam"
+      other: "{n} right answers after leaving the exam"
+    voided: "voided for {students}"
+  incidents:
+    counts: "{warn} · {high} · {strikes} active strikes · {reverted} · {time} taken · {voided}"
+    none: "There were no integrity signals in this session."
+  timeline:
+    title: "SIGNALS ACROSS THE EXAM"
+    step: "each bar, {n} min"
+    warn: "warning"
+    high: "serious"
+    max: "max. {n}"
+  evidence:
+    disclaimer: "This is evidence, not proof: review the answers and talk to the student before deciding."
+  pairs:
+    title: "SIMILAR ANSWERS"
+    hint: "the same uncommon mistakes, or saved at the same time in a different order"
+    none: "No pair is more alike than chance explains."
+    medium: "MED"
+    high: "HIGH"
+    same_wrong: "{same} of {both} shared mistakes are identical (by chance, ~{expected}; probability {odds})"
+    synced: "{answers} at the same time, with the questions in a different order"
+    questions: "identical mistakes in: {list}"
+  away:
+    hint: "right answer saved just after coming back to the question"
+    none: "Nobody got it right just after leaving the exam."
+    missed: "{pct} of the others missed it"
+    hard: "hard: {pct} of the others missed it"
+    line: "{signal} {away} → right {after} later · {difficulty}"
+  history:
+    sessions: "SESSIONS OF THE EXAM"
+    code: "CODE"
+    students: "STUDENTS"
+    submitted: "SUBMITTED"
+    mean: "MEAN"
+    median: "MEDIAN"
+    this: "this session"
+  leaks:
+    title: "QUESTIONS THAT MAY BE CIRCULATING"
+    hint: "right answers far above earlier sessions"
+    need_more: "Another finished session of this exam is needed to compare."
+    none: "No question became much easier than before."
+    line: "before {before} ({before_n}) → now {now} ({now_n}) · change or rewrite it for next time"
+  not_started: "not started"
+  odds:
+    nil: "almost none"
+    high: "high"
+    million: "less than 1 in a million"
+    one_in: "1 in {n}"
+
+wizard:
+  name: "new exam"
+  step:
+    details: "Details"
+    questions: "Questions"
+    proctoring: "Proctoring"
+    review: "Review"
+  key:
+    add: "add question"
+    up: "move up"
+    down: "move down"
+    next: "next step"
+    back: "previous step"
+    create: "create the exam"
+    help: "more keys"
+  confirm_quit: "Quit without creating the exam? What you wrote will be lost."
+  checking: "Checking the exam…"
+  confirm_delete: "Delete question {n}?"
+  deleted: "Question deleted."
+  err:
+    no_questions: "add at least one question (A)"
+    fix_first: "fix the errors before creating the exam"
+    no_folder: "write the title first, or a folder"
+    folder_name: "the folder name needs letters or digits"
+    folder_taken: "that folder exists and is not empty; choose another"
+  creating: "Creating the exam…"
+  other_duration: "Another duration…"
+  intro:
+    title: "New exam"
+    body: "I guide you step by step: details, questions, proctoring and review.\nNothing is saved until the end; Esc goes back."
+  title_hint: "Students see it when they join."
+  title_placeholder: "History — Unit 3"
+  folder: "Folder"
+  folder_hint: "Where it is saved. Empty: a folder here named after the title."
+  how_long: "How long is it?"
+  duration_hint: "For example 50m or 1h15m."
+  visibility:
+    score: "Their score"
+    review: "Their score and the corrections, when you close the session"
+    none: "Nothing: only that it was submitted"
+  instructions: "Instructions (optional)"
+  instructions_hint: "Shown in the lobby. Empty: «{default}…»"
+  how_proctored: "How is it proctored?"
+  profile:
+    standard: "Standard (recommended)"
+    strict: "Strict"
+    off: "No proctoring"
+  students_notice: "What students will notice"
+  profile_text:
+    standard: "Fullscreen, options revealed when pointed at, and a watermark with their name. The first time they leave or copy they are only warned; after that it counts as a strike, and 3 annul the exam. Leaving the tab takes 20 % of their remaining time. Everything can be reverted from the panel."
+    strict: "The same as standard, with no margin: the first attempt to leave or copy is already a strike and the second annuls the exam. Leaving the tab takes half of the remaining time. Computers only."
+    off: "No protection: they can leave the tab, copy or use their phone without consequences. Useful for revision or class exercises."
+  shuffle_q_hint: "Each student sees them in a different order."
+  shuffle_o_hint: "It makes copying «it's b» from a classmate harder."
+  photos: "Against phone photos"
+  photos_hint: "An AI can read a photo of the screen. Each protection is switched on separately."
+  frozen: "Warn when they stay still and then answer?"
+  frozen_hint: "Only you see it, in Incidents."
+  added: "Question {n} added. A adds another; Tab moves on to proctoring."
+  discarded: "Question discarded."
+  saved: "Question {n} saved."
+  done:
+    title: "Exam created"
+    body: "It is in {dir}.\nYou can change it whenever you want with `ax edit` or by editing its files."
+    next: "What now?"
+    start: "Start it now: students wait in the lobby until you begin"
+    edit: "Keep editing it"
+  empty: "No questions yet.\n\nPress A to add the first one. There are four kinds:\n\n  · One right option\n  · Several right options\n  · True or false\n  · Short answer: a number or a text\n\nNext to it you will see how each one looks, with the right answer marked."
+  form_hint: "esc goes back · ctrl+c quits"
+  n_questions:
+    one: "{n} question"
+    other: "{n} questions"
+  preview_title: "HOW THEY WILL SEE IT · with the right answer marked"
+  points:
+    one: "{v} point"
+    other: "{v} points"
+  review:
+    visibility:
+      none: "nothing"
+      score: "their score"
+      review: "their score and the corrections when it closes"
+    shuffle:
+      true_true: "questions and options"
+      true_false: "questions only"
+      false_true: "options only"
+      false_false: "nothing"
+    language: "Language"
+    sees: "After submitting"
+    lens: "lens"
+    frozen: "stillness warning"
+    none: "none"
+    photos: "Against photos"
+    shuffles: "Shuffled"
+    ok: "All correct."
+    ok_hint: "Enter creates the exam; 1, 2 or 3 go back to a step."
+    errors: "This must be fixed before creating it:"
+    warnings: "Warnings (they do not prevent creating it):"
+  preview:
+    meta: "QUESTION {n} · {type} · {points}"
+    limit: "limit {d}"
+    partial: "Partial credit: each right option adds its share."
+    all_or_nothing: "All or nothing: every right option must be marked."
+    true: "True"
+    false: "False"
+    write_number: "Write a number"
+    right: "Right: {v}"
+    write_text: "Write your answer"
+    accepted: "Accepted: {list}"
+    lenient: "Case, accents and extra spaces do not matter."
+  default_instructions: "Read each question carefully. Your answers are saved automatically, and you can review them before turning the exam in."
+  dur:
+    minutes:
+      one: "{n} minute"
+      other: "{n} minutes"
+    hours:
+      one: "{n} hour"
+      other: "{n} hours"
+    hours_minutes: "{h} {m}"
+
+settings:
+  name: "settings"
+  general: "General"
+  will_reset: "back to default"
+  changed: "changed"
+  reset_notice: "{key} will go back to its default ({value})."
+  changed_notice: "{key} = {value} (saved when you leave with S)"
+  same_as_terminal: "The same as the terminal"
+  ask_save:
+    one: "Save {n} change?"
+    other: "Save {n} changes?"
+  keep_editing: "keep editing"
+  key:
+    reset: "default"
+  pending:
+    one: "{n} change not saved"
+    other: "{n} changes not saved"
+
+welcome:
+  title: "Welcome to Assess"
+  body: "Your settings will be saved in {path}.\nYou can change them any time from the menu (Settings) or with `ax config`."
+  language: "Language of the interface"

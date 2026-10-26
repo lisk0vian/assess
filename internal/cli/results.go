@@ -19,20 +19,17 @@ func newResultsCmd() *cobra.Command {
 	var format, out, sessionID, sep string
 	var noBOM bool
 	cmd := &cobra.Command{
-		Use:   "results",
-		Short: "Export the results of a session as CSV or JSON",
-		Long: "Results exports one row per student: score, submission time, reason and\n" +
-			"the points of every question they received. It reads the database directly,\n" +
-			"so it works while the server runs or after it stopped. Defaults to the most\n" +
-			"recent session.",
-		Example: "  ax results > notas.csv\n  ax results --sep \";\" --out notas.csv   # Excel with a Spanish locale\n  ax results --format json",
+		Use:     "results",
+		Short:   T("cli.results.short"),
+		Long:    T("cli.results.long"),
+		Example: T("cli.results.example"),
 		Args:    cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			if format != "csv" && format != "json" {
-				return fmt.Errorf("unknown format %q (use csv or json)", format)
+				return errors.New(T("cli.results.bad_format", "format", format))
 			}
 			if len([]rune(sep)) != 1 {
-				return errors.New("--sep must be a single character")
+				return errors.New(T("cli.results.bad_sep"))
 			}
 			dir, err := dataDir()
 			if err != nil {
@@ -44,7 +41,7 @@ func newResultsCmd() *cobra.Command {
 				if id == "" {
 					latest, err := svc.LatestSession(cmd.Context())
 					if errors.Is(err, session.ErrNotFound) {
-						return errors.New("there are no sessions yet")
+						return errors.New(T("cli.no_sessions"))
 					}
 					if err != nil {
 						return err
@@ -72,23 +69,23 @@ func newResultsCmd() *cobra.Command {
 				enc.SetIndent("", "  ")
 				return enc.Encode(res)
 			}
-			if !noBOM {
+			if cfg.Bool("results.bom") && !noBOM {
 				_, _ = w.Write([]byte{0xEF, 0xBB, 0xBF}) // UTF-8 BOM: lets Excel read accents
 			}
 			if err := writeCSV(w, res, []rune(sep)[0]); err != nil {
 				return err
 			}
 			if out != "" {
-				fmt.Fprintf(cmd.ErrOrStderr(), "Wrote %d rows to %s\n", len(res.Rows), out)
+				fmt.Fprintln(cmd.ErrOrStderr(), T("cli.results.wrote", "n", len(res.Rows), "file", out))
 			}
 			return nil
 		},
 	}
-	cmd.Flags().StringVar(&format, "format", "csv", "csv or json")
-	cmd.Flags().StringVarP(&out, "out", "o", "", "write to a file instead of stdout")
-	cmd.Flags().StringVar(&sessionID, "session", "", "session id (default: the most recent)")
-	cmd.Flags().StringVar(&sep, "sep", ",", "CSV field separator")
-	cmd.Flags().BoolVar(&noBOM, "no-bom", false, "omit the UTF-8 byte order mark")
+	cmd.Flags().StringVar(&format, "format", cfg.Str("results.format"), T("cli.results.flag_format"))
+	cmd.Flags().StringVarP(&out, "out", "o", "", T("cli.results.flag_out"))
+	cmd.Flags().StringVar(&sessionID, "session", "", T("cli.flag.session"))
+	cmd.Flags().StringVar(&sep, "sep", cfg.Str("results.separator"), T("cli.results.flag_sep"))
+	cmd.Flags().BoolVar(&noBOM, "no-bom", false, T("cli.results.flag_no_bom"))
 	return cmd
 }
 

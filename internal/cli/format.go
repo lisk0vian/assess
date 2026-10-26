@@ -11,12 +11,10 @@ import (
 func newFormatCmd() *cobra.Command {
 	var reference, guide bool
 	cmd := &cobra.Command{
-		Use:   "format",
-		Short: "Print the exam format: a guide to writing exams as files, and the reference",
-		Long: "Format prints how to write an exam as YAML files: a step-by-step guide with a\n" +
-			"complete, valid example and a checklist (made for AI assistants, readable by\n" +
-			"anyone), followed by the full reference. Teachers can use `ax new` instead.",
-		Example: "  ax format > formato.md\n  ax format --guide",
+		Use:     "format",
+		Short:   T("cli.format.short"),
+		Long:    T("cli.format.long"),
+		Example: "  ax format > format.md\n  ax format --guide",
 		Args:    cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			out := cmd.OutOrStdout()
@@ -32,8 +30,8 @@ func newFormatCmd() *cobra.Command {
 			return nil
 		},
 	}
-	cmd.Flags().BoolVar(&guide, "guide", false, "print only the authoring guide")
-	cmd.Flags().BoolVar(&reference, "reference", false, "print only the format reference")
+	cmd.Flags().BoolVar(&guide, "guide", false, T("cli.format.flag_guide"))
+	cmd.Flags().BoolVar(&reference, "reference", false, T("cli.format.flag_reference"))
 	cmd.MarkFlagsMutuallyExclusive("guide", "reference")
 	return cmd
 }

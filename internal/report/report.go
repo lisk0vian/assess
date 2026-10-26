@@ -201,9 +201,11 @@ const (
 	timelineSlots = 30
 )
 
-// awaySignals are the signals that mean the student left the exam.
+// awaySignals are the signals that mean the student left the exam, or stayed
+// still in front of it (frozen_pointer: maybe photographing the screen).
 var awaySignals = map[string]string{
 	"signal.hidden": "hidden", "signal.blur": "blur", "signal.fullscreen_exit": "fullscreen_exit",
+	"signal.frozen_pointer": "frozen_pointer",
 }
 
 // attempt is one attempt prepared for analysis.

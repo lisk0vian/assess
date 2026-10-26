@@ -83,8 +83,8 @@ func TestReport(t *testing.T) {
 	if os.Getenv("AX_REPORT_OUT") != "" {
 		_ = os.WriteFile(os.Getenv("AX_REPORT_OUT"), []byte(out), 0o600)
 	}
-	for _, want := range []string{"== RESUMEN ==", "8 alumnos", "8 entregados", "Media", "% DE ACIERTOS POR PREGUNTA", "q007",
-		"== INCIDENCIAS ==", "No hubo señales", "RESPUESTAS PARECIDAS", "SALIÓ Y ACERTÓ", "SESIONES DEL EXAMEN", "esta sesión"} {
+	for _, want := range []string{"== SUMMARY ==", "8 students", "8 submitted", "Mean", "% RIGHT PER QUESTION", "q007",
+		"== INCIDENTS ==", "There were no integrity signals", "SIMILAR ANSWERS", "LEFT AND GOT IT RIGHT", "SESSIONS OF THE EXAM", "this session"} {
 		if !strings.Contains(out, want) {
 			t.Fatalf("report text missing %q:\n%s", want, out)
 		}

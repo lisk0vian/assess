@@ -2,9 +2,12 @@ import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 import "./styles/app.css";
 import { App } from "./App";
+import { loadStrings } from "./i18n";
 
-createRoot(document.getElementById("root")!).render(
-  <StrictMode>
-    <App />
-  </StrictMode>,
-);
+void loadStrings().then(() => {
+  createRoot(document.getElementById("root")!).render(
+    <StrictMode>
+      <App />
+    </StrictMode>,
+  );
+});

@@ -83,6 +83,11 @@ type Proctoring struct {
 	Devices     string `yaml:"devices"`      // any | desktop
 	Reveal      string `yaml:"reveal"`       // always | hover, default for questions
 	StrikeLimit int    `yaml:"strike_limit"` // strikes that annul the attempt
+	// Against photos of the screen. Nil takes the profile's default (on).
+	Lens          *bool  `yaml:"lens"`           // the prompt is read in ranges of words, one at a time
+	FrozenPointer *bool  `yaml:"frozen_pointer"` // warn when the student stays still, then answers
+	AutoRead      *bool  `yaml:"auto_read"`      // read the prompt once when it opens; nil takes the default (on)
+	ReadSpeed     string `yaml:"read_speed"`     // slow | normal | fast; empty takes the default (normal)
 }
 
 // Item is one entry of manifest.items: either a fixed question or a pool.
@@ -111,6 +116,7 @@ type Question struct {
 	Prompt      string   `yaml:"prompt"`
 	TimeLimit   Duration `yaml:"time_limit"`
 	Reveal      string   `yaml:"reveal"`
+	Lens        *bool    `yaml:"lens"` // nil inherits proctoring.lens
 	Options     []Option `yaml:"options"`
 	Input       string   `yaml:"input"`
 	Placeholder string   `yaml:"placeholder"`
@@ -148,10 +154,13 @@ type Answer struct {
 
 // Defaults applied by accessors when a field is omitted.
 const (
-	DefaultLanguage         = "es"
 	DefaultResultVisibility = "score"
 	DefaultProfile          = "standard"
 )
+
+// DefaultLanguage is the student UI language of exams that set none. It
+// comes from the teacher's settings (student_language).
+var DefaultLanguage = "en"
 
 // Lang returns the student UI language.
 func (m *Manifest) Lang() string { return orDefault(m.Language, DefaultLanguage) }

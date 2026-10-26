@@ -25,7 +25,7 @@ const (
 	repCount
 )
 
-var repNames = [repCount]string{"Resumen", "Preguntas", "Incidencias", "Indicios", "Historial"}
+var repKeys = [repCount]string{"report.view.summary", "report.view.questions", "report.view.incidents", "report.view.evidence", "report.view.history"}
 
 var (
 	barStyle  = lipgloss.NewStyle().Foreground(accent)
@@ -125,11 +125,11 @@ func (m *Report) View() tea.View {
 		b.WriteString("\n")
 	}
 	k := func(key, label string) string { return keyStyle.Render(key) + " " + label }
-	keys := []string{k("←→", "vista"), k("1-5", "ir a")}
+	keys := []string{k("←→", T("report.key.view")), k("1-5", T("report.key.goto"))}
 	if len(body) > room {
-		keys = append(keys, k("↑↓", fmt.Sprintf("desplazar (%d-%d de %d)", m.scroll+1, end, len(body))))
+		keys = append(keys, k("↑↓", T("report.key.scroll", "from", m.scroll+1, "to", end, "total", len(body))))
 	}
-	keys = append(keys, k("Q", "salir"))
+	keys = append(keys, k("Q", T("editor.key.quit")))
 	b.WriteString(mutedStyle.Render(strings.Repeat("─", w)) + "\n" + strings.Join(keys, "   "))
 	v := tea.NewView(b.String())
 	v.AltScreen = true
@@ -138,14 +138,14 @@ func (m *Report) View() tea.View {
 
 func (m *Report) header() string {
 	s := m.r.Session
-	return brandStyle.Render("ASSESS") + mutedStyle.Render("  ·  informe  ·  ") + s.ExamTitle +
-		mutedStyle.Render("  ·  sesión "+s.Code+"  ·  "+span(s.StartedAt, s.EndedAt))
+	return brandStyle.Render("ASSESS") + mutedStyle.Render("  ·  "+T("report.name")+"  ·  ") + s.ExamTitle +
+		mutedStyle.Render("  ·  "+T("report.session", "code", s.Code)+"  ·  "+span(s.StartedAt, s.EndedAt))
 }
 
 func (m *Report) tabs() string {
 	parts := make([]string, repCount)
-	for i, n := range repNames {
-		label := fmt.Sprintf("%d %s", i+1, n)
+	for i, key := range repKeys {
+		label := fmt.Sprintf("%d %s", i+1, T(key))
 		if i == m.view {
 			parts[i] = selStyle.Render(" " + label + " ")
 		} else {
@@ -177,7 +177,7 @@ func ReportText(r *report.Report, width int) string {
 	var b strings.Builder
 	b.WriteString(ansi.Strip(m.header()) + "\n")
 	for v := range repCount {
-		b.WriteString("\n== " + strings.ToUpper(repNames[v]) + " ==\n")
+		b.WriteString("\n== " + strings.ToUpper(T(repKeys[v])) + " ==\n")
 		for _, l := range m.body(v, m.w()) {
 			b.WriteString(strings.TrimRight(ansi.Strip(l), " ") + "\n")
 		}
@@ -190,24 +190,24 @@ func ReportText(r *report.Report, width int) string {
 func (m *Report) summary() []string {
 	s := m.r.Summary
 	out := []string{
-		fmt.Sprintf("  %s   %s   %s   %s", count(s.Students, "alumno", "alumnos"), count(s.Submitted, "entregado", "entregados"),
-			count(s.Annulled, "anulado", "anulados"), count(s.Withdrawn, "retirado", "retirados")),
+		fmt.Sprintf("  %s   %s   %s   %s", T("report.n.students", "n", s.Students), T("report.n.submitted", "n", s.Submitted),
+			T("report.n.annulled", "n", s.Annulled), T("report.n.withdrawn", "n", s.Withdrawn)),
 		"",
 	}
 	if s.Submitted == 0 {
-		return append(out, mutedStyle.Render("  Nadie entregó el examen: no hay notas que analizar."))
+		return append(out, mutedStyle.Render("  "+T("report.nobody_submitted")))
 	}
 	out = append(out,
-		fmt.Sprintf("  Media %s   Mediana %s   Desviación %s   Mínimo %s   Máximo %s   Tiempo mediano %s",
-			boldStyle.Render(pct(s.Mean)), boldStyle.Render(pct(s.Median)), num(s.StdDev), pct(s.Min), pct(s.Max), minutes(s.MedianMinutes)),
+		"  "+T("report.stats", "mean", boldStyle.Render(pct(s.Mean)), "median", boldStyle.Render(pct(s.Median)), "sd", num(s.StdDev),
+			"min", pct(s.Min), "max", pct(s.Max), "time", minutes(s.MedianMinutes)),
 		"",
-		headStyle.Render("  NOTAS")+mutedStyle.Render(" · % del máximo, exámenes entregados"),
+		headStyle.Render("  "+T("report.scores.title"))+mutedStyle.Render(" · "+T("report.scores.hint")),
 	)
 	out = append(out, histChart(m.r.Scores, func(b report.Bin) string { return fmt.Sprintf("%g-%g", b.From, b.To) })...)
-	out = append(out, "", headStyle.Render("  TIEMPO EMPLEADO")+mutedStyle.Render(" · minutos desde que empezó cada alumno"))
+	out = append(out, "", headStyle.Render("  "+T("report.times.title"))+mutedStyle.Render(" · "+T("report.times.hint")))
 	out = append(out, histChart(m.r.Times, func(b report.Bin) string { return fmt.Sprintf("%g-%g", b.From, b.To) })...)
 
-	out = append(out, "", headStyle.Render("  PARA REVISAR")+mutedStyle.Render(" · alumnos con strikes o indicios"))
+	out = append(out, "", headStyle.Render("  "+T("report.review.title"))+mutedStyle.Render(" · "+T("report.review.hint")))
 	n := 0
 	for _, st := range m.r.Students {
 		if st.Strikes == 0 && st.AwayHits == 0 && st.Pairs == 0 {
@@ -216,13 +216,13 @@ func (m *Report) summary() []string {
 		n++
 		var why []string
 		if st.Strikes > 0 {
-			why = append(why, count(st.Strikes, "strike", "strikes"))
+			why = append(why, T("report.n.strikes", "n", st.Strikes))
 		}
 		if st.Pairs > 0 {
-			why = append(why, count(st.Pairs, "pareja parecida", "parejas parecidas"))
+			why = append(why, T("report.n.pairs", "n", st.Pairs))
 		}
 		if st.AwayHits > 0 {
-			why = append(why, fmt.Sprintf("salió y acertó %d %s", st.AwayHits, plural(st.AwayHits, "vez", "veces")))
+			why = append(why, T("report.n.away", "n", st.AwayHits))
 		}
 		score := "—"
 		if st.Percent != nil {
@@ -231,16 +231,16 @@ func (m *Report) summary() []string {
 		out = append(out, fmt.Sprintf("  %-26s %-10s %6s   %s", cut(st.Name, 26), stateName(st.State), score, strings.Join(why, " · ")))
 	}
 	if n == 0 {
-		out = append(out, mutedStyle.Render("  Nadie acumula strikes ni indicios."))
+		out = append(out, mutedStyle.Render("  "+T("report.review.none")))
 	}
 	return out
 }
 
 func (m *Report) questions(w int) []string {
 	qs := m.r.Questions
-	out := []string{headStyle.Render("  % DE ACIERTOS POR PREGUNTA") + mutedStyle.Render(" · entre quienes la recibieron")}
+	out := []string{headStyle.Render("  "+T("report.rates.title")) + mutedStyle.Render(" · "+T("report.rates.hint"))}
 	data := make([]barchart.BarData, 0, len(qs))
-	labelW := len("PREG.")
+	labelW := len([]rune(T("monitor.col.question")))
 	for _, q := range qs {
 		labelW = max(labelW, len(q.ID))
 	}
@@ -263,7 +263,7 @@ func (m *Report) questions(w int) []string {
 			out = append(out, "  "+l)
 		}
 	}
-	out = append(out, "", headStyle.Render(fmt.Sprintf("  %-*s  %-10s %8s %9s %8s   %s", labelW, "PREG.", "TIPO", "ACIERTOS", "EN BLANCO", "DISCRIM.", "ENUNCIADO")))
+	out = append(out, "", headStyle.Render(fmt.Sprintf("  %-*s  %-10s %8s %9s %8s   %s", labelW, T("monitor.col.question"), T("editor.col.type"), T("report.col.right"), T("report.col.blank"), T("report.col.discrimination"), T("editor.col.prompt"))))
 	for _, q := range qs {
 		blank, disc := "—", "—"
 		if q.Seen > 0 {
@@ -280,20 +280,20 @@ func (m *Report) questions(w int) []string {
 		var notes []string
 		switch {
 		case q.Seen == 0:
-			notes = append(notes, mutedStyle.Render("nadie la recibió (pool)"))
+			notes = append(notes, mutedStyle.Render(T("report.note.unseen")))
 		case q.Discrimination != nil && *q.Discrimination < 0:
-			notes = append(notes, accentStyle.Render("la aciertan más quienes peor van: revisa la clave o el enunciado"))
+			notes = append(notes, accentStyle.Render(T("report.note.negative")))
 		case q.Discrimination != nil && *q.Discrimination < 0.15 && q.Rate > 0 && q.Rate < 1:
-			notes = append(notes, mutedStyle.Render("apenas distingue a quien sabe de quien no"))
+			notes = append(notes, mutedStyle.Render(T("report.note.weak")))
 		}
 		if q.Leak {
-			notes = append(notes, accentStyle.Render("mucho más fácil que en sesiones anteriores: quizá circula"))
+			notes = append(notes, accentStyle.Render(T("report.note.leak")))
 		}
 		if q.AwayHits > 0 {
-			notes = append(notes, accentStyle.Render(fmt.Sprintf("%d %s tras salir del examen", q.AwayHits, plural(q.AwayHits, "acierto", "aciertos"))))
+			notes = append(notes, accentStyle.Render(T("report.note.away", "n", q.AwayHits)))
 		}
 		if q.Voided > 0 {
-			notes = append(notes, mutedStyle.Render(fmt.Sprintf("anulada a %s", count(q.Voided, "alumno", "alumnos"))))
+			notes = append(notes, mutedStyle.Render(T("report.note.voided", "students", T("report.n.students", "n", q.Voided))))
 		}
 		if len(notes) > 0 {
 			out = append(out, strings.Repeat(" ", labelW+4)+"↳ "+strings.Join(notes, mutedStyle.Render(" · ")))
@@ -309,88 +309,81 @@ func (m *Report) incidents(w int) []string {
 		warn += k.Warn
 		high += k.High
 	}
-	out := []string{fmt.Sprintf("  %s · %s · %s activos · %s · %s restados · %s",
-		count(warn, "aviso", "avisos"), count(high, "señal grave", "señales graves"), strconv.Itoa(inc.Strikes)+" strikes",
-		count(inc.Reverted, "penalización revertida", "penalizaciones revertidas"), minutes(inc.TimeLostMin),
-		count(inc.VoidedAnswers, "pregunta anulada", "preguntas anuladas")), ""}
+	out := []string{"  " + T("report.incidents.counts", "warn", T("report.n.warnings", "n", warn), "high", T("report.n.serious", "n", high),
+		"strikes", inc.Strikes, "reverted", T("report.n.reverted", "n", inc.Reverted), "time", minutes(inc.TimeLostMin),
+		"voided", T("report.n.voided", "n", inc.VoidedAnswers)), ""}
 	if warn+high == 0 {
-		return append(out, mutedStyle.Render("  No hubo señales de integridad en esta sesión."))
+		return append(out, mutedStyle.Render("  "+T("report.incidents.none")))
 	}
-	out = append(out, headStyle.Render("  SEÑALES A LO LARGO DEL EXAMEN")+mutedStyle.Render(fmt.Sprintf(" · cada barra, %d min · ", inc.Step))+
-		warnStyle.Render("█")+" aviso  "+barStyle.Render("█")+" grave")
+	out = append(out, headStyle.Render("  "+T("report.timeline.title"))+mutedStyle.Render(" · "+T("report.timeline.step", "n", inc.Step)+" · ")+
+		warnStyle.Render("█")+" "+T("report.timeline.warn")+"  "+barStyle.Render("█")+" "+T("report.timeline.high"))
 	out = append(out, timelineChart(inc, w)...)
-	out = append(out, "", headStyle.Render(fmt.Sprintf("  %-34s %7s %7s", "POR TIPO", "AVISOS", "GRAVES")))
+	out = append(out, "", headStyle.Render(fmt.Sprintf("  %-34s %7s %7s", T("report.col.kind"), T("report.col.warnings"), T("report.col.serious"))))
 	for _, k := range inc.ByKind {
-		name := signalNames[k.Kind]
-		if name == "" {
-			name = k.Kind
-		}
-		out = append(out, fmt.Sprintf("  %-34s %7d %7d", name, k.Warn, k.High))
+		out = append(out, fmt.Sprintf("  %-34s %7d %7d", signalName(k.Kind), k.Warn, k.High))
 	}
 	return out
 }
 
 func (m *Report) evidence() []string {
-	out := []string{mutedStyle.Render("  Son indicios, no pruebas: revisa las respuestas y habla con el alumno antes de decidir."), "",
-		headStyle.Render("  RESPUESTAS PARECIDAS") + mutedStyle.Render(" · mismos errores poco comunes, o guardados a la vez con distinto orden")}
+	out := []string{mutedStyle.Render("  " + T("report.evidence.disclaimer")), "",
+		headStyle.Render("  "+T("report.pairs.title")) + mutedStyle.Render(" · "+T("report.pairs.hint"))}
 	if len(m.r.Pairs) == 0 {
-		out = append(out, mutedStyle.Render("  Ninguna pareja se parece más de lo que explica el azar."))
+		out = append(out, mutedStyle.Render("  "+T("report.pairs.none")))
 	}
 	for _, p := range m.r.Pairs {
-		level := mutedStyle.Render("MEDIO")
+		level := mutedStyle.Render(fmt.Sprintf("%-5s", T("report.pairs.medium")))
 		if p.Level == report.LevelHigh {
-			level = accentStyle.Render("ALTO ")
+			level = accentStyle.Render(fmt.Sprintf("%-5s", T("report.pairs.high")))
 		}
 		line := fmt.Sprintf("  %s  %s ↔ %s", level, boldStyle.Render(p.Students[0].Name), boldStyle.Render(p.Students[1].Name))
 		var why []string
 		if p.SameWrong > 0 {
-			why = append(why, fmt.Sprintf("%d de %d errores en común son idénticos (por azar, ~%s; probabilidad %s)",
-				p.SameWrong, p.BothWrong, num(p.Expected), odds(p.P)))
+			why = append(why, T("report.pairs.same_wrong", "same", p.SameWrong, "both", p.BothWrong, "expected", num(p.Expected), "odds", odds(p.P)))
 		}
 		if p.Synced > 0 {
-			why = append(why, fmt.Sprintf("%s a la vez, con las preguntas en distinto orden", count(p.Synced, "respuesta guardada", "respuestas guardadas")))
+			why = append(why, T("report.pairs.synced", "answers", T("report.n.saved_answers", "n", p.Synced)))
 		}
 		out = append(out, line, "         "+strings.Join(why, mutedStyle.Render(" · ")))
 		if len(p.Questions) > 0 {
-			out = append(out, mutedStyle.Render("         errores idénticos en: "+strings.Join(p.Questions, " ")))
+			out = append(out, mutedStyle.Render("         "+T("report.pairs.questions", "list", strings.Join(p.Questions, " "))))
 		}
 	}
-	out = append(out, "", headStyle.Render("  SALIÓ Y ACERTÓ")+mutedStyle.Render(" · respuesta correcta guardada justo al volver a la pregunta"))
+	out = append(out, "", headStyle.Render("  "+T("monitor.away.title"))+mutedStyle.Render(" · "+T("report.away.hint")))
 	if len(m.r.AwayHits) == 0 {
-		out = append(out, mutedStyle.Render("  Nadie acertó justo después de salir del examen."))
+		out = append(out, mutedStyle.Render("  "+T("report.away.none")))
 	}
 	for _, h := range m.r.AwayHits {
-		hard := mutedStyle.Render(fmt.Sprintf("la falló el %s del resto", pct(h.Difficulty*100)))
+		hard := mutedStyle.Render(T("report.away.missed", "pct", pct(h.Difficulty*100)))
 		if h.Strong {
-			hard = accentStyle.Render(fmt.Sprintf("difícil: la falló el %s del resto", pct(h.Difficulty*100)))
+			hard = accentStyle.Render(T("report.away.hard", "pct", pct(h.Difficulty*100)))
 		}
-		sig := signalNames[h.Signal]
-		out = append(out, fmt.Sprintf("  %-26s %-6s %s %s → acertó %s después · %s", cut(h.Name, 26), h.QuestionID, sig,
-			seconds(h.AwayMs), seconds(h.AfterMs), hard))
+		out = append(out, fmt.Sprintf("  %-26s %-6s %s", cut(h.Name, 26), h.QuestionID,
+			T("report.away.line", "signal", signalName(h.Signal), "away", seconds(h.AwayMs), "after", seconds(h.AfterMs), "difficulty", hard)))
 	}
 	return out
 }
 
 func (m *Report) history() []string {
-	out := []string{headStyle.Render(fmt.Sprintf("  %-20s %-8s %8s %11s %7s %8s", "SESIONES DEL EXAMEN", "CÓDIGO", "ALUMNOS", "ENTREGADOS", "MEDIA", "MEDIANA"))}
+	out := []string{headStyle.Render(fmt.Sprintf("  %-20s %-8s %8s %11s %7s %8s", T("report.history.sessions"), T("report.history.code"), T("report.history.students"), T("report.history.submitted"), T("report.history.mean"), T("report.history.median")))}
 	for _, h := range m.r.History {
 		line := fmt.Sprintf("%-20s %-8s %8d %11d %7s %8s", day(h.StartedAt), h.Code, h.Students, h.Submitted, pct(h.Mean), pct(h.Median))
 		if h.Current {
-			out = append(out, selStyle.Render("▸ "+line)+mutedStyle.Render("  esta sesión"))
+			out = append(out, selStyle.Render("▸ "+line)+mutedStyle.Render("  "+T("report.history.this")))
 		} else {
 			out = append(out, "  "+line)
 		}
 	}
-	out = append(out, "", headStyle.Render("  PREGUNTAS QUE QUIZÁ CIRCULAN")+mutedStyle.Render(" · aciertos muy por encima de sesiones anteriores"))
+	out = append(out, "", headStyle.Render("  "+T("report.leaks.title"))+mutedStyle.Render(" · "+T("report.leaks.hint")))
 	switch {
 	case len(m.r.History) < 2:
-		out = append(out, mutedStyle.Render("  Hace falta otra sesión terminada de este examen para comparar."))
+		out = append(out, mutedStyle.Render("  "+T("report.leaks.need_more")))
 	case len(m.r.Leaks) == 0:
-		out = append(out, mutedStyle.Render("  Ninguna pregunta se volvió mucho más fácil que antes."))
+		out = append(out, mutedStyle.Render("  "+T("report.leaks.none")))
 	}
 	for _, l := range m.r.Leaks {
-		out = append(out, fmt.Sprintf("  %-8s antes %s (%d) → ahora %s (%d) · %s", l.QuestionID, pct(l.Before*100), l.BeforeN,
-			accentStyle.Render(pct(l.Now*100)), l.NowN, "cámbiala o reescríbela para la próxima"),
+		out = append(out, fmt.Sprintf("  %-8s ", l.QuestionID)+T("report.leaks.line", "before", pct(l.Before*100), "before_n", l.BeforeN,
+			"now", accentStyle.Render(pct(l.Now*100)), "now_n", l.NowN),
 			mutedStyle.Render("           "+l.Prompt))
 	}
 	return out
@@ -433,8 +426,8 @@ func timelineChart(inc report.Incidents, w int) []string {
 	top := 1
 	for i, t := range inc.Timeline {
 		data[i] = barchart.BarData{Values: []barchart.BarValue{
-			{Name: "aviso", Value: float64(t.Warn), Style: warnStyle},
-			{Name: "grave", Value: float64(t.High), Style: barStyle},
+			{Name: "warn", Value: float64(t.Warn), Style: warnStyle},
+			{Name: "high", Value: float64(t.High), Style: barStyle},
 		}}
 		top = max(top, t.Warn+t.High)
 	}
@@ -442,7 +435,7 @@ func timelineChart(inc report.Incidents, w int) []string {
 		barchart.WithNoAutoMaxValue(), barchart.WithMaxValue(float64(top)), barchart.WithStyles(mutedStyle, mutedStyle), barchart.WithDataSet(data))
 	ch.Draw()
 	lines := strings.Split(ch.View(), "\n")
-	out := []string{mutedStyle.Render(fmt.Sprintf("  máx. %d", top))}
+	out := []string{mutedStyle.Render("  " + T("report.timeline.max", "n", top))}
 	for _, l := range lines[:len(lines)-1] { // the last row holds empty labels
 		out = append(out, "  "+l)
 	}
@@ -461,19 +454,22 @@ func timelineChart(inc report.Incidents, w int) []string {
 
 // ---------------- formatting ----------------
 
-var monthsES = [12]string{"ene", "feb", "mar", "abr", "may", "jun", "jul", "ago", "sep", "oct", "nov", "dic"}
-
 func day(t time.Time) string {
 	if t.IsZero() {
-		return "sin empezar"
+		return T("report.not_started")
 	}
 	t = t.Local()
-	return fmt.Sprintf("%d %s %d %02d:%02d", t.Day(), monthsES[t.Month()-1], t.Year(), t.Hour(), t.Minute())
+	months := strings.Fields(T("common.months"))
+	month := strconv.Itoa(int(t.Month()))
+	if len(months) == 12 {
+		month = months[t.Month()-1]
+	}
+	return T("common.date_time", "day", t.Day(), "month", month, "year", t.Year(), "time", fmt.Sprintf("%02d:%02d", t.Hour(), t.Minute()))
 }
 
 func span(from, to time.Time) string {
 	if from.IsZero() {
-		return "sin empezar"
+		return T("report.not_started")
 	}
 	s := day(from)
 	if !to.IsZero() {
@@ -483,16 +479,6 @@ func span(from, to time.Time) string {
 	return s
 }
 
-// num formats with a decimal comma, as Spanish readers expect.
-func num(v float64) string {
-	s := strconv.FormatFloat(math.Round(v*10)/10, 'f', -1, 64)
-	return strings.Replace(s, ".", ",", 1)
-}
-
-func pct(v float64) string { return strconv.Itoa(int(math.Round(v))) + " %" }
-
-func minutes(v float64) string { return num(v) + " min" }
-
 func seconds(ms int64) string {
 	if ms >= 60_000 {
 		return clock(time.Duration(ms) * time.Millisecond)
@@ -500,58 +486,21 @@ func seconds(ms int64) string {
 	return fmt.Sprintf("%d s", (ms+500)/1000)
 }
 
-// odds shows a small probability as "1 entre N".
+// odds shows a small probability as "1 in N".
 func odds(p float64) string {
 	if p <= 0 {
-		return "casi nula"
+		return T("report.odds.nil")
 	}
 	n := 1 / p
 	if n < 2 {
-		return "alta"
+		return T("report.odds.high")
 	}
 	if n >= 1e6 {
-		return "menos de 1 entre un millón"
+		return T("report.odds.million")
 	}
 	s := strconv.Itoa(int(math.Round(n)))
 	for i := len(s) - 3; i > 0; i -= 3 {
-		s = s[:i] + "." + s[i:]
+		s = s[:i] + T("common.thousands") + s[i:]
 	}
-	return "1 entre " + s
-}
-
-func plural(n int, one, many string) string {
-	if n == 1 {
-		return one
-	}
-	return many
-}
-
-func count(n int, one, many string) string { return strconv.Itoa(n) + " " + plural(n, one, many) }
-
-func typeName(t string) string {
-	switch t {
-	case "single":
-		return "una opción"
-	case "multiple":
-		return "varias"
-	case "truefalse":
-		return "V/F"
-	case "short":
-		return "corta"
-	}
-	return t
-}
-
-func stateName(s string) string {
-	switch s {
-	case "submitted":
-		return "entregado"
-	case "annulled":
-		return "anulado"
-	case "withdrawn":
-		return "retirado"
-	case "active":
-		return "sin entregar"
-	}
-	return s
+	return T("report.odds.one_in", "n", s)
 }

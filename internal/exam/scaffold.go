@@ -10,6 +10,8 @@ import (
 	"regexp"
 	"strings"
 	"text/template"
+
+	"github.com/lisk0vian/assess/internal/i18n"
 )
 
 //go:embed scaffold
@@ -19,7 +21,7 @@ var scaffoldFS embed.FS
 type ScaffoldOptions struct {
 	ID       string // defaults to a slug of the folder name
 	Title    string // defaults to a language-specific placeholder
-	Language string // es (default) or en
+	Language string // default: DefaultLanguage; sample text in es or en
 }
 
 // scaffoldText holds the translated sample content.
@@ -66,9 +68,12 @@ func Scaffold(dir string, opts ScaffoldOptions) error {
 	if opts.Language == "" {
 		opts.Language = DefaultLanguage
 	}
+	if !i18n.ValidLang(opts.Language) {
+		return fmt.Errorf("invalid language code %q (examples: en, es, pt-BR)", opts.Language)
+	}
 	text, ok := scaffoldText[opts.Language]
 	if !ok {
-		return fmt.Errorf("unsupported language %q (use es or en)", opts.Language)
+		text = scaffoldText["en"] // the sample questions exist in es and en only
 	}
 	if opts.ID == "" {
 		opts.ID = Slug(filepath.Base(filepath.Clean(dir)))

@@ -7,6 +7,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"runtime"
+	"strconv"
 	"strings"
 
 	tea "charm.land/bubbletea/v2"
@@ -31,6 +32,8 @@ type Editor struct {
 	confirm  string       // a yes/no question in progress
 	onYes    func() error
 
+	editor string // the editor setting; empty uses $VISUAL / $EDITOR
+
 	// Start reports that the editor closed asking to start the exam.
 	Start bool
 }
@@ -51,8 +54,11 @@ const (
 
 type editedMsg struct{ err error }
 
-// NewEditor opens the editor on a draft.
-func NewEditor(d *exam.Draft) *Editor { return &Editor{d: d, width: 100, height: 40} }
+// NewEditor opens the editor on a draft. editor is the command that opens
+// files (the editor setting); empty uses $VISUAL or $EDITOR.
+func NewEditor(d *exam.Draft, editor string) *Editor {
+	return &Editor{d: d, width: 100, height: 40, editor: editor}
+}
 
 // Init does nothing; the draft is already loaded.
 func (m *Editor) Init() tea.Cmd { return nil }
@@ -90,7 +96,7 @@ func (m *Editor) say(err error, ok string) {
 	if err != nil {
 		m.notice, m.isErr = err.Error(), true
 		if errors.Is(err, exam.ErrBrokenFile) {
-			m.notice += " (E abre el archivo)"
+			m.notice += " " + T("editor.open_hint")
 		}
 		return
 	}
@@ -107,7 +113,7 @@ func (m *Editor) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		if err == nil {
 			err = m.d.Reload()
 		}
-		m.say(err, "Archivo editado; el examen se ha vuelto a validar.")
+		m.say(err, T("editor.edited"))
 		return m, nil
 	}
 	if m.form != nil {
@@ -121,10 +127,10 @@ func (m *Editor) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	if m.confirm != "" {
 		yes := m.onYes
 		m.confirm, m.onYes = "", nil
-		if k == "y" || k == "Y" || k == "s" || k == "S" {
-			m.say(yes(), "Hecho.")
+		if isYes(k) {
+			m.say(yes(), T("editor.done"))
 		} else {
-			m.say(nil, "Cancelado.")
+			m.say(nil, T("editor.cancelled"))
 		}
 		return m, nil
 	}
@@ -147,7 +153,7 @@ func (m *Editor) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case "d", "D", "delete":
 		if row.kind == rowQuestion {
 			id := row.id
-			m.confirm = fmt.Sprintf("¿Borrar la pregunta %s, su archivo y su respuesta?", id)
+			m.confirm = T("editor.confirm_delete", "id", id)
 			m.onYes = func() error { return m.d.DeleteQuestion(id) }
 		}
 	case "shift+up", "K":
@@ -159,10 +165,10 @@ func (m *Editor) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case "c", "C":
 		return m, m.openFile(exam.AnswerKeyFile)
 	case "r", "R":
-		m.say(m.d.Reload(), "Carpeta vuelta a leer y validar.")
+		m.say(m.d.Reload(), T("editor.reloaded"))
 	case "s", "S":
 		if m.d.Problems.HasErrors() {
-			m.say(errors.New("corrige los errores antes de iniciar el examen"), "")
+			m.say(errors.New(T("editor.fix_first")), "")
 			return m, nil
 		}
 		m.Start = true
@@ -174,7 +180,7 @@ func (m *Editor) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 func (m *Editor) updateForm(msg tea.Msg) tea.Cmd {
 	if key, ok := msg.(tea.KeyPressMsg); ok && key.String() == "esc" {
 		m.form = nil
-		m.say(nil, "Cambios descartados.")
+		m.say(nil, T("editor.discarded"))
 		return nil
 	}
 	f, cmd := m.form.Update(msg)
@@ -183,11 +189,11 @@ func (m *Editor) updateForm(msg tea.Msg) tea.Cmd {
 	case huh.StateCompleted:
 		apply := m.onSubmit
 		m.form, m.onSubmit = nil, nil
-		m.say(apply(), "Guardado.")
+		m.say(apply(), T("editor.saved"))
 		return nil
 	case huh.StateAborted:
 		m.form = nil
-		m.say(nil, "Cambios descartados.")
+		m.say(nil, T("editor.discarded"))
 		return nil
 	}
 	return cmd
@@ -277,14 +283,18 @@ func (m *Editor) external(row editorRow) tea.Cmd {
 }
 
 func (m *Editor) openFile(rel string) tea.Cmd {
-	c := editorCommand(filepath.Join(m.d.Dir, filepath.FromSlash(rel)))
+	c := EditorCommand(m.editor, filepath.Join(m.d.Dir, filepath.FromSlash(rel)))
 	return tea.ExecProcess(c, func(err error) tea.Msg { return editedMsg{err} })
 }
 
-// editorCommand runs $VISUAL or $EDITOR (which may carry arguments, such as
+// EditorCommand opens path in the editor: the given command (the editor
+// setting), $VISUAL or $EDITOR (which may carry arguments, such as
 // "code -w"), or a sensible default for the system.
-func editorCommand(path string) *exec.Cmd {
-	ed := os.Getenv("VISUAL")
+func EditorCommand(editor, path string) *exec.Cmd {
+	ed := editor
+	if strings.TrimSpace(ed) == "" {
+		ed = os.Getenv("VISUAL")
+	}
 	if ed == "" {
 		ed = os.Getenv("EDITOR")
 	}
@@ -305,12 +315,12 @@ func (m *Editor) View() tea.View {
 	w := m.w()
 	var b strings.Builder
 	man := m.d.Exam.Manifest
-	b.WriteString(brandStyle.Render("ASSESS") + mutedStyle.Render("  ·  editor  ·  ") + man.Title +
+	b.WriteString(brandStyle.Render("ASSESS") + mutedStyle.Render("  ·  "+T("editor.name")+"  ·  ") + man.Title +
 		mutedStyle.Render("  ·  "+m.d.Dir) + "\n" + mutedStyle.Render(strings.Repeat("─", w)) + "\n")
 
 	if m.form != nil {
 		b.WriteString(m.form.View() + "\n\n")
-		b.WriteString(mutedStyle.Render("esc descarta los cambios") + "\n")
+		b.WriteString(mutedStyle.Render(T("editor.esc_discards")) + "\n")
 		return m.finish(&b)
 	}
 
@@ -321,11 +331,11 @@ func (m *Editor) View() tea.View {
 	for i := start; i < end; i++ {
 		b.WriteString(m.line(i, m.rowText(rows[i], w)) + "\n")
 		if i == 0 {
-			b.WriteString("\n" + headStyle.Render(fmt.Sprintf("  %-4s %-8s %-11s %6s   %s", "#", "PREG.", "TIPO", "PUNTOS", "ENUNCIADO")) + "\n")
+			b.WriteString("\n" + headStyle.Render(fmt.Sprintf("  %-4s %-8s %-11s %6s   %s", "#", T("editor.col.question"), T("editor.col.type"), T("editor.col.points"), T("editor.col.prompt"))) + "\n")
 		}
 	}
 	if len(rows) > room {
-		b.WriteString(mutedStyle.Render(fmt.Sprintf("  … %d-%d de %d", start+1, end, len(rows))) + "\n")
+		b.WriteString(mutedStyle.Render("  "+T("editor.range", "from", start+1, "to", end, "total", len(rows))) + "\n")
 	}
 	b.WriteString(mutedStyle.Render(strings.Repeat("─", w)) + "\n")
 	b.WriteString(m.problems(w))
@@ -336,7 +346,9 @@ func (m *Editor) finish(b *strings.Builder) tea.View {
 	b.WriteString(mutedStyle.Render(strings.Repeat("─", m.w())) + "\n")
 	switch {
 	case m.confirm != "":
-		b.WriteString(accentStyle.Render(m.confirm) + "  " + keyStyle.Render("Y") + " sí  " + keyStyle.Render("N") + " no\n")
+		yes, no := yesNoKeys()
+		b.WriteString(accentStyle.Render(m.confirm) + "  " + keyStyle.Render(strings.ToUpper(yes[0])) + " " + T("common.yes_short") + "  " +
+			keyStyle.Render(strings.ToUpper(no[0])) + " " + T("common.no_short") + "\n")
 	case m.notice != "" && m.isErr:
 		b.WriteString(accentStyle.Render(m.notice) + "\n")
 	case m.notice != "":
@@ -346,8 +358,9 @@ func (m *Editor) finish(b *strings.Builder) tea.View {
 	}
 	if m.form == nil {
 		k := func(key, label string) string { return keyStyle.Render(key) + " " + label }
-		b.WriteString(strings.Join([]string{k("Enter", "editar"), k("N", "nueva"), k("D", "borrar"), k("⇧↑↓", "mover"),
-			k("E", "abrir en el editor"), k("C", "clave"), k("S", "iniciar"), k("Q", "salir")}, "  "))
+		b.WriteString(strings.Join([]string{k("Enter", T("editor.key.edit")), k("N", T("editor.key.new")), k("D", T("editor.key.delete")),
+			k("⇧↑↓", T("editor.key.move")), k("E", T("editor.key.external")), k("C", T("editor.key.answers")), k("S", T("editor.key.start")),
+			k("Q", T("editor.key.quit"))}, "  "))
 	}
 	v := tea.NewView(b.String())
 	v.AltScreen = true
@@ -365,21 +378,13 @@ func (m *Editor) rowText(r editorRow, w int) string {
 	man := m.d.Exam.Manifest
 	switch r.kind {
 	case rowSettings:
-		shuffle := "sin barajar"
-		switch {
-		case man.ShuffleQuestions() && man.ShuffleOptions():
-			shuffle = "baraja preguntas y opciones"
-		case man.ShuffleQuestions():
-			shuffle = "baraja preguntas"
-		case man.ShuffleOptions():
-			shuffle = "baraja opciones"
-		}
-		vis := map[string]string{"none": "sin nota visible", "score": "nota visible", "review": "nota y corrección"}[man.Visibility()]
-		return fmt.Sprintf("⚙ Ajustes   %s · %s · %s · vigilancia %s · %s", exam.FormatDuration(man.Duration.D()), man.Lang(), vis,
-			man.Profile(), shuffle)
+		shuffle := T("editor.shuffle." + strconv.FormatBool(man.ShuffleQuestions()) + "_" + strconv.FormatBool(man.ShuffleOptions()))
+		vis := T("editor.visibility." + man.Visibility())
+		return T("editor.settings_row", "duration", exam.FormatDuration(man.Duration.D()), "lang", man.Lang(), "visibility", vis,
+			"profile", T("profile."+man.Profile()), "shuffle", shuffle)
 	case rowPool:
 		p := man.Items[r.item].Pool
-		return fmt.Sprintf("%-4d ◇ pool %s · cada alumno recibe %d de %d", r.item+1, p.ID, p.Pick, len(p.From))
+		return fmt.Sprintf("%-4d ", r.item+1) + T("editor.pool_row", "id", p.ID, "pick", p.Pick, "of", len(p.From))
 	}
 	q := m.d.Exam.Questions[r.id]
 	num := ""
@@ -394,7 +399,7 @@ func (m *Editor) rowText(r editorRow, w int) string {
 		id = "  " + id
 	}
 	if q == nil {
-		return fmt.Sprintf("%-4s %-8s %s", num, id, accentStyle.Render("falta questions/"+r.id+".yaml"))
+		return fmt.Sprintf("%-4s %-8s %s", num, id, accentStyle.Render(T("editor.missing_file", "file", "questions/"+r.id+".yaml")))
 	}
 	pts := "—"
 	if a, ok := m.d.Exam.Key.Answers[r.id]; ok {
@@ -402,7 +407,7 @@ func (m *Editor) rowText(r editorRow, w int) string {
 	}
 	text := cut(plainPrompt(q.Prompt), max(20, w-40))
 	if r.item < 0 {
-		text = mutedStyle.Render("no está en items · ") + text
+		text = mutedStyle.Render(T("editor.not_in_items")+" · ") + text
 	}
 	return fmt.Sprintf("%-4s %-8s %-11s %6s   %s", num, id, typeName(q.Type), pts, text)
 }
@@ -423,19 +428,19 @@ func (m *Editor) problems(w int) string {
 	ps := m.d.Problems
 	errs, warns := ps.Count(exam.SeverityError), ps.Count(exam.SeverityWarning)
 	if len(ps) == 0 {
-		return lipgloss.NewStyle().Bold(true).Render("  ✓ Sin problemas") + mutedStyle.Render(": listo para iniciar (S, o `ax start "+m.d.Dir+"`).") + "\n" //nolint:misspell // Spanish
+		return lipgloss.NewStyle().Bold(true).Render("  ✓ "+T("editor.no_problems")) + mutedStyle.Render(T("editor.ready", "dir", m.d.Dir)) + "\n"
 	}
 	var b strings.Builder
-	head := fmt.Sprintf("  %d %s · %d %s", errs, plural(errs, "error", "errores"), warns, plural(warns, "aviso", "avisos"))
+	head := T("cli.validate.errors", "n", errs) + " · " + T("cli.validate.warnings", "n", warns)
 	if errs > 0 {
-		b.WriteString(accentStyle.Render("  ✕"+head[1:]) + mutedStyle.Render(" · se corrige al guardar el formulario o con E") + "\n")
+		b.WriteString(accentStyle.Render("  ✕ "+head) + mutedStyle.Render(" · "+T("editor.fix_hint")) + "\n")
 	} else {
-		b.WriteString(boldStyle.Render("  ⚠"+head[1:]) + "\n")
+		b.WriteString(boldStyle.Render("  ⚠ "+head) + "\n")
 	}
 	const shown = 6
 	for i, p := range ps {
 		if i == shown {
-			b.WriteString(mutedStyle.Render(fmt.Sprintf("  … y %d más (`ax validate %s`)", len(ps)-shown, m.d.Dir)) + "\n")
+			b.WriteString(mutedStyle.Render("  "+T("editor.more_problems", "n", len(ps)-shown, "dir", m.d.Dir)) + "\n")
 			break
 		}
 		b.WriteString("  " + cut(p.String(), w-2) + "\n")

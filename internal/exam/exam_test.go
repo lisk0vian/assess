@@ -58,8 +58,8 @@ func TestScaffoldRejectsBadInput(t *testing.T) {
 	if err := Scaffold(filepath.Join(t.TempDir(), "###"), ScaffoldOptions{}); err == nil {
 		t.Fatal("expected an error for an id that cannot be derived")
 	}
-	if err := Scaffold(filepath.Join(t.TempDir(), "x"), ScaffoldOptions{Language: "fr"}); err == nil {
-		t.Fatal("expected an error for an unsupported language")
+	if err := Scaffold(filepath.Join(t.TempDir(), "x"), ScaffoldOptions{Language: "not a language"}); err == nil {
+		t.Fatal("expected an error for an invalid language code")
 	}
 }
 

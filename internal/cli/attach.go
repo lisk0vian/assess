@@ -15,15 +15,12 @@ import (
 	"github.com/lisk0vian/assess/internal/tui"
 )
 
-// lockAfter locks an idle panel when a password is set.
-const lockAfter = 5 * time.Minute
-
 // attach opens the live panel, or prints the status once when stdout is not
 // a terminal (scripts, CI).
 func attach(cmd *cobra.Command, dir string) error {
 	c, st, err := daemon.Dial(dir)
 	if err != nil {
-		return fmt.Errorf("%w; start one with `ax start <exam-folder>` or `ax resume`", err)
+		return fmt.Errorf("%w; %s", err, T("cli.attach.start_hint"))
 	}
 	if !isTerminal() {
 		sv, err := c.Status(cmd.Context())
@@ -39,7 +36,7 @@ func attach(cmd *cobra.Command, dir string) error {
 	opts := tui.Options{}
 	if security.HasPassword(dir) {
 		opts.CheckPassword = func(pw string) bool { return security.CheckPassword(dir, pw) }
-		opts.LockAfter = lockAfter
+		opts.LockAfter = time.Duration(cfg.Int("panel.lock_minutes")) * time.Minute
 	}
 	mon := tui.NewMonitor(c, st, opts)
 	if _, err = tea.NewProgram(mon).Run(); err != nil {
@@ -48,7 +45,7 @@ func attach(cmd *cobra.Command, dir string) error {
 	if mon.WantsReport() {
 		return showReport(cmd, dir, st.SessionID)
 	}
-	fmt.Fprintln(cmd.OutOrStdout(), "Panel closed. The exam keeps running; `ax attach` reopens it.")
+	fmt.Fprintln(cmd.OutOrStdout(), T("cli.attach.closed"))
 	return nil
 }
 
@@ -62,10 +59,10 @@ func requirePassword(cmd *cobra.Command, dir string) error {
 		return nil
 	}
 	if !isTerminal() {
-		return errors.New("this panel is password protected; run the command in a terminal")
+		return errors.New(T("cli.attach.protected"))
 	}
 	for range 3 {
-		fmt.Fprint(cmd.OutOrStdout(), "Panel password: ")
+		fmt.Fprint(cmd.OutOrStdout(), T("cli.attach.password_prompt"))
 		pw, err := term.ReadPassword(int(os.Stdin.Fd())) //nolint:gosec // G115: fds fit in int
 		fmt.Fprintln(cmd.OutOrStdout())
 		if err != nil {
@@ -74,7 +71,7 @@ func requirePassword(cmd *cobra.Command, dir string) error {
 		if security.CheckPassword(dir, string(pw)) {
 			return nil
 		}
-		fmt.Fprintln(cmd.OutOrStdout(), "Wrong password.")
+		fmt.Fprintln(cmd.OutOrStdout(), T("cli.attach.wrong_password"))
 	}
-	return errors.New("wrong password")
+	return errors.New(T("cli.attach.wrong_password_err"))
 }

@@ -18,11 +18,9 @@ var errSilent = errors.New("")
 func newValidateCmd() *cobra.Command {
 	var asJSON, strict bool
 	cmd := &cobra.Command{
-		Use:   "validate <exam-folder>...",
-		Short: "Check exam folders for errors before publishing them",
-		Long: "Validate checks every file of an exam folder against the assess/v1 format:\n" +
-			"unknown fields, ids, references, answer keys, pools, assets and limits.\n" +
-			"It exits with status 1 when any folder has errors.",
+		Use:     "validate <exam-folder>...",
+		Short:   T("cli.validate.short"),
+		Long:    T("cli.validate.long"),
 		Example: "  ax validate ./exams/algebra-01\n  ax validate --strict exams/*",
 		Args:    cobra.MinimumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -57,8 +55,8 @@ func newValidateCmd() *cobra.Command {
 			return nil
 		},
 	}
-	cmd.Flags().BoolVar(&asJSON, "json", false, "print results as JSON")
-	cmd.Flags().BoolVar(&strict, "strict", false, "treat warnings as errors")
+	cmd.Flags().BoolVar(&asJSON, "json", false, T("cli.flag.json"))
+	cmd.Flags().BoolVar(&strict, "strict", false, T("cli.validate.flag_strict"))
 	return cmd
 }
 
@@ -75,7 +73,7 @@ type validateReport struct {
 func validateDir(dir string, strict bool) (validateReport, error) {
 	ex, probs, err := exam.Load(dir)
 	if err != nil {
-		return validateReport{}, fmt.Errorf("cannot open exam: %w", err)
+		return validateReport{}, fmt.Errorf("%s: %w", T("cli.validate.cannot_open"), err)
 	}
 	if probs == nil {
 		probs = exam.Problems{}
@@ -113,20 +111,13 @@ func printReport(w io.Writer, r validateReport) {
 	}
 	switch {
 	case r.Valid && r.Stats != nil:
-		fmt.Fprintf(w, "ok  %s: %d questions, %d per attempt, %s points per attempt",
-			name, r.Stats.TotalQuestions, r.Stats.QuestionsPerAttempt, exam.FormatPoints(r.Stats.PointsPerAttempt))
+		fmt.Fprint(w, T("cli.validate.ok", "name", name, "questions", r.Stats.TotalQuestions,
+			"per_attempt", r.Stats.QuestionsPerAttempt, "points", exam.FormatPoints(r.Stats.PointsPerAttempt)))
 		if r.Warnings > 0 {
-			fmt.Fprintf(w, " (%s)", plural(r.Warnings, "warning"))
+			fmt.Fprintf(w, " (%s)", T("cli.validate.warnings", "n", r.Warnings))
 		}
 		fmt.Fprintln(w)
 	default:
-		fmt.Fprintf(w, "FAIL %s: %s, %s\n", name, plural(r.Errors, "error"), plural(r.Warnings, "warning"))
+		fmt.Fprintln(w, T("cli.validate.fail", "name", name, "errors", T("cli.validate.errors", "n", r.Errors), "warnings", T("cli.validate.warnings", "n", r.Warnings)))
 	}
-}
-
-func plural(n int, word string) string {
-	if n == 1 {
-		return "1 " + word
-	}
-	return fmt.Sprintf("%d %ss", n, word)
 }
