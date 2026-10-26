@@ -1,0 +1,15 @@
+id: q002
+type: single
+prompt: |
+  ¿Quién escribió la novela *Los ríos profundos*?
+options:
+  - id: a
+    text: "César Vallejo"
+  - id: b
+    text: "José María Arguedas"
+  - id: c
+    text: "Ricardo Palma"
+  - id: d
+    text: "Mario Vargas Llosa"
+  - id: e
+    text: "Alfredo Bryce Echenique"

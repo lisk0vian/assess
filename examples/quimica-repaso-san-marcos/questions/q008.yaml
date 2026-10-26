@@ -1,0 +1,15 @@
+id: q008
+type: single
+prompt: |
+  ¿Cuál es la masa molar aproximada del agua (H₂O)?
+options:
+  - id: a
+    text: "10 g/mol"
+  - id: b
+    text: "16 g/mol"
+  - id: c
+    text: "18 g/mol"
+  - id: d
+    text: "20 g/mol"
+  - id: e
+    text: "22 g/mol"

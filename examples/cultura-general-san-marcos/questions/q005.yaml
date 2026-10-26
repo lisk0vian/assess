@@ -1,0 +1,15 @@
+id: q005
+type: single
+prompt: |
+  ¿Quién proclamó la independencia del Perú en 1821?
+options:
+  - id: a
+    text: "Simón Bolívar"
+  - id: b
+    text: "José de San Martín"
+  - id: c
+    text: "Túpac Amaru II"
+  - id: d
+    text: "Andrés Avelino Cáceres"
+  - id: e
+    text: "Ramón Castilla"

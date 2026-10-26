@@ -1,0 +1,15 @@
+id: q006
+type: single
+prompt: |
+  A 25 °C, un pH menor que 7 indica que la disolución es…
+options:
+  - id: a
+    text: "Ácida"
+  - id: b
+    text: "Básica"
+  - id: c
+    text: "Neutra"
+  - id: d
+    text: "Salina"
+  - id: e
+    text: "Tampón"

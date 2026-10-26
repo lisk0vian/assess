@@ -1,0 +1,15 @@
+id: q003
+type: single
+prompt: |
+  ¿Cuál de las siguientes moléculas es polar?
+options:
+  - id: a
+    text: "CO₂"
+  - id: b
+    text: "CH₄"
+  - id: c
+    text: "H₂O"
+  - id: d
+    text: "BF₃"
+  - id: e
+    text: "CCl₄"

@@ -10,12 +10,16 @@ in PowerShell or `./ax.exe` in Git Bash.
 | [`programacion-go`](programacion-go) | es | `strict` | Code blocks, required fullscreen, options revealed on hover, desktop only, 2 min timed question, review after the session, custom accent |
 | [`ml-basics-en`](ml-basics-en) | en | `standard` | English UI, SVG diagrams from `assets/`, a pool, logo and accent |
 | [`historia-ventana`](historia-ventana) | es | `standard` + overrides | Tables, lists, quotes, a map, 5 strikes, options always visible except on one question |
+| [`quimica-secundaria`](quimica-secundaria) | es | `standard` + photo protections, windowed | The reading guide, the stillness warning, hover options; the lens off on a short question; a 2 min timed question with a long text |
+| [`quimica-san-marcos`](quimica-san-marcos) | es | `standard`, windowed | Chemistry admission practice (UNMSM style), fixed order, visible options, review after the session |
+| [`quimica-repaso-san-marcos`](quimica-repaso-san-marcos) | es | `off` | Quick chemistry review (UNMSM style), 12 one-line questions, 8 minutes, review with the mistakes at the end |
+| [`cultura-general-san-marcos`](cultura-general-san-marcos) | es | `standard`, windowed | General culture admission practice (UNMSM style), fixed order, visible options, review with the mistakes at the end |
 | [`quiz-rapido`](quiz-rapido) | es | `off` | No proctoring, fixed order, hidden score, 5 minutes (try the automatic end) |
 | [`invalid/`](invalid) | — | — | Broken exams that `ax validate` rejects with clear messages |
 
 Profiles: `standard` and `strict` turn on every protection (pledge, curtain,
 copy and paste blocked, capture shield, watermark, required fullscreen,
-hover-only options). `standard` warns first and annuls at 3 strikes; `strict`
+hover-only options, the lens). `standard` warns first and annuls at 3 strikes; `strict`
 counts at once and annuls at the second strike. `off` turns everything off.
 
 `go test ./internal/exam` checks that the valid examples stay valid and the
@@ -24,7 +28,7 @@ invalid ones keep failing.
 ## 1. Validate
 
 ```sh
-ax validate examples/algebra-01 examples/programacion-go examples/ml-basics-en examples/historia-ventana examples/quiz-rapido
+ax validate examples/algebra-01 examples/programacion-go examples/ml-basics-en examples/historia-ventana examples/quimica-secundaria examples/quimica-san-marcos examples/quimica-repaso-san-marcos examples/cultura-general-san-marcos examples/quiz-rapido
 ax validate examples/invalid/clave-incorrecta   # missing answer, unknown option
 ax validate examples/invalid/campo-desconocido  # typo in a key, bad duration
 ax validate examples/invalid/pool-injusto       # pool picks everything, unequal points
@@ -49,6 +53,8 @@ In the panel:
 - **Tab** switches views: Alumnos, Ranking, Incidencias, Enlace.
 - **T** gives the selected student extra time, **+** gives everyone 5 minutes.
 - **M** messages a student, **P** pauses or resumes them, **X** annuls, **U** readmits.
+- **V** lets a student read prompts whole, without the lens, and gives it
+  back (only in exams that use the lens).
 - **⇧M** messages everyone, **⇧P** pauses or resumes everyone.
 - **Z** reverts a penalty (it asks for a note).
 - **N** adds a student, **D** removes one, **A/R** approves or rejects a device.
@@ -95,6 +101,15 @@ ax --data-dir ./data/quiz start examples/quiz-rapido --port 27338
 6. The second strike annuls a `strict` exam; `standard` needs three (five in
    `historia-ventana`). Readmit with **U**: it leaves one strike of margin.
 
+**Photos of the screen (`quimica-secundaria`).** A prompt is read in ranges of
+words, one range at a time; each range repeats the last two words of the
+previous one for context, and the first view reads them automatically. Tap the
+zone you want to read, or use the reading controls, swipe or the keyboard.
+Stay still for 20 s, then answer correctly: the
+panel lists it under **Incidencias** ("quieto sin tocar ratón ni teclado").
+In the panel, **V** on a student lets them read without the lens. q002 turns
+the lens off. This example runs in a window: `fullscreen: off`.
+
 **Hidden options.** In `programacion-go`, options show only while the
 pointer is over them or they have keyboard focus (Tab). On a phone, the first
 tap reveals an option and the second chooses it.
@@ -113,9 +128,11 @@ reports *Crashed*. Run `ax resume`: students reconnect and keep their answers.
 **Time runs out.** Start `quiz-rapido` (5 minutes) and wait. Every attempt is
 submitted with what was saved. The score stays hidden (`result_visibility: none`).
 
-**Review.** `programacion-go` uses `result_visibility: review`. After **E**
-ends the session, students see each question marked correct or incorrect,
-with its points.
+**Review.** `programacion-go`, `quimica-san-marcos`,
+`quimica-repaso-san-marcos` and `cultura-general-san-marcos` use
+`result_visibility: review`. After **E** ends the session, students see each
+question marked correct or incorrect; every mistake shows the question, the
+answer they gave and the correct answer.
 
 **Phones.** `programacion-go` (`devices: desktop`) turns phones away with
 "Usa un ordenador". The others work on phones.

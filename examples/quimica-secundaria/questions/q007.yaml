@@ -1,0 +1,23 @@
+id: q007
+type: single
+# Texto largo: la lupa obliga a leerlo por partes, así que una foto no lo capta entero.
+time_limit: 2m
+prompt: |
+  Lee el texto y responde.
+
+  En el laboratorio, Lucía mide el pH de tres líquidos con papel indicador.
+  El zumo de limón da un pH de 2, el agua destilada da un pH de 7 y una
+  disolución de bicarbonato da un pH de 9. Después añade unas gotas del
+  zumo de limón a la disolución de bicarbonato y observa que aparecen
+  burbujas: se está desprendiendo un gas.
+
+  ¿Qué tipo de reacción ha observado Lucía al mezclar los dos líquidos?
+options:
+  - id: a
+    text: "Una reacción de neutralización entre un ácido y una base"
+  - id: b
+    text: "Una fusión, porque cambia de estado"
+  - id: c
+    text: "Una disolución sin cambio químico"
+  - id: d
+    text: "Una combustión del bicarbonato"

@@ -1,0 +1,16 @@
+# Answer key — never sent to the browser.
+format: assess/v1
+exam: cultura-general-san-marcos
+answers:
+  q001: { option: b, points: 1 }
+  q002: { option: b, points: 1 }
+  q003: { option: c, points: 1 }
+  q004: { option: b, points: 1 }
+  q005: { option: b, points: 1 }
+  q006: { option: a, points: 1 }
+  q007: { option: a, points: 1 }
+  q008: { option: a, points: 1 }
+  q009: { option: a, points: 1 }
+  q010: { option: a, points: 1 }
+  q011: { value: true, points: 1 }
+  q012: { value: false, points: 1 }

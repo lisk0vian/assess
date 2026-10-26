@@ -1,0 +1,13 @@
+id: q001
+type: single
+prompt: |
+  ¿Cuál es el número atómico del carbono?
+options:
+  - id: a
+    text: "4"
+  - id: b
+    text: "6"
+  - id: c
+    text: "12"
+  - id: d
+    text: "14"

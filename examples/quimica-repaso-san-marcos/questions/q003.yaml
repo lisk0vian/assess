@@ -1,0 +1,15 @@
+id: q003
+type: single
+prompt: |
+  ¿Cuál es el gas más abundante en la atmósfera terrestre?
+options:
+  - id: a
+    text: "Oxígeno (O₂)"
+  - id: b
+    text: "Nitrógeno (N₂)"
+  - id: c
+    text: "Dióxido de carbono (CO₂)"
+  - id: d
+    text: "Argón (Ar)"
+  - id: e
+    text: "Hidrógeno (H₂)"

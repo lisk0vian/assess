@@ -1,0 +1,15 @@
+id: q004
+type: single
+prompt: |
+  ¿En qué departamento del Perú se encuentra el lago Titicaca?
+options:
+  - id: a
+    text: "Cusco"
+  - id: b
+    text: "Puno"
+  - id: c
+    text: "Arequipa"
+  - id: d
+    text: "Moquegua"
+  - id: e
+    text: "Tacna"

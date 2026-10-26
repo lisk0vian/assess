@@ -1,0 +1,6 @@
+id: q006
+type: short
+input: text
+prompt: |
+  ¿Cuál es el símbolo químico del sodio?
+placeholder: "Una o dos letras"

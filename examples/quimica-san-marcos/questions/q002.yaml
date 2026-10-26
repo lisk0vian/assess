@@ -1,0 +1,16 @@
+id: q002
+type: single
+prompt: |
+  Ordena los elementos Na, Mg, Al y Cl según su electronegatividad, de menor
+  a mayor.
+options:
+  - id: a
+    text: "Na → Mg → Al → Cl"
+  - id: b
+    text: "Cl → Al → Mg → Na"
+  - id: c
+    text: "Al → Na → Mg → Cl"
+  - id: d
+    text: "Na → Al → Mg → Cl"
+  - id: e
+    text: "Mg → Na → Al → Cl"

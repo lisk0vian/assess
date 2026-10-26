@@ -1,0 +1,15 @@
+id: q010
+type: single
+prompt: |
+  ¿Cuál es el símbolo químico del potasio?
+options:
+  - id: a
+    text: "K"
+  - id: b
+    text: "P"
+  - id: c
+    text: "Pt"
+  - id: d
+    text: "Na"
+  - id: e
+    text: "Ca"

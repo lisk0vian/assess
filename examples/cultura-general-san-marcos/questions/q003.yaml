@@ -1,0 +1,15 @@
+id: q003
+type: single
+prompt: |
+  ¿Qué cultura prehispánica construyó Machu Picchu?
+options:
+  - id: a
+    text: "Nazca"
+  - id: b
+    text: "Moche"
+  - id: c
+    text: "Inca"
+  - id: d
+    text: "Chavín"
+  - id: e
+    text: "Tiahuanaco"

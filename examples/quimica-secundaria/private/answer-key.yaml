@@ -1,0 +1,31 @@
+# Answer key — never sent to the browser.
+format: assess/v1
+exam: quimica-secundaria
+answers:
+  q001:
+    option: b
+    points: 1
+  q002:
+    option: c
+    points: 1
+  q003:
+    options: [a, c, e]
+    partial: true
+    points: 2
+  q004:
+    value: true
+    points: 1
+  q005:
+    number: 2
+    tolerance: 0
+    points: 2
+  q006:
+    accept: [na]
+    normalize: [trim, casefold]
+    points: 1
+  q007:
+    option: a
+    points: 2
+  q008:
+    option: c
+    points: 1

@@ -1,0 +1,15 @@
+id: q007
+type: single
+prompt: |
+  ¿Cuál es el valor aproximado del número de Avogadro?
+options:
+  - id: a
+    text: "6,022 × 10²³"
+  - id: b
+    text: "3,14 × 10⁸"
+  - id: c
+    text: "9,81"
+  - id: d
+    text: "1,60 × 10⁻¹⁹"
+  - id: e
+    text: "8,31"

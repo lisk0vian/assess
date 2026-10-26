@@ -1,0 +1,15 @@
+id: q002
+type: single
+prompt: |
+  ¿Qué caracteriza a los isótopos de un mismo elemento?
+options:
+  - id: a
+    text: "Igual número de protones y distinto número de neutrones"
+  - id: b
+    text: "Igual número de neutrones y distinto número de protones"
+  - id: c
+    text: "Igual número de electrones y distinto número de protones"
+  - id: d
+    text: "Distinto número de protones y de electrones"
+  - id: e
+    text: "Igual número de masa y distinto número atómico"

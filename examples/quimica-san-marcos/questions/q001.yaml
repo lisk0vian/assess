@@ -1,0 +1,16 @@
+id: q001
+type: single
+prompt: |
+  Un átomo neutro tiene 15 protones y 16 neutrones. ¿Cuál es su número de masa
+  y su configuración electrónica?
+options:
+  - id: a
+    text: "31; 1s² 2s² 2p⁶ 3s² 3p³"
+  - id: b
+    text: "31; 1s² 2s² 2p⁶ 3s² 3p⁴"
+  - id: c
+    text: "15; 1s² 2s² 2p⁶ 3s² 3p³"
+  - id: d
+    text: "16; 1s² 2s² 2p⁶ 3s² 3p³"
+  - id: e
+    text: "30; 1s² 2s² 2p⁶ 3s² 3p²"

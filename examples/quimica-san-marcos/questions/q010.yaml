@@ -1,0 +1,6 @@
+id: q010
+type: short
+input: text
+prompt: |
+  ¿Cuál es el nombre IUPAC del compuesto CH₃–CH₂–OH?
+placeholder: "Escribe el nombre"

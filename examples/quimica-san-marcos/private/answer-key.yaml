@@ -1,0 +1,17 @@
+# Answer key — never sent to the browser.
+format: assess/v1
+exam: quimica-san-marcos
+answers:
+  q001: { option: a, points: 2 }
+  q002: { option: a, points: 2 }
+  q003: { option: c, points: 2 }
+  q004: { number: 2, tolerance: 0, points: 2 }
+  q005: { number: 0.2, tolerance: 0.001, points: 2 }
+  q006: { option: c, points: 2 }
+  q007: { option: b, points: 2 }
+  q008: { options: [a, c], partial: true, points: 2 }
+  q009: { value: true, points: 2 }
+  q010:
+    accept: [etanol]
+    normalize: [trim, casefold, collapse_spaces, strip_accents]
+    points: 2

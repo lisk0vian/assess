@@ -1,0 +1,15 @@
+id: q001
+type: single
+prompt: |
+  El número atómico de un elemento está determinado por la cantidad de…
+options:
+  - id: a
+    text: "Protones"
+  - id: b
+    text: "Neutrones"
+  - id: c
+    text: "Electrones de valencia"
+  - id: d
+    text: "Neutrones y protones"
+  - id: e
+    text: "Niveles de energía"

@@ -1,0 +1,43 @@
+# Repaso rápido de Química con preguntas tipo admisión de la UNMSM.
+# Las preguntas son originales; no es un examen oficial.
+format: assess/v1
+id: quimica-repaso-san-marcos
+title: "Química — Repaso rápido San Marcos"
+language: es
+duration: 8m
+# review: al cerrar la sesión, el alumno ve dónde se equivocó y la respuesta correcta.
+result_visibility: review
+
+instructions: |
+  Repaso rápido de **Química** con preguntas tipo admisión de la UNMSM.
+  No es un examen oficial.
+
+  - 12 preguntas, 8 minutos.
+  - Son preguntas de memoria y reconocimiento: no necesitas calculadora.
+  - Al cerrar la sesión verás dónde te equivocaste, con tu respuesta y la correcta.
+
+order:
+  # Orden fijo, como en el examen de admisión.
+  shuffle_questions: false
+  shuffle_options: false
+
+proctoring:
+  # Repaso personal: sin protecciones para responder rápido.
+  profile: off
+
+items:
+  - question: q001
+  - question: q002
+  - question: q003
+  - question: q004
+  - question: q005
+  - question: q006
+  - question: q007
+  - question: q008
+  - question: q009
+  - question: q010
+  - question: q011
+  - question: q012
+
+branding:
+  accent: "#7a1f2b"

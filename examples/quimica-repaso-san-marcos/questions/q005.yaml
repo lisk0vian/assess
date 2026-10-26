@@ -1,0 +1,15 @@
+id: q005
+type: single
+prompt: |
+  ¿Cuál es la fórmula del ion hidróxido?
+options:
+  - id: a
+    text: "OH⁻"
+  - id: b
+    text: "H⁺"
+  - id: c
+    text: "H₃O⁺"
+  - id: d
+    text: "O²⁻"
+  - id: e
+    text: "H₂O"

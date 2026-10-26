@@ -1,0 +1,15 @@
+id: q003
+type: multiple
+prompt: |
+  ¿Cuáles de estos procesos son cambios químicos? Marca todos los que lo sean.
+options:
+  - id: a
+    text: "Un clavo de hierro que se oxida"
+  - id: b
+    text: "El hielo que se derrite"
+  - id: c
+    text: "La madera que arde"
+  - id: d
+    text: "La sal que se disuelve en agua"
+  - id: e
+    text: "Un huevo que se cocina"

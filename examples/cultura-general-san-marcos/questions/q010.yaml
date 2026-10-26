@@ -1,0 +1,16 @@
+id: q010
+type: single
+prompt: |
+  Según la Constitución del Perú, ¿qué lengua originaria es oficial en las
+  zonas donde predomina?
+options:
+  - id: a
+    text: "Quechua"
+  - id: b
+    text: "Guaraní"
+  - id: c
+    text: "Mapudungun"
+  - id: d
+    text: "Náhuatl"
+  - id: e
+    text: "Maya"

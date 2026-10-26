@@ -1,0 +1,16 @@
+id: q008
+type: multiple
+prompt: |
+  ¿En cuáles de las siguientes especies el manganeso tiene estado de oxidación
+  +7? Marca todas las que correspondan.
+options:
+  - id: a
+    text: "KMnO₄"
+  - id: b
+    text: "MnO₂"
+  - id: c
+    text: "Mn₂O₇"
+  - id: d
+    text: "K₂MnO₄"
+  - id: e
+    text: "MnSO₄"

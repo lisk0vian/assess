@@ -1,0 +1,45 @@
+# Caso: protecciones contra fotos de la pantalla (móvil + IA de visión).
+# Cada una se activa por separado; en standard y strict vienen activadas, aquí
+# se escriben para que se vean:
+# - lens: el enunciado se lee por rangos de palabras, una parte cada vez:
+#   una foto capta poco. q002 la desactiva: es muy corto.
+# - frozen_pointer: si el alumno se queda quieto 20 s y luego acierta, el panel
+#   lo muestra en Incidencias («salió y acertó»). Nunca es un aviso.
+# - reveal: hover: las opciones se descubren de una en una.
+# En el panel, V deja a un alumno leer sin lupa (adaptación de lectura).
+format: assess/v1
+id: quimica-secundaria
+title: "Química — Materia, átomos y reacciones"
+language: es
+duration: 30m
+# review: al cerrar la sesión, el alumno ve qué preguntas acertó y cuáles falló.
+result_visibility: review
+
+instructions: |
+  Examen de **Química** de 3.º de secundaria.
+
+  - Toca la zona que quieras leer; usa los controles de abajo o Enter para avanzar.
+  - Las opciones se descubren al pasar el ratón por encima.
+
+proctoring:
+  profile: standard
+  # La guía se mueve a ritmo pausado (~175 palabras por minuto).
+  read_speed: slow
+  # Este ejemplo se prueba en una ventana normal, sin pantalla completa.
+  fullscreen: off
+  reveal: hover
+  lens: true
+  frozen_pointer: true
+
+items:
+  - question: q001
+  - question: q002
+  - question: q003
+  - question: q004
+  - question: q005
+  - question: q006
+  - question: q007
+  - question: q008
+
+branding:
+  accent: "#0f766e"

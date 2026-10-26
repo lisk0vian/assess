@@ -1,0 +1,15 @@
+id: q001
+type: single
+prompt: |
+  ¿En qué año se fundó la Universidad Nacional Mayor de San Marcos?
+options:
+  - id: a
+    text: "1533"
+  - id: b
+    text: "1551"
+  - id: c
+    text: "1571"
+  - id: d
+    text: "1821"
+  - id: e
+    text: "1876"

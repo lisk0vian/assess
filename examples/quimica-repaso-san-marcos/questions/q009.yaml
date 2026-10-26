@@ -1,0 +1,15 @@
+id: q009
+type: single
+prompt: |
+  ¿Qué grupo funcional caracteriza a los alcoholes?
+options:
+  - id: a
+    text: "–OH"
+  - id: b
+    text: "–COOH"
+  - id: c
+    text: "–CHO"
+  - id: d
+    text: "–NH₂"
+  - id: e
+    text: "–CO–"

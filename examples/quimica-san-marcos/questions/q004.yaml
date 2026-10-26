@@ -1,0 +1,9 @@
+id: q004
+type: short
+input: number
+prompt: |
+  La combustión completa del metano es:
+
+  $$\mathrm{CH_4 + 2\,O_2 \rightarrow CO_2 + 2\,H_2O}$$
+
+  ¿Cuántos moles de CO₂ se producen al quemar completamente 2 moles de CH₄?

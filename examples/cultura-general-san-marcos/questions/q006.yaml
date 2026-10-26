@@ -1,0 +1,15 @@
+id: q006
+type: single
+prompt: |
+  ¿Qué héroe peruano comandó el monitor Huáscar en la batalla de Angamos?
+options:
+  - id: a
+    text: "Miguel Grau"
+  - id: b
+    text: "Francisco Bolognesi"
+  - id: c
+    text: "Alfonso Ugarte"
+  - id: d
+    text: "Andrés Avelino Cáceres"
+  - id: e
+    text: "José Olaya"

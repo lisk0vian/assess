@@ -1,0 +1,15 @@
+id: q009
+type: single
+prompt: |
+  ¿Cuál es el río más caudaloso del mundo, cuyas nacientes están en el Perú?
+options:
+  - id: a
+    text: "Amazonas"
+  - id: b
+    text: "Nilo"
+  - id: c
+    text: "Misisipi"
+  - id: d
+    text: "Yangtsé"
+  - id: e
+    text: "Danubio"

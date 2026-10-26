@@ -1,0 +1,14 @@
+id: q002
+type: single
+prompt: |
+  ¿Qué partícula del átomo tiene carga negativa?
+lens: false
+options:
+  - id: a
+    text: "El protón"
+  - id: b
+    text: "El neutrón"
+  - id: c
+    text: "El electrón"
+  - id: d
+    text: "El núcleo"

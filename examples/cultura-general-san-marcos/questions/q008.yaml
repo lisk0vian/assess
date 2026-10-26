@@ -1,0 +1,15 @@
+id: q008
+type: single
+prompt: |
+  ¿Qué escritor peruano ganó el Premio Nobel de Literatura en 2010?
+options:
+  - id: a
+    text: "Mario Vargas Llosa"
+  - id: b
+    text: "César Vallejo"
+  - id: c
+    text: "José María Arguedas"
+  - id: d
+    text: "Alfredo Bryce Echenique"
+  - id: e
+    text: "Santiago Roncagliolo"

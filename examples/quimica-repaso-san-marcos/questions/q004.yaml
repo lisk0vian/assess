@@ -1,0 +1,15 @@
+id: q004
+type: single
+prompt: |
+  ¿Qué tipo de enlace se forma principalmente entre un metal y un no metal?
+options:
+  - id: a
+    text: "Iónico"
+  - id: b
+    text: "Covalente polar"
+  - id: c
+    text: "Covalente apolar"
+  - id: d
+    text: "Metálico"
+  - id: e
+    text: "Puente de hidrógeno"

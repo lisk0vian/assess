@@ -1,0 +1,13 @@
+id: q008
+type: single
+prompt: |
+  ¿Cuántos átomos hay en total en una molécula de ácido sulfúrico, H₂SO₄?
+options:
+  - id: a
+    text: "3"
+  - id: b
+    text: "6"
+  - id: c
+    text: "7"
+  - id: d
+    text: "8"

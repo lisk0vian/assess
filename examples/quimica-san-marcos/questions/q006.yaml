@@ -1,0 +1,16 @@
+id: q006
+type: single
+prompt: |
+  A 27 °C y 1 atm, ¿qué volumen aproximado ocupan 0,5 mol de un gas ideal?
+  (R = 0,082 atm·L/(mol·K))
+options:
+  - id: a
+    text: "6,15 L"
+  - id: b
+    text: "11,2 L"
+  - id: c
+    text: "12,3 L"
+  - id: d
+    text: "22,4 L"
+  - id: e
+    text: "24,6 L"

@@ -1,0 +1,15 @@
+id: q007
+type: single
+prompt: |
+  A 25 °C, ¿cuál es el pH de una disolución acuosa de HCl 0,01 M?
+options:
+  - id: a
+    text: "1"
+  - id: b
+    text: "2"
+  - id: c
+    text: "7"
+  - id: d
+    text: "12"
+  - id: e
+    text: "13"

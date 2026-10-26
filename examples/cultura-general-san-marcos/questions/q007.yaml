@@ -1,0 +1,15 @@
+id: q007
+type: single
+prompt: |
+  ¿Quién escribió *Tradiciones peruanas*?
+options:
+  - id: a
+    text: "Ricardo Palma"
+  - id: b
+    text: "César Vallejo"
+  - id: c
+    text: "José Carlos Mariátegui"
+  - id: d
+    text: "Inca Garcilaso de la Vega"
+  - id: e
+    text: "Blanca Varela"

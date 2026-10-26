@@ -1,0 +1,6 @@
+id: q005
+type: short
+input: number
+prompt: |
+  Se disuelven 4 g de NaOH en agua hasta completar 500 mL de disolución.
+  ¿Cuál es la molaridad de la disolución? (Masa molar del NaOH = 40 g/mol)
