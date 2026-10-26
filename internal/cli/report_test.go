@@ -10,7 +10,6 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/lisk0vian/assess/internal/datadir"
 	"github.com/lisk0vian/assess/internal/exam"
 	"github.com/lisk0vian/assess/internal/grading"
 	"github.com/lisk0vian/assess/internal/report"
@@ -21,7 +20,7 @@ import (
 func TestReport(t *testing.T) {
 	dir := t.TempDir()
 	ctx := context.Background()
-	db, err := sqlite.Open(ctx, datadir.DB(dir))
+	db, err := sqlite.Open(ctx, testDB(t, dir))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -70,7 +69,7 @@ func TestReport(t *testing.T) {
 		t.Fatalf("report of a running session: %v", err)
 	}
 
-	db, _ = sqlite.Open(ctx, datadir.DB(dir))
+	db, _ = sqlite.Open(ctx, testDB(t, dir))
 	if err := session.NewService(db).End(ctx, sess.ID); err != nil {
 		t.Fatal(err)
 	}

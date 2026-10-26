@@ -509,6 +509,65 @@ question design.
 - Exam validation messages stay in English: they belong to the format
   reference that AI assistants read.
 
+## Vault (implemented in phase 9)
+
+- **What it is**: a folder holding `vault.yaml`, `assess.db`,
+  `exams/<id>.examx`, `classes/<name>.yaml` (a readable copy of each class),
+  `sessions/YYYY/<date> <exam> <class>/{summary.md,results.csv,record.json}`
+  and `backups/`. Copy the folder to move everything to another computer.
+- **Which one**: `--vault`, then a `.assess-vault/` folder in the current
+  folder or a parent, then the `vault.path` setting (`ax vault use`), then the
+  default vault in the data folder (created plain on first use). Named vaults
+  are listed in `vaults.yaml` next to the settings file; forgetting one never
+  deletes it.
+- **Encryption** (age): `ax vault init` encrypts by default (`--no-encrypt`,
+  `vault.encrypt`). A random X25519 identity encrypts every file; it is kept
+  in `vault.yaml` wrapped twice, with the password (scrypt) and with a
+  recovery key shown once. Files can be added without the password (they are
+  encrypted to the public recipient). `ax vault encrypt|decrypt|passwd`
+  convert in place without losing data; an interrupted `encrypt` finishes
+  when run again. File names (exam titles, class names) stay readable;
+  contents do not.
+- **Database**: an ordinary SQLite file whose sensitive columns are sealed
+  with AES-256-GCM (`internal/seal`, key derived from the identity with
+  HKDF): published content and answer keys, assets, names and identifiers,
+  answers, event data, notes. Identifiers are sealed deterministically so
+  lookups, unique indexes and joins still work. Codes, times, states and
+  scores stay plain, so status commands work while locked. Without the key
+  sealed values cannot be read or written: nothing sensitive is ever stored
+  in the clear by accident. `secure_delete` is on and reseals compact the file.
+- **Unlocking**: the password is asked once; a small agent (`ax vault agent`,
+  127.0.0.1, token readable only by the user) keeps the key in memory for
+  `vault.unlock_minutes` of inactivity (0 always asks). `ax vault lock`, the
+  panel's lock (manual or idle) and a timed-out report close it. Forgetting
+  or merging students, decrypting, exporting and changing the password always
+  ask again. The exam server receives the database key through its standard
+  input, never on its command line or on disk; `ax resume` unlocks again.
+- **One password**: with an encrypted vault the panel and the reports are
+  protected by the vault's password; `ax admin set-password` remains for
+  plain vaults.
+- **Students and classes**: tables `students`, `classes`, `class_members`
+  (migration 0004). Everyone who joins a session becomes a student; the
+  identifier joins them across sessions. `ax student`, `ax class`
+  (CSV import detects separator and encoding, previews and warns about
+  duplicates), `ax start --class 3B [--roster-only]`: the class is
+  pre-registered and, in roster-only mode, anybody else waits for approval
+  (key **G** in the panel approves and adds them to the class).
+- **Finding things**: the identifier is the default reference; otherwise a
+  forgiving search (`internal/search`: no case, accents, spaces or dashes,
+  substrings, words, one or two typos) offers a "Did you mean…?" picker in a
+  terminal, or lists the candidates in the error. `ax find`, `ax history`,
+  `ax exams`, `ax gradebook` (CSV or a CGO-free `.xlsx`). `ax explore` (and
+  the menu) is the TUI for all of it, running the same commands.
+- **Archive and backups**: when a session ends (server or `ax stop`) its
+  archive is written and an automatic backup made (`vault.keep_backups`).
+  `ax backup` (ZIP, `VACUUM INTO`, works during an exam) and `ax restore`
+  into a new folder. Forgetting a student rewrites the affected archives;
+  older backups keep their data.
+- **Migration**: the database of earlier versions moves into the default
+  vault on first use; the original is kept in `backups/pre-vault-*.db` and
+  the finished sessions are archived.
+
 ## Phases
 
 0. **Foundations** — repo, module, this document, example exam, CI, license.

@@ -217,6 +217,7 @@ config:
     new_exam: Valores iniciales de los exámenes nuevos (ax new); los existentes no cambian
     panel: Panel de la sesión
     results: Exportación de resultados (ax results)
+    vault: Bóveda (exámenes, grupos y resultados de este ordenador)
   key:
     language: Idioma de la terminal (menús, panel, informes, ayuda).
     student_language: |-
@@ -241,6 +242,13 @@ config:
     results.format: Formato de `ax results`.
     results.separator: Separador de campos del CSV. Usa ";" para Excel en español.
     results.bom: Empezar los CSV con una marca de orden de bytes, para que Excel lea bien los acentos.
+    vault.path: |-
+      Bóveda que se usa, por nombre (ver `ax vault list`) o carpeta. Vacío usa
+      la de la carpeta de datos. Una carpeta .assess-vault en la carpeta
+      actual o en una superior tiene prioridad.
+    vault.encrypt: Cifrar con contraseña las bóvedas nuevas (ax vault init).
+    vault.unlock_minutes: Minutos que una bóveda cifrada queda abierta tras escribir la contraseña (0 la pide siempre).
+    vault.keep_backups: Copias automáticas que se conservan (se hace una al cerrar cada sesión; 0 no hace ninguna).
 
 state:
   lobby: en la sala de espera
@@ -248,6 +256,9 @@ state:
   ended: terminada
 
 home:
+  explore: "Explorar exámenes, grupos, alumnos y sesiones"
+  in_vault: en la bóveda
+  vault: "Bóveda: {vault}"
   idle: No hay ningún examen en marcha.
   crashed: "El servidor se detuvo sin terminar el examen: puedes reanudarlo y nadie pierde sus respuestas."
   open: Hay una sesión abierta sin servidor.
@@ -781,12 +792,14 @@ qtype:
   short: "corta"
 
 astate:
+  absent: ausente
   submitted: "entregado"
   annulled: "anulado"
   withdrawn: "retirado"
   active: "sin entregar"
 
 monitor:
+  enrolled: "Aprobado y añadido a {class}: {name} ({id})."
   view:
     students: "Alumnos"
     ranking: "Ranking"
@@ -844,6 +857,7 @@ monitor:
   strikes_total: "{n} avisos (anula con {limit})"
   server_error: "Error del servidor:"
   request:
+    unlisted: "no está en la lista de {class}"
     device: "quiere entrar desde otro dispositivo"
     late: "quiere entrar con la entrada cerrada"
     more: "(+{n} más)"
@@ -883,6 +897,7 @@ monitor:
   warning: "Aviso:"
   prompt_hint: "Enter confirma · Esc cancela"
   key:
+    enroll: "aprobar y añadir a {class}"
     approve: "aprobar"
     reject: "rechazar"
     quit: "salir (el examen sigue)"
@@ -1207,3 +1222,504 @@ welcome:
   title: "Te damos la bienvenida a Assess"
   body: "Tus ajustes se guardarán en {path}.\nPuedes cambiarlos cuando quieras desde el menú (Ajustes) o con `ax config`."
   language: "Idioma de la interfaz"
+
+archive:
+  date: Fecha
+  class: Grupo
+  code: Código
+  duration: Duración
+  minutes: "{n} min"
+  students: Alumnos
+  students_value: "{students} entraron, {submitted} entregaron, {annulled} anulados, {withdrawn} retirados"
+  scores: Notas
+  scores_value: "media {mean} %, mediana {median} %, de {min} % a {max} %"
+  integrity: Integridad
+  integrity_value: "{strikes} strikes vigentes, {reverted} penalizaciones revertidas"
+  questions: Preguntas
+  pairs:
+    one: "El informe encontró {n} pareja de alumnos con respuestas sospechosamente parecidas; `ax report` muestra las pruebas."
+    other: "El informe encontró {n} parejas de alumnos con respuestas sospechosamente parecidas; `ax report` muestra las pruebas."
+  col:
+    name: Nombre
+    id: ID
+    state: Estado
+    percent: "%"
+    strikes: Strikes
+    signals: Señales
+    question: Pregunta
+    prompt: Enunciado
+    seen: Vista
+    rate: Aciertos
+
+backup:
+  short: Copia de seguridad de toda la bóveda en un archivo
+  long: |-
+    Copia la bóveda (exámenes, grupos, archivo de sesiones y la base de datos)
+    en un único archivo ZIP, por defecto en la carpeta de copias de la bóveda.
+    Funciona aunque haya un examen en marcha. La copia de una bóveda cifrada
+    sigue cifrada: para restaurarla hace falta la misma contraseña o la clave
+    de recuperación.
+    También se hace una copia automática cada vez que se cierra una sesión
+    (ver el ajuste vault.keep_backups).
+  example: |-
+    ax backup
+    ax backup --out E:\copias\
+  flag_out: Archivo o carpeta donde escribir la copia (por defecto la carpeta de copias de la bóveda)
+  done: "Copia escrita: {file} ({size})."
+  encrypted_note: La copia está cifrada como la bóveda; guarda con ella la contraseña o la clave de recuperación.
+  list_short: Lista las copias de la bóveda
+  none: Todavía no hay copias.
+
+restore:
+  short: Restaura una copia en una carpeta de bóveda nueva
+  long: |-
+    Descomprime una copia hecha con `ax backup` (o una automática) en una
+    carpeta nueva y vacía y la añade a tus bóvedas. La bóveda en uso no se
+    toca; para pasar a la restaurada usa --use o `ax vault use`.
+  example: ax restore backups/backup-2026-10-25-101500.zip D:\bovedas\restaurada --use
+  done: "Restaurada en {dir} como la bóveda «{name}»."
+  encrypted_note: Está cifrada; se abre con la contraseña que tenía o con su clave de recuperación.
+
+explore:
+  short: Explora exámenes, grupos, alumnos y sesiones
+  long: |-
+    Abre un explorador de la bóveda con cuatro pestañas: exámenes, grupos,
+    alumnos y sesiones. Escribe para filtrar; Intro muestra qué puedes hacer
+    con la fila elegida (historial, editar, importar una lista, empezar un
+    examen, abrir un informe…) y Ctrl+N añade uno nuevo.
+  title: Explorar
+  tab:
+    exams: "Exámenes {n}"
+    classes: "Grupos {n}"
+    students: "Alumnos {n}"
+    sessions: "Sesiones {n}"
+  empty:
+    exams: "Todavía no hay exámenes en la bóveda. Ctrl+N añade una carpeta de examen."
+    classes: "Todavía no hay grupos. Ctrl+N crea uno o importa una lista de clase."
+    students: "Todavía no hay alumnos. Aparecen al entrar en un examen; Ctrl+N añade uno."
+    sessions: "Todavía no hay sesiones."
+  matches:
+    one: "{n} coincidencia"
+    other: "{n} coincidencias"
+  key:
+    tabs: pestañas
+    actions: acciones
+    quit: salir
+    new:
+      exams: añadir examen
+      classes: nuevo grupo
+      students: nuevo alumno
+  act:
+    back: Volver
+    history: Historial
+    edit: Editar nombre o nota
+    rename: Cambiar el identificador
+    enroll: Añadir a un grupo
+    unenroll: Quitar de un grupo
+    merge: Fusionar con otro alumno
+    forget: Olvidar (borrar sus datos)
+    members: Ver los alumnos
+    import: Importar una lista de clase (CSV)
+    add_student: Añadir un alumno
+    gradebook: Libro de notas (Excel o CSV)
+    export: Exportar la lista (CSV)
+    rename_class: Renombrar
+    delete: Borrar el grupo
+    start: Empezar
+    edit_exam: Editar
+    sessions: Sus sesiones
+    export_exam: Exportar (.examx)
+    report: Informe
+    results: Resultados (CSV)
+  ask:
+    id: Identificador
+    name: Nombre y apellidos
+    note: Nota
+    new_id: Nuevo identificador
+    class: Grupo
+    class_name: Nombre del grupo
+    merge_into: Identificador del alumno que se conserva
+    csv: Archivo con la lista (CSV)
+    csv_optional: Archivo con la lista (CSV), opcional
+    exam_folder: Carpeta del examen
+    export_exam: Archivo del paquete
+    export_file: Archivo CSV
+    results_file: Archivo CSV
+    gradebook_file: Archivo del libro de notas
+    gradebook_hint: Si acaba en .xlsx se escribe un libro de Excel; con .csv, un archivo CSV.
+    start_class: ¿Qué grupo lo hace?
+    roster_only: ¿Solo los alumnos de la lista?
+  no_class: Sin grupo
+  required: No puede quedar vacío.
+  no_file: No existe ese archivo o carpeta.
+  unknown_student: No hay ningún alumno con ese identificador.
+  back: "Pulsa Intro para volver a Explorar… "
+  never_given: Todavía no se ha hecho.
+  session_counts: "{joined} entraron, {submitted} entregaron"
+  archived: "Archivada en la bóveda:"
+
+find:
+  short: Busca alumnos, grupos, exámenes y sesiones
+  long: |-
+    Encuentra lo que se parece al texto, como una búsqueda tolerante: no
+    importan mayúsculas, acentos, espacios ni guiones, y se perdona alguna
+    errata. Sin texto lista todo lo que pasa los filtros.
+      --type      student, class, exam o session (repítelo o sepáralos con comas)
+      --class     alumnos de un grupo, sesiones de un grupo
+      --exam      sesiones de un examen, alumnos que lo hicieron
+      --since     desde una fecha (AAAA-MM-DD)
+      --below     una nota por debajo de este porcentaje
+      --flagged   alumnos con strikes o señales de integridad
+  example: |-
+    ax find garcia
+    ax find --class 3B --below 50
+    ax find --flagged --since 2026-09-01
+    ax find algebra --type session --csv
+  flag_type: "Solo estos tipos: student, class, exam, session"
+  flag_class: Solo este grupo
+  flag_exam: Solo este examen (id o título)
+  flag_since: Solo desde esta fecha (AAAA-MM-DD)
+  flag_below: Solo notas por debajo de este porcentaje
+  flag_flagged: Solo alumnos con strikes o señales
+  bad_date: "{date} no es una fecha; escríbela como AAAA-MM-DD."
+  none: "Nada coincide con «{q}»."
+  header: "Tipo|ID|Nombre|Detalles"
+  type:
+    student: alumno
+    class: grupo
+    exam: examen
+    session: sesión
+  exam_detail:
+    one: "{n} sesión"
+    other: "{n} sesiones"
+  average: "media {pct} %"
+  flagged_note: "{exam}: {strikes} strikes, {signals} señales"
+
+gradebook:
+  short: Las notas de un grupo, alumnos por exámenes
+  long: |-
+    Construye el libro de notas de un grupo: una fila por alumno, una columna
+    por examen que hizo (el último intento, en porcentaje) y su media.
+    Muestra una tabla, o escribe un CSV o un libro de Excel (.xlsx).
+  example: |-
+    ax gradebook 3B
+    ax gradebook 3B --out 3B.xlsx
+    ax gradebook 3B --csv > 3B.csv
+  flag_xlsx: Escribe un libro de Excel (necesita --out)
+  xlsx_needs_out: "Un libro de Excel necesita un archivo: añade --out notas.xlsx."
+  wrote: "Escritos {n} alumnos × {exams} exámenes en {file}."
+  col:
+    id: ID
+    name: Nombre
+    average: Media
+
+people:
+  n_students:
+    one: "{n} alumno"
+    other: "{n} alumnos"
+  archive_failed: "No se pudo actualizar el archivo de una sesión: {err}"
+  class_file_header: "Copia legible de este grupo; ax la reescribe cada vez que el grupo cambia."
+  flag:
+    csv: Escribe CSV
+    class: Grupo
+    note: Una nota sobre el alumno
+    name: Nombre y apellidos
+  student:
+    short: Muestra un alumno, o la lista de todos
+    long: |-
+      Muestra un alumno de la bóveda por su identificador: sus grupos y todos
+      los exámenes que hizo. Los identificadores son únicos y los nombres se
+      pueden repetir; si nada coincide exactamente, eliges entre los más
+      parecidos.
+      Los alumnos aparecen al entrar en un examen o al añadirlos a un grupo.
+    example: |-
+      ax student A-12
+      ax student garcia
+      ax student list --class 3B --csv
+    list_short: Lista los alumnos
+    none: Todavía no hay alumnos.
+    header: "ID|Nombre|Grupos|Nota"
+    classes: "Grupos:"
+    note: "Nota:"
+    add_short: Añade un alumno
+    add_example: ax student add A-12 Ana García --class 3B
+    added: "Añadido {id} {name}."
+    edit_short: Cambia el nombre o la nota de un alumno
+    edit_nothing: "Di qué cambiar: --name o --note."
+    edited: "Guardado {id} {name}."
+    rename_short: Cambia el identificador de un alumno en todas partes
+    rename_long: El nuevo identificador sustituye al anterior en la bóveda y en todas las sesiones en las que participó.
+    renamed:
+      one: "{old} ahora es {new} (en {n} sesión)."
+      other: "{old} ahora es {new} (en {n} sesiones)."
+    merge_short: Fusiona dos registros del mismo alumno
+    merge_long: |-
+      Pasa las sesiones y los grupos del primer alumno al segundo y borra el
+      primero: para quien escribió otro identificador.
+    merge_plan: "{from} se fusionará en {into}: {n} sesiones, grupos {classes}."
+    merge_confirm: ¿Fusionarlos?
+    merged: "{from} fusionado en {into}."
+    forget_short: Borra un alumno y todo lo registrado sobre él
+    forget_long: |-
+      Borra al alumno de la bóveda y, en cada sesión terminada, sus respuestas,
+      nota, señales y penalizaciones; el archivo de esas sesiones se reescribe
+      sin él. No se puede deshacer. Las copias anteriores aún lo contienen.
+    forget_plan: "Esto borra a {who}: {n} sesiones, grupos {classes}."
+    forget_confirm: ¿Borrar todo sobre este alumno? No se puede deshacer
+    forgotten:
+      one: "{who} se ha olvidado ({n} sesión reescrita)."
+      other: "{who} se ha olvidado ({n} sesiones reescritas)."
+    forget_backups: Las copias hechas antes conservan sus datos hasta que las borres.
+  history:
+    short: Todos los exámenes que hizo un alumno
+    none: Todavía no tiene sesiones.
+    header: "Fecha|Examen|Grupo|Estado|%|Strikes|Código"
+  class:
+    short: Muestra un grupo, o la lista de todos
+    long: |-
+      Los grupos son listas de alumnos con nombre ("3B"). Importa una lista de
+      clase desde un CSV, empieza un examen para un grupo con
+      `ax start <examen> --class 3B` y mira su libro de notas con
+      `ax gradebook 3B`.
+    example: |-
+      ax class import 3B lista-3B.csv
+      ax class 3B
+      ax class add 3B A-12 B-07
+    list_short: Lista los grupos
+    none: Todavía no hay grupos. Importa uno con `ax class import <nombre> <archivo.csv>`.
+    header: "Grupo|Alumnos|Sesiones"
+    create_short: Crea un grupo vacío
+    created: "Creado el grupo {class}."
+    rename_short: Renombra un grupo
+    renamed: "{old} ahora es {new}."
+    delete_short: Borra un grupo
+    delete_long: Los alumnos siguen en la bóveda y las sesiones conservan sus resultados.
+    delete_confirm: "¿Borrar el grupo {class}? Sus alumnos siguen en la bóveda"
+    deleted: "Borrado el grupo {class}."
+    add_short: Mete alumnos en un grupo
+    added: "Añadidos {n} a {class} ({already} ya estaban)."
+    added_one: "{id} está en {class}."
+    remove_short: Saca alumnos de un grupo
+    removed: "Sacados {n} de {class}."
+    export_short: Escribe la lista de un grupo en CSV
+    exported: "Escritos {n} alumnos en {file}."
+    import_short: Importa una lista de clase desde un CSV
+    import_long: |-
+      Lee una hoja de cálculo guardada como CSV: una columna con el
+      identificador y otra con el nombre (o nombre y apellidos). Se detectan el
+      separador (, ; o tabulador) y la codificación (UTF-8 o la Windows-1252 de
+      Excel). Ves una vista previa y los duplicados antes de guardar nada. El
+      grupo se crea si no existe.
+    import_example: ax class import 3B lista-3B.csv
+  import:
+    empty: El archivo está vacío.
+    read: "Leídas {n} filas ({enc}, separador {sep}):"
+    counts: "{new} alumnos nuevos, {known} ya estaban en la bóveda."
+    different: "nombre distinto: {what} (la bóveda conserva el suyo)"
+    repeated: "{id} aparece más de una vez; solo se usa la primera"
+    invalid: "la línea {line} no tiene identificador o nombre; se omite"
+    new_class: "El grupo {class} no existe; se creará."
+    confirm: "¿Meter {n} alumnos en {class}?"
+    done: "{class}: {created} alumnos nuevos, {added} añadidos, {already} ya estaban."
+
+pick:
+  did_you_mean: "¿Quisiste decir…? (nada es exactamente «{q}»)"
+  did_you_mean_list: "No hay {what} que sean exactamente «{q}». ¿Quisiste decir:"
+  no_match: "No hay {what} que se parezcan a «{q}»."
+  filter: "Filtro:"
+  none: Nada coincide.
+  more: "{from}–{to} de {total}"
+  kind:
+    student: alumnos
+    class: grupos
+    exam: exámenes
+    session: sesiones
+  key:
+    move: mover
+    choose: elegir
+    cancel: cancelar
+
+vault:
+  group: Bóveda
+  flag: Bóveda para este comando (nombre o carpeta)
+  password_prompt: "Contraseña de la bóveda «{name}»: "
+  wrong_password: Contraseña incorrecta.
+  wrong_password_err: Contraseña incorrecta tres veces.
+  locked_no_terminal: "La bóveda «{name}» está cifrada y cerrada; ejecuta antes `ax vault unlock` en una terminal."
+  agent_failed: "La bóveda no pudo quedarse abierta en segundo plano ({err}); se te volverá a pedir."
+  new_password: "Contraseña nueva: "
+  repeat_password: "Repítela: "
+  short_password: "La contraseña necesita al menos {n} caracteres."
+  mismatch: No coinciden; prueba otra vez.
+  no_password: No se puso ninguna contraseña.
+  busy: Hay un examen en marcha con esta bóveda; detenlo antes (ax stop --suspend lo deja abierto).
+  cmd:
+    short: Gestiona las bóvedas, donde se guardan exámenes, grupos y resultados
+    long: |-
+      Una bóveda es una carpeta que reúne tus exámenes, grupos, el archivo de
+      sesiones, las copias de seguridad y la base de datos, para que puedas
+      llevarla a otro ordenador. Se cifra con tu contraseña salvo que elijas
+      no hacerlo. Sin subcomando, muestra la bóveda en uso.
+
+      La bóveda en uso es, por orden: --vault, una carpeta .assess-vault aquí o
+      en una carpeta superior, el ajuste vault.path (`ax vault use`) o la de
+      la carpeta de datos.
+  state:
+    plain: sin cifrar
+    open: cifrada, abierta
+    locked: cifrada, cerrada
+    missing: carpeta no encontrada
+  source:
+    flag: la opción --vault
+    folder: la carpeta .assess-vault de la carpeta actual
+    setting: el ajuste vault.path
+    default: la bóveda por defecto
+  info:
+    name: "Bóveda:     "
+    folder: "Carpeta:    "
+    chosen: "Elegida por:"
+    state: "Estado:     "
+    exams: "Exámenes:   "
+    sessions: "Sesiones:   "
+    classes: "Grupos:     "
+    students: "Alumnos:    "
+    backup: "Copia:      "
+    no_backup: todavía ninguna (ax backup)
+    plain_hint: Esta bóveda no está cifrada; cualquiera que lea este disco puede leerla. `ax vault encrypt` la protege con contraseña.
+  init:
+    short: Crea una bóveda
+    long: |-
+      Crea una bóveda en una carpeta (por defecto .assess-vault en la carpeta
+      actual, que ax usa siempre que trabajes aquí o más abajo). Se cifra con
+      contraseña salvo que --no-encrypt o el ajuste vault.encrypt digan lo
+      contrario; además recibes una clave de recuperación, que se muestra una
+      sola vez.
+      Si olvidas la contraseña y pierdes la clave de recuperación, crea otra
+      bóveda y sigue: la antigua nunca se toca.
+    example: |-
+      ax vault init
+      ax vault init D:\colegio --name colegio --use
+      ax vault init --no-encrypt
+    flag_name: Nombre de la bóveda (por defecto el de la carpeta)
+    flag_no_encrypt: No cifrarla
+    flag_use: Usarla a partir de ahora
+    need_terminal: Para poner una contraseña hace falta una terminal.
+    password_intro: Elige la contraseña de la bóveda. Protege exámenes, grupos y resultados en este disco.
+    done: "Creada la bóveda «{name}» en {dir}."
+    plain: No está cifrada; `ax vault encrypt` le pone contraseña después.
+    local_hint: ax la usa siempre que trabajes en esta carpeta o más abajo.
+    use_hint: "Úsala con `ax vault use {name}`, o con --vault {name}."
+  recovery:
+    title: "Clave de recuperación. Apúntala o imprímela, y guárdala lejos de este ordenador:"
+    body: |-
+      Abre la bóveda si olvidas la contraseña (`ax vault passwd --recovery`).
+      Solo se muestra ahora.
+    enter: "Pulsa Intro cuando la tengas guardada… "
+  list:
+    short: Lista las bóvedas
+    header: "  Nombre\tEstado\tCarpeta"
+  use:
+    short: Elige la bóveda en uso
+    long: Guarda el nombre de la bóveda en el ajuste vault.path. Una carpeta .assess-vault en la carpeta actual sigue teniendo prioridad.
+    done: "Usando la bóveda «{name}»."
+    env_wins: AX_VAULT_PATH está definida y manda sobre el ajuste.
+  forget:
+    short: Quita una bóveda de la lista (su carpeta se queda)
+    unknown: "No hay ninguna bóveda llamada {name}."
+    done: "Olvidada «{name}»; su carpeta {dir} queda intacta."
+  lock:
+    short: Cierra la bóveda ahora
+    done: La bóveda está cerrada; el próximo comando pedirá la contraseña.
+  unlock:
+    short: Abre la bóveda durante un rato
+    done:
+      one: "La bóveda queda abierta {n} minuto."
+      other: "La bóveda queda abierta {n} minutos."
+  encrypt:
+    short: Cifra la bóveda con una contraseña
+    long: |-
+      Cifra todos los archivos de la bóveda y las columnas sensibles de su base
+      de datos (contenido y claves de los exámenes, nombres e identificadores,
+      respuestas). No se pierde nada. Si se interrumpe, vuelve a ejecutarlo
+      para terminar.
+    done: "La bóveda «{name}» está cifrada."
+    backups_hint: Las copias hechas antes siguen sin cifrar; bórralas si importa (ax backup list).
+  decrypt:
+    short: Quita el cifrado de la bóveda
+    long: Escribe todos los archivos y la base de datos en claro. Cualquiera que lea este disco podrá leerlos.
+    confirm: ¿Quitar el cifrado? Cualquiera que lea este disco podrá leer la bóveda
+    done: "La bóveda «{name}» ya no está cifrada."
+  passwd:
+    short: Cambia la contraseña de la bóveda
+    long: |-
+      Pide la contraseña actual (o, con --recovery, la clave de recuperación)
+      y una nueva. Los datos no cambian: solo se vuelve a envolver la clave.
+    flag_recovery: Usar la clave de recuperación en vez de la contraseña actual
+    recovery_prompt: "Clave de recuperación: "
+    plain: Esta bóveda no está cifrada; `ax vault encrypt` le pone contraseña.
+    done: Contraseña cambiada.
+  add:
+    short: Guarda exámenes en la bóveda
+    long: |-
+      Empaqueta una carpeta de examen (o lee un paquete .examx) en la bóveda,
+      después de comprobarlo. Luego ofrece borrar la carpeta original: la
+      bóveda conserva el examen, y `ax edit <id>` o `ax vault export` lo
+      devuelven.
+    example: |-
+      ax vault add algebra-01
+      ax vault add compartido.examx
+    flag_force: Sustituir un examen con el mismo id
+    flag_delete: Borrar las carpetas originales sin preguntar
+    flag_keep: Conservar las carpetas originales sin preguntar
+    no_id: "{dir} no tiene id de examen en su manifest."
+    exists: "La bóveda ya tiene un examen llamado {id}; --force lo sustituye."
+    passphrase: "Frase de paso del paquete: "
+    invalid:
+      one: "El examen tiene {n} problema; revísalo con `ax validate`."
+      other: "El examen tiene {n} problemas; revísalo con `ax validate`."
+    done: "Guardado «{title}» ({id}) en la bóveda «{name}»."
+    delete_original: "¿Borrar la carpeta {dir}? La bóveda conserva el examen"
+    deleted: "Borrada {dir}."
+  export:
+    short: Saca un examen de la bóveda
+    long: |-
+      Escribe un examen de la bóveda como paquete .examx para compartir, o
+      como carpeta (--folder). Un paquete con la clave de respuestas se cifra
+      con una frase de paso que eliges; --no-key deja la clave fuera.
+    example: |-
+      ax vault export algebra-01
+      ax vault export algebra-01 --no-key -o algebra-para-colegas.examx
+      ax vault export algebra-01 --folder algebra-01
+    flag_out: Archivo del paquete (por defecto <id>.examx)
+    flag_folder: Escribe una carpeta en vez de un paquete
+    flag_no_key: Deja fuera la clave de respuestas
+    flag_no_encrypt: No cifrar un paquete que lleva la clave de respuestas
+    need_terminal: Para elegir una frase de paso hace falta una terminal (o usa --no-key).
+    passphrase_intro: Elige una frase de paso para el paquete; quien lo importe la necesitará.
+    plain_warning: "Aviso: el paquete lleva la clave de respuestas y no está cifrado."
+    exists: "{file} ya existe."
+    done: "Escrito {file}."
+    folder_done: "Escrita la carpeta {dir}."
+  exams:
+    short: Lista los exámenes de la bóveda
+    long: Los exámenes guardados en la bóveda, con cuántas veces se ha hecho cada uno. `ax vault add` añade más.
+    empty: La bóveda todavía no tiene exámenes; añade una carpeta con `ax vault add <carpeta>`.
+    header: "ID\tTítulo\tClave\tSesiones\tÚltima vez"
+  exam:
+    not_found: "No hay ninguna carpeta llamada {ref} y la bóveda no tiene exámenes."
+  start:
+    example: |-
+      ax start algebra-01
+      ax start ./algebra-01 --class 3B
+      ax start algebra-01 --class 3B --roster-only
+    flag_class: El grupo que hace el examen (sus alumnos quedan apuntados antes de entrar)
+    flag_roster_only: Solo entran los alumnos del grupo; cualquier otro espera tu aprobación
+    roster_needs_class: --roster-only necesita --class.
+  edit:
+    saved: "Guardado en la bóveda «{name}»."
+  new:
+    saved: "También guardado en la bóveda «{name}»."
+  migrate:
+    running: Sigue en marcha un examen empezado con una versión anterior de ax; detenlo (ax stop) y vuelve a ejecutar este comando.
+    done: "Tus datos han pasado a la bóveda {dir} ({n} sesiones terminadas archivadas). La base de datos antigua se guarda en {copy}."
+    archive_failed: "Algunas sesiones no se pudieron archivar: {err}"

@@ -6,16 +6,60 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"sort"
 	"strings"
 	"time"
 
 	"github.com/lisk0vian/assess/internal/exam"
+	"github.com/lisk0vian/assess/internal/seal"
 	"github.com/lisk0vian/assess/internal/session"
 )
 
 type tx struct {
-	ctx context.Context
-	tx  *sql.Tx
+	ctx    context.Context
+	tx     *sql.Tx
+	c      *seal.Cipher
+	locked bool
+}
+
+// Sealing: with a cipher values are sealed; a locked database refuses to
+// write them in the clear; otherwise they are stored as they are.
+
+func (t *tx) sealText(s string) (string, error) {
+	if t.c == nil && t.locked && s != "" {
+		return "", seal.ErrLocked
+	}
+	return t.c.Text(s), nil
+}
+
+func (t *tx) sealDet(s string) (string, error) {
+	if t.c == nil && t.locked && s != "" {
+		return "", seal.ErrLocked
+	}
+	return t.c.Det(s), nil
+}
+
+func (t *tx) sealBlob(b []byte) ([]byte, error) {
+	if t.c == nil && t.locked && b != nil {
+		return nil, seal.ErrLocked
+	}
+	return t.c.Blob(b), nil
+}
+
+func (t *tx) openText(s string) (string, error) { return t.c.OpenText(s) }
+
+func (t *tx) openBlob(b []byte) ([]byte, error) { return t.c.OpenBlob(b) }
+
+func (t *tx) openNullText(s sql.NullString) (string, error) {
+	if !s.Valid {
+		return "", nil
+	}
+	return t.openText(s.String)
+}
+
+func (t *tx) sealNullText(s string) (sql.NullString, error) {
+	v, err := t.sealText(s)
+	return nullString(v), err
 }
 
 func (t *tx) exec(query string, args ...any) (sql.Result, error) {
@@ -56,7 +100,11 @@ func fromMS(v sql.NullInt64) time.Time {
 // ---- published exams ----
 
 func (t *tx) PutPublished(p *exam.Published) error {
-	content, err := json.Marshal(p.Exam)
+	plain, err := json.Marshal(p.Exam)
+	if err != nil {
+		return err
+	}
+	content, err := t.sealBlob(plain)
 	if err != nil {
 		return err
 	}
@@ -70,8 +118,12 @@ func (t *tx) PutPublished(p *exam.Published) error {
 		return nil // same content already published; assets are identical too
 	}
 	for path, data := range p.Assets {
+		sealed, err := t.sealBlob(data)
+		if err != nil {
+			return err
+		}
 		if _, err := t.exec(`INSERT INTO published_assets (exam_hash, path, content) VALUES (?, ?, ?)`,
-			p.Hash, path, data); err != nil {
+			p.Hash, path, sealed); err != nil {
 			return err
 		}
 	}
@@ -82,6 +134,10 @@ func (t *tx) GetPublished(hash string) (*exam.Published, error) {
 	var content []byte
 	if err := t.row(`SELECT content FROM published_exams WHERE hash = ?`, hash).Scan(&content); err != nil {
 		return nil, notFound(err, "published exam "+hash)
+	}
+	content, err := t.openBlob(content)
+	if err != nil {
+		return nil, err
 	}
 	p := &exam.Published{Hash: hash, Exam: &exam.Exam{}, Assets: map[string][]byte{}}
 	if err := json.Unmarshal(content, p.Exam); err != nil {
@@ -98,25 +154,34 @@ func (t *tx) GetPublished(hash string) (*exam.Published, error) {
 		if err := rows.Scan(&path, &data); err != nil {
 			return nil, err
 		}
+		if data, err = t.openBlob(data); err != nil {
+			return nil, err
+		}
 		p.Assets[path] = data
 	}
 	return p, rows.Err()
 }
 
+func (t *tx) PublishedTitle(hash string) (string, string, error) {
+	var id, title string
+	err := t.row(`SELECT exam_id, title FROM published_exams WHERE hash = ?`, hash).Scan(&id, &title)
+	return id, title, notFound(err, "published exam "+hash)
+}
+
 // ---- sessions ----
 
-const sessionCols = `id, code, exam_hash, state, duration_ms, grace_ms, created_at, started_at, ends_at, ended_at, secret`
+const sessionCols = `id, code, exam_hash, state, duration_ms, grace_ms, created_at, started_at, ends_at, ended_at, secret, class_id, roster_only, archive`
 
 func scanSession(sc interface{ Scan(...any) error }) (*session.Session, error) {
 	var s session.Session
 	var state string
 	var dur, grace int64
 	var created, started, ends, ended sql.NullInt64
-	var secret sql.NullString
-	if err := sc.Scan(&s.ID, &s.Code, &s.ExamHash, &state, &dur, &grace, &created, &started, &ends, &ended, &secret); err != nil {
+	var secret, class, archive sql.NullString
+	if err := sc.Scan(&s.ID, &s.Code, &s.ExamHash, &state, &dur, &grace, &created, &started, &ends, &ended, &secret, &class, &s.RosterOnly, &archive); err != nil {
 		return nil, err
 	}
-	s.Secret = secret.String
+	s.Secret, s.ClassID, s.ArchivedAs = secret.String, class.String, archive.String
 	s.State = session.State(state)
 	s.Duration, s.Grace = time.Duration(dur)*time.Millisecond, time.Duration(grace)*time.Millisecond
 	s.CreatedAt, s.StartedAt, s.EndsAt, s.EndedAt = fromMS(created), fromMS(started), fromMS(ends), fromMS(ended)
@@ -124,9 +189,10 @@ func scanSession(sc interface{ Scan(...any) error }) (*session.Session, error) {
 }
 
 func (t *tx) InsertSession(s *session.Session) error {
-	_, err := t.exec(`INSERT INTO sessions (`+sessionCols+`) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+	_, err := t.exec(`INSERT INTO sessions (`+sessionCols+`) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
 		s.ID, s.Code, s.ExamHash, string(s.State), s.Duration.Milliseconds(), s.Grace.Milliseconds(),
-		ms(s.CreatedAt), ms(s.StartedAt), ms(s.EndsAt), ms(s.EndedAt), nullString(s.Secret))
+		ms(s.CreatedAt), ms(s.StartedAt), ms(s.EndsAt), ms(s.EndedAt), nullString(s.Secret), nullString(s.ClassID), s.RosterOnly,
+		nullString(s.ArchivedAs))
 	return err
 }
 
@@ -134,6 +200,11 @@ func (t *tx) UpdateSession(s *session.Session) error {
 	_, err := t.exec(`UPDATE sessions SET state = ?, duration_ms = ?, grace_ms = ?, started_at = ?, ends_at = ?, ended_at = ?, secret = ?
 		WHERE id = ?`,
 		string(s.State), s.Duration.Milliseconds(), s.Grace.Milliseconds(), ms(s.StartedAt), ms(s.EndsAt), ms(s.EndedAt), nullString(s.Secret), s.ID)
+	return err
+}
+
+func (t *tx) SetSessionArchive(id, folder string) error {
+	_, err := t.exec(`UPDATE sessions SET archive = ? WHERE id = ?`, nullString(folder), id)
 	return err
 }
 
@@ -174,11 +245,18 @@ func (t *tx) listSessions(where string) ([]*session.Session, error) {
 
 const participantCols = `id, session_id, student_id, name, source, created_at`
 
-func scanParticipant(sc interface{ Scan(...any) error }) (*session.Participant, error) {
+func (t *tx) scanParticipant(sc interface{ Scan(...any) error }) (*session.Participant, error) {
 	var p session.Participant
 	var src string
 	var created sql.NullInt64
 	if err := sc.Scan(&p.ID, &p.SessionID, &p.StudentID, &p.Name, &src, &created); err != nil {
+		return nil, err
+	}
+	var err error
+	if p.StudentID, err = t.openText(p.StudentID); err != nil {
+		return nil, err
+	}
+	if p.Name, err = t.openText(p.Name); err != nil {
 		return nil, err
 	}
 	p.Source, p.CreatedAt = session.ParticipantSource(src), fromMS(created)
@@ -186,8 +264,16 @@ func scanParticipant(sc interface{ Scan(...any) error }) (*session.Participant, 
 }
 
 func (t *tx) InsertParticipant(p *session.Participant) error {
-	_, err := t.exec(`INSERT INTO participants (`+participantCols+`) VALUES (?, ?, ?, ?, ?, ?)`,
-		p.ID, p.SessionID, p.StudentID, p.Name, string(p.Source), ms(p.CreatedAt))
+	ref, err := t.sealDet(p.StudentID)
+	if err != nil {
+		return err
+	}
+	name, err := t.sealText(p.Name)
+	if err != nil {
+		return err
+	}
+	_, err = t.exec(`INSERT INTO participants (`+participantCols+`) VALUES (?, ?, ?, ?, ?, ?)`,
+		p.ID, p.SessionID, ref, name, string(p.Source), ms(p.CreatedAt))
 	return err
 }
 
@@ -197,30 +283,46 @@ func (t *tx) DeleteParticipant(id string) error {
 }
 
 func (t *tx) GetParticipant(id string) (*session.Participant, error) {
-	p, err := scanParticipant(t.row(`SELECT `+participantCols+` FROM participants WHERE id = ?`, id))
+	p, err := t.scanParticipant(t.row(`SELECT `+participantCols+` FROM participants WHERE id = ?`, id))
 	return p, notFound(err, "participant "+id)
 }
 
 func (t *tx) GetParticipantByStudent(sessionID, studentID string) (*session.Participant, error) {
-	p, err := scanParticipant(t.row(`SELECT `+participantCols+` FROM participants WHERE session_id = ? AND student_id = ?`,
-		sessionID, studentID))
+	ref, err := t.sealDet(studentID)
+	if err != nil {
+		return nil, err
+	}
+	p, err := t.scanParticipant(t.row(`SELECT `+participantCols+` FROM participants WHERE session_id = ? AND student_id = ?`,
+		sessionID, ref))
 	return p, notFound(err, "student "+studentID)
 }
 
 func (t *tx) ListParticipants(sessionID string) ([]*session.Participant, error) {
-	rows, err := t.query(`SELECT `+participantCols+` FROM participants WHERE session_id = ? ORDER BY name, student_id`, sessionID)
+	return t.participants(`WHERE session_id = ?`, sessionID)
+}
+
+// participants lists participants ordered by name and identifier, sorted
+// here because sealed names do not sort in SQL.
+func (t *tx) participants(where string, args ...any) ([]*session.Participant, error) {
+	rows, err := t.query(`SELECT `+participantCols+` FROM participants `+where, args...)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
 	var out []*session.Participant
 	for rows.Next() {
-		p, err := scanParticipant(rows)
+		p, err := t.scanParticipant(rows)
 		if err != nil {
 			return nil, err
 		}
 		out = append(out, p)
 	}
+	sort.Slice(out, func(i, j int) bool {
+		if out[i].Name != out[j].Name {
+			return out[i].Name < out[j].Name
+		}
+		return out[i].StudentID < out[j].StudentID
+	})
 	return out, rows.Err()
 }
 
@@ -311,7 +413,11 @@ func (t *tx) ListAttempts(sessionID string) ([]*session.Attempt, error) {
 // ---- answers ----
 
 func (t *tx) UpsertAnswer(a *session.Answer) (bool, error) {
-	resp, err := json.Marshal(a.Response)
+	plain, err := json.Marshal(a.Response)
+	if err != nil {
+		return false, err
+	}
+	resp, err := t.sealBlob(plain)
 	if err != nil {
 		return false, err
 	}
@@ -345,6 +451,9 @@ func (t *tx) ListAnswers(attemptID string) ([]*session.Answer, error) {
 		if err := rows.Scan(&a.QuestionID, &resp, &a.Seq, &updated, &points, &correct); err != nil {
 			return nil, err
 		}
+		if resp, err = t.openBlob(resp); err != nil {
+			return nil, err
+		}
 		if err := json.Unmarshal(resp, &a.Response); err != nil {
 			return nil, fmt.Errorf("decode answer %s/%s: %w", attemptID, a.QuestionID, err)
 		}
@@ -365,7 +474,7 @@ func (t *tx) SetAnswerGrade(attemptID, questionID string, points float64, correc
 
 const penaltyCols = `id, attempt_id, event_id, kind, signal, question_id, amount, created_at, reverted_at, note`
 
-func scanPenalty(sc interface{ Scan(...any) error }) (*session.Penalty, error) {
+func (t *tx) scanPenalty(sc interface{ Scan(...any) error }) (*session.Penalty, error) {
 	var p session.Penalty
 	var event, created, reverted sql.NullInt64
 	var kind string
@@ -373,16 +482,24 @@ func scanPenalty(sc interface{ Scan(...any) error }) (*session.Penalty, error) {
 	if err := sc.Scan(&p.ID, &p.AttemptID, &event, &kind, &p.Signal, &question, &p.Amount, &created, &reverted, &note); err != nil {
 		return nil, err
 	}
-	p.EventID, p.Kind, p.QuestionID, p.Note = event.Int64, session.PenaltyKind(kind), question.String, note.String
+	text, err := t.openNullText(note)
+	if err != nil {
+		return nil, err
+	}
+	p.EventID, p.Kind, p.QuestionID, p.Note = event.Int64, session.PenaltyKind(kind), question.String, text
 	p.CreatedAt, p.RevertedAt = fromMS(created), fromMS(reverted)
 	return &p, nil
 }
 
 func (t *tx) InsertPenalty(p *session.Penalty) error {
 	event := sql.NullInt64{Int64: p.EventID, Valid: p.EventID > 0}
+	note, err := t.sealNullText(p.Note)
+	if err != nil {
+		return err
+	}
 	res, err := t.exec(`INSERT INTO penalties (attempt_id, event_id, kind, signal, question_id, amount, created_at, note)
 		VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-		p.AttemptID, event, string(p.Kind), p.Signal, nullString(p.QuestionID), p.Amount, ms(p.CreatedAt), nullString(p.Note))
+		p.AttemptID, event, string(p.Kind), p.Signal, nullString(p.QuestionID), p.Amount, ms(p.CreatedAt), note)
 	if err != nil {
 		return err
 	}
@@ -398,7 +515,7 @@ func (t *tx) ListPenalties(attemptID string) ([]*session.Penalty, error) {
 	defer rows.Close()
 	var out []*session.Penalty
 	for rows.Next() {
-		p, err := scanPenalty(rows)
+		p, err := t.scanPenalty(rows)
 		if err != nil {
 			return nil, err
 		}
@@ -416,7 +533,7 @@ func (t *tx) ListSessionPenalties(sessionID string) ([]*session.Penalty, error) 
 	defer rows.Close()
 	var out []*session.Penalty
 	for rows.Next() {
-		p, err := scanPenalty(rows)
+		p, err := t.scanPenalty(rows)
 		if err != nil {
 			return nil, err
 		}
@@ -426,12 +543,16 @@ func (t *tx) ListSessionPenalties(sessionID string) ([]*session.Penalty, error) 
 }
 
 func (t *tx) GetPenalty(id int64) (*session.Penalty, error) {
-	p, err := scanPenalty(t.row(`SELECT `+penaltyCols+` FROM penalties WHERE id = ?`, id))
+	p, err := t.scanPenalty(t.row(`SELECT `+penaltyCols+` FROM penalties WHERE id = ?`, id))
 	return p, notFound(err, fmt.Sprintf("penalty %d", id))
 }
 
 func (t *tx) RevertPenalty(id int64, at time.Time, note string) error {
-	_, err := t.exec(`UPDATE penalties SET reverted_at = ?, note = ? WHERE id = ? AND reverted_at IS NULL`, ms(at), nullString(note), id)
+	sealed, err := t.sealNullText(note)
+	if err != nil {
+		return err
+	}
+	_, err = t.exec(`UPDATE penalties SET reverted_at = ?, note = ? WHERE id = ? AND reverted_at IS NULL`, ms(at), sealed, id)
 	return err
 }
 
@@ -468,8 +589,11 @@ func (t *tx) ListOpened(attemptID string) (map[string]time.Time, error) {
 func (t *tx) InsertEvent(e *session.Event) error {
 	var data []byte
 	if len(e.Data) > 0 {
-		var err error
-		if data, err = json.Marshal(e.Data); err != nil {
+		plain, err := json.Marshal(e.Data)
+		if err != nil {
+			return err
+		}
+		if data, err = t.sealBlob(plain); err != nil {
 			return err
 		}
 	}
@@ -558,6 +682,9 @@ func (t *tx) events(where, sessionID string, args ...any) ([]*session.Event, err
 		e.AttemptID, e.QuestionID, e.Severity = attempt.String, question.String, session.Severity(sev)
 		e.ClientAt, e.ReceivedAt = fromMS(client), fromMS(received)
 		if len(data) > 0 {
+			if data, err = t.openBlob(data); err != nil {
+				return nil, err
+			}
 			if err := json.Unmarshal(data, &e.Data); err != nil {
 				return nil, fmt.Errorf("decode event %d: %w", e.ID, err)
 			}

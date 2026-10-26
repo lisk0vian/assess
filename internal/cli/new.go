@@ -78,6 +78,13 @@ func newExamWizard(cmd *cobra.Command) error {
 	if w.Dir == "" {
 		return nil
 	}
+	if dir, err := dataDir(); err == nil {
+		if v, _, err := activeVault(dir); err == nil {
+			if _, err := storeExam(v, w.Dir, false); err == nil {
+				fmt.Fprintln(cmd.OutOrStdout(), T("vault.new.saved", "name", v.Meta.Name))
+			}
+		}
+	}
 	switch w.Next {
 	case tui.NextStart:
 		return startExam(cmd, defaultServeFlags(), w.Dir, 0, false)

@@ -43,6 +43,7 @@ func newRootCmd() *cobra.Command {
 	root.SetVersionTemplate("ax {{.Version}}\n")
 	root.PersistentFlags().StringVar(&dataDirFlag, "data-dir", cfg.Str("data_dir"), T("cli.flag.data_dir"))
 	root.PersistentFlags().StringVar(&configFlag, "config", "", T("cli.flag.config"))
+	root.PersistentFlags().StringVar(&vaultFlag, "vault", "", T("vault.flag"))
 	root.PersistentFlags().BoolP("help", "h", false, T("cli.flag.help"))
 	root.Flags().BoolP("version", "v", false, T("cli.flag.version"))
 	root.SetUsageTemplate(usageTemplate())
@@ -60,6 +61,7 @@ func newRootCmd() *cobra.Command {
 	})
 	root.AddGroup(&cobra.Group{ID: "exam", Title: T("cli.group.exam")},
 		&cobra.Group{ID: "session", Title: T("cli.group.session")},
+		&cobra.Group{ID: "vault", Title: T("vault.group")},
 		&cobra.Group{ID: "setup", Title: T("cli.group.setup")})
 	root.SetCompletionCommandGroupID("setup")
 	root.SetHelpCommandGroupID("setup")
@@ -84,8 +86,10 @@ func newRootCmd() *cobra.Command {
 			root.AddCommand(c)
 		}
 	}
-	add("exam", newNewCmd(), newEditCmd(), newValidateCmd(), newFormatCmd())
+	add("exam", newNewCmd(), newEditCmd(), newValidateCmd(), newFormatCmd(), newExamsCmd())
 	add("session", newStartCmd(), newAttachCmd(), newStatusCmd(), newStopCmd(), newResumeCmd(), newLogsCmd(), newResultsCmd(), newReportCmd())
+	add("vault", newVaultCmd(), newStudentCmd(), newClassCmd(), newFindCmd(), newHistoryCmd(), newGradebookCmd(),
+		newExploreCmd(), newBackupCmd(), newRestoreCmd())
 	add("setup", newConfigCmd(), newI18nCmd(), newAdminCmd(), newVersionCmd())
 	root.AddCommand(newDaemonCmd())
 	return root

@@ -154,6 +154,11 @@ var Keys = []Key{
 		return nil
 	}},
 	{Name: "results.bom", Kind: Bool, Default: "true"},
+
+	{Name: "vault.path", Kind: String},
+	{Name: "vault.encrypt", Kind: Bool, Default: "true"},
+	{Name: "vault.unlock_minutes", Kind: Int, Default: "15", Min: 0, Max: 1440},
+	{Name: "vault.keep_backups", Kind: Int, Default: "10", Min: 0, Max: 1000},
 }
 
 func checkLang(v string) error {

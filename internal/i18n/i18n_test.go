@@ -63,8 +63,16 @@ func TestUsedKeysExist(t *testing.T) {
 // Keys built at run time from a prefix and a value.
 func TestDynamicKeys(t *testing.T) {
 	sets := map[string][]string{
-		"state.":                    {"lobby", "running", "ended"},
-		"astate.":                   {"active", "submitted", "annulled", "withdrawn"},
+		"state.":           {"lobby", "running", "ended"},
+		"astate.":          {"active", "submitted", "annulled", "withdrawn", "absent"},
+		"pick.kind.":       {"student", "class", "exam", "session"},
+		"find.type.":       {"student", "class", "exam", "session"},
+		"vault.source.":    {"flag", "folder", "setting", "default"},
+		"explore.empty.":   {"exams", "classes", "students", "sessions"},
+		"explore.key.new.": {"exams", "classes", "students"},
+		"explore.act.": {"back", "history", "edit", "rename", "enroll", "unenroll", "merge", "forget", "members", "import",
+			"add_student", "gradebook", "export", "rename_class", "delete", "start", "edit_exam", "sessions", "export_exam",
+			"report", "results"},
 		"monitor.state.":            {"active", "submitted", "annulled", "withdrawn"},
 		"qtype.":                    {"single", "multiple", "truefalse", "short"},
 		"penalty.":                  {"strike", "void", "points"},

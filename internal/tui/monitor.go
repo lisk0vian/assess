@@ -70,6 +70,8 @@ type Options struct {
 	CheckPassword func(string) bool
 	// LockAfter locks an idle panel (only with a password). Zero disables it.
 	LockAfter time.Duration
+	// OnLock runs when the panel locks: it also locks the vault.
+	OnLock func()
 }
 
 // Monitor is the live session panel. Quitting only detaches; the exam keeps
@@ -184,6 +186,9 @@ func (m *Monitor) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 }
 
 func (m *Monitor) lock() {
+	if m.opts.OnLock != nil {
+		m.opts.OnLock()
+	}
 	m.mode = modeLocked
 	m.input.Reset()
 	m.input.EchoMode = textinput.EchoPassword
@@ -427,6 +432,13 @@ func (m *Monitor) normalKey(k string) (tea.Model, tea.Cmd) {
 				return m.call(T("monitor.paused_all"), func(ctx context.Context) (*daemon.Board, error) { return m.client.PauseAll(ctx, true) })
 			})
 		}
+	case "g", "G":
+		if req := m.firstRequest(); req != nil && m.board.Status.Class != "" {
+			notice := T("monitor.enrolled", "name", req.Name, "id", req.StudentID, "class", m.board.Status.Class)
+			return m, m.call(notice, func(ctx context.Context) (*daemon.Board, error) {
+				return m.client.EnrollRequest(ctx, req.ID)
+			})
+		}
 	case "a", "A", "r", "R":
 		if req := m.firstRequest(); req != nil {
 			approve := k == "a" || k == "A"
@@ -609,15 +621,22 @@ func (m *Monitor) View() tea.View {
 	if n := len(m.board.Requests); n > 0 {
 		r := m.firstRequest()
 		what := T("monitor.request.device")
-		if r.Kind == "late" {
+		switch r.Kind {
+		case "late":
 			what = T("monitor.request.late")
+		case "unlisted":
+			what = T("monitor.request.unlisted", "class", m.board.Status.Class)
+		}
+		enroll := ""
+		if m.board.Status.Class != "" {
+			enroll = "  " + keyStyle.Render("G") + " " + T("monitor.key.enroll", "class", m.board.Status.Class)
 		}
 		more := ""
 		if n > 1 {
 			more = " " + T("monitor.request.more", "n", n-1)
 		}
 		b.WriteString("\n" + bannerStyle.Render(fmt.Sprintf("%s (%s) %s%s", r.Name, r.StudentID, what, more)) + "  " +
-			keyStyle.Render("A") + " " + T("monitor.key.approve") + "  " + keyStyle.Render("R") + " " + T("monitor.key.reject") + "\n")
+			keyStyle.Render("A") + " " + T("monitor.key.approve") + enroll + "  " + keyStyle.Render("R") + " " + T("monitor.key.reject") + "\n")
 	}
 
 	tabs := make([]string, viewCount)

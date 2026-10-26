@@ -33,6 +33,11 @@ type Session struct {
 	EndsAt    time.Time // absolute end for everyone, before per-attempt extra time
 	EndedAt   time.Time // zero until ended
 	Secret    string    // derives each attempt's telemetry key; never sent to clients
+	ClassID   string    // the class taking the exam, if one was chosen
+	// RosterOnly lets in only the students of the class; anybody else
+	// waits for the teacher's approval.
+	RosterOnly bool
+	ArchivedAs string // the vault folder of its archive, once written
 }
 
 // ParticipantSource records how a participant was added.

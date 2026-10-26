@@ -8,7 +8,6 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/lisk0vian/assess/internal/datadir"
 	"github.com/lisk0vian/assess/internal/exam"
 	"github.com/lisk0vian/assess/internal/grading"
 	"github.com/lisk0vian/assess/internal/session"
@@ -18,7 +17,7 @@ import (
 func TestResultsExport(t *testing.T) {
 	dir := t.TempDir()
 	ctx := context.Background()
-	db, err := sqlite.Open(ctx, datadir.DB(dir))
+	db, err := sqlite.Open(ctx, testDB(t, dir))
 	if err != nil {
 		t.Fatal(err)
 	}

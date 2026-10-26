@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"os"
+	"os/exec"
 	"time"
 
 	"github.com/lisk0vian/assess/internal/datadir"
@@ -86,3 +87,10 @@ func Check(dir string) (Health, *State, error) {
 	}
 	return Crashed, s, nil
 }
+
+// Detach makes cmd survive the terminal that started it (for other
+// background helpers, such as the vault's unlock agent).
+func Detach(cmd *exec.Cmd) { detach(cmd) }
+
+// ProcessAlive reports whether the process pid is running.
+func ProcessAlive(pid int) bool { return processAlive(pid) }

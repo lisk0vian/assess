@@ -1,6 +1,7 @@
 package daemon
 
 import (
+	"bytes"
 	"context"
 	"crypto/rand"
 	"encoding/hex"
@@ -16,12 +17,16 @@ import (
 	"sync"
 	"time"
 
+	"github.com/lisk0vian/assess/internal/archive"
+	"github.com/lisk0vian/assess/internal/backup"
 	"github.com/lisk0vian/assess/internal/datadir"
 	"github.com/lisk0vian/assess/internal/netutil"
+	"github.com/lisk0vian/assess/internal/seal"
 	"github.com/lisk0vian/assess/internal/server/student"
 	"github.com/lisk0vian/assess/internal/server/web"
 	"github.com/lisk0vian/assess/internal/session"
 	"github.com/lisk0vian/assess/internal/storage/sqlite"
+	"github.com/lisk0vian/assess/internal/vault"
 )
 
 // Config configures a daemon.
@@ -34,15 +39,27 @@ type Config struct {
 	AllowPublic  bool          // accept students from non-private addresses
 	Version      string
 	Log          *slog.Logger
+	// VaultDir holds the database and receives the session's archive; empty
+	// uses the data folder's database and archives nothing (tests).
+	VaultDir string
+	// DBKey opens an encrypted vault's database; it arrives through a pipe.
+	DBKey []byte
+	// KeepBackups is how many automatic backups to keep (0 makes none).
+	KeepBackups int
 }
 
 type daemon struct {
 	cfg        Config
+	db         *sqlite.DB
+	vault      *vault.Vault
+	archived   bool
 	svc        *session.Service
 	students   *student.Handler
 	sessionID  string
 	examID     string
 	examTitle  string
+	className  string
+	classID    string
 	studentURL string
 	otherURLs  []string
 	startedAt  time.Time
@@ -74,7 +91,25 @@ func Run(ctx context.Context, cfg Config) error {
 	if cfg.Log == nil {
 		cfg.Log = slog.New(slog.DiscardHandler)
 	}
-	db, err := sqlite.Open(ctx, datadir.DB(cfg.DataDir))
+	dbPath := datadir.DB(cfg.DataDir)
+	var v *vault.Vault
+	var cipher *seal.Cipher
+	if cfg.VaultDir != "" {
+		var err error
+		if v, err = vault.Open(cfg.VaultDir); err != nil {
+			return err
+		}
+		dbPath = v.DB()
+		if v.Encrypted() {
+			if len(cfg.DBKey) == 0 {
+				return errors.New("the vault is encrypted and no key was given")
+			}
+			if cipher, err = seal.New(cfg.DBKey); err != nil {
+				return err
+			}
+		}
+	}
+	db, err := sqlite.Open(ctx, dbPath, sqlite.WithCipher(cipher, v != nil && v.Encrypted()))
 	if err != nil {
 		return err
 	}
@@ -96,8 +131,18 @@ func Run(ctx context.Context, cfg Config) error {
 		return err
 	}
 	d := &daemon{
-		cfg: cfg, svc: svc, sessionID: sess.ID, examID: pub.Exam.Manifest.ID, examTitle: pub.Exam.Manifest.Title,
+		cfg: cfg, db: db, vault: v, svc: svc, sessionID: sess.ID, examID: pub.Exam.Manifest.ID, examTitle: pub.Exam.Manifest.Title,
 		startedAt: time.Now(), stop: make(chan struct{}),
+	}
+	d.classID = sess.ClassID
+	if sess.ClassID != "" {
+		if p, err := svc.People(ctx); err == nil {
+			for _, c := range p.Classes {
+				if c.ID == sess.ClassID {
+					d.className = c.Name
+				}
+			}
+		}
 	}
 	// Recover sessions that expired while no server was running.
 	if n, err := svc.FinalizeExpired(ctx); err != nil {
@@ -174,8 +219,10 @@ loop:
 			if _, err := svc.FinalizeExpired(ctx); err != nil {
 				d.setError(err)
 			}
+			d.archiveIfEnded(ctx)
 		}
 	}
+	d.archiveIfEnded(context.Background())
 
 	cfg.Log.Info("shutting down")
 	shutdownCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
@@ -183,6 +230,37 @@ loop:
 	_ = studentSrv.Shutdown(shutdownCtx)
 	_ = controlSrv.Shutdown(shutdownCtx)
 	return nil
+}
+
+// archiveIfEnded writes the session's archive into the vault, and an
+// automatic backup, once the session has ended.
+func (d *daemon) archiveIfEnded(ctx context.Context) {
+	if d.vault == nil || d.archived {
+		return
+	}
+	sess, _, err := d.svc.Session(ctx, d.sessionID)
+	if err != nil || sess.State != session.StateEnded {
+		return
+	}
+	d.archived = true
+	folder, err := archive.Write(ctx, d.vault, d.svc, d.sessionID)
+	if err != nil {
+		d.setError(fmt.Errorf("archive: %w", err))
+		return
+	}
+	d.cfg.Log.Info("session archived", "folder", folder)
+	if d.cfg.KeepBackups <= 0 {
+		return
+	}
+	file, err := backup.Create(ctx, d.vault, d.db, "", backup.AutoPrefix)
+	if err != nil {
+		d.setError(fmt.Errorf("backup: %w", err))
+		return
+	}
+	d.cfg.Log.Info("backup written", "file", file)
+	if err := backup.Prune(d.vault, d.cfg.KeepBackups); err != nil {
+		d.cfg.Log.Warn("pruning backups", "err", err)
+	}
 }
 
 // urlsFor builds the address students type. Listening on all interfaces
@@ -212,8 +290,9 @@ func randomToken() string {
 }
 
 // Spawn starts the daemon for dir as a detached background process running
-// `ax daemon` with args, and waits until it reports itself running.
-func Spawn(dir string, args []string) (*State, error) {
+// `ax daemon` with args, and waits until it reports itself running. A key
+// is written to the daemon's standard input, never to its command line.
+func Spawn(dir string, args []string, key []byte) (*State, error) {
 	exe, err := os.Executable()
 	if err != nil {
 		return nil, err
@@ -224,8 +303,14 @@ func Spawn(dir string, args []string) (*State, error) {
 	}
 	defer logf.Close()
 
+	if key != nil {
+		args = append(args, "--key-stdin")
+	}
 	cmd := exec.Command(exe, append([]string{"daemon", "--data-dir", dir}, args...)...) //nolint:gosec // G204: re-executes ourselves
 	cmd.Stdout, cmd.Stderr = logf, logf
+	if key != nil {
+		cmd.Stdin = bytes.NewReader(key)
+	}
 	detach(cmd)
 	if err := cmd.Start(); err != nil {
 		return nil, err

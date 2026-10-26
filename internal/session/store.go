@@ -20,8 +20,12 @@ type Store interface {
 
 // Tx is the set of operations available inside a transaction.
 type Tx interface {
+	PeopleTx
+
 	PutPublished(p *exam.Published) error // no-op if the hash already exists
 	GetPublished(hash string) (*exam.Published, error)
+	// PublishedTitle returns the manifest id and title without decoding the exam.
+	PublishedTitle(hash string) (string, string, error)
 
 	InsertSession(s *Session) error
 	GetSession(id string) (*Session, error)
@@ -29,6 +33,7 @@ type Tx interface {
 	ListOpenSessions() ([]*Session, error)
 	ListSessions() ([]*Session, error) // all sessions, oldest first
 	UpdateSession(s *Session) error
+	SetSessionArchive(id, folder string) error
 
 	InsertParticipant(p *Participant) error
 	DeleteParticipant(id string) error // only for participants without an attempt

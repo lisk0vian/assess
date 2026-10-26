@@ -26,6 +26,7 @@ const (
 	actResume   = "resume"
 	actReport   = "report"
 	actSettings = "settings"
+	actExplore  = "explore"
 	actQuit     = "quit"
 )
 
@@ -35,12 +36,21 @@ type homeState struct {
 	open       *session.Session // lobby or running, without a server
 	lastEnded  *session.Session
 	lastTitles map[string]string // session id → exam title
+	vault      string            // name and state of the active vault
+	exams      []foundExam       // exams of the vault
 }
 
 func readHomeState(cmd *cobra.Command, dir string) homeState {
 	st := homeState{lastTitles: map[string]string{}}
 	st.health, _, _ = daemon.Check(dir)
-	_ = withService(cmd.Context(), dir, func(svc *session.Service) error {
+	_ = withStore(cmd.Context(), dir, func(s *store) error {
+		svc := s.svc
+		st.vault = s.vault.Meta.Name + " · " + vaultState(cmd.Context(), dir, s.vault)
+		if exams, err := vaultExams(s.vault); err == nil {
+			for _, e := range exams {
+				st.exams = append(st.exams, foundExam{dir: e.ID, title: e.Title, vault: true})
+			}
+		}
 		if open, err := svc.OpenSession(cmd.Context()); err == nil {
 			st.open = open
 		}
@@ -74,6 +84,7 @@ func homeOptions(st homeState) []huh.Option[string] {
 	if st.lastEnded != nil {
 		out = append(out, huh.NewOption(T("home.report", "title", st.lastTitles[st.lastEnded.ID], "code", st.lastEnded.Code), actReport))
 	}
+	out = append(out, huh.NewOption(T("home.explore"), actExplore))
 	return append(out, huh.NewOption(T("home.settings"), actSettings), huh.NewOption(T("home.quit"), actQuit))
 }
 
@@ -89,6 +100,9 @@ func home(cmd *cobra.Command, dir string) error {
 			note = T("home.open")
 		}
 		choice := actQuit
+		if st.vault != "" {
+			note += "\n" + T("home.vault", "vault", st.vault)
+		}
 		err := runForm(huh.NewForm(huh.NewGroup(
 			huh.NewNote().Title("ASSESS").Description(note),
 			huh.NewSelect[string]().Title(T("home.question")).Options(homeOptions(st)...).Value(&choice),
@@ -115,8 +129,12 @@ func home(cmd *cobra.Command, dir string) error {
 			if err := editSettings(cmd); err != nil {
 				return err
 			}
+		case actExplore:
+			if err := explore(cmd, tui.ExploreState{Tab: tui.TabStudents}); err != nil {
+				return err
+			}
 		case actEdit, actStart:
-			folder, err := askExamFolder(choice == actStart)
+			folder, err := askExamFolder(choice == actStart, st.exams)
 			if errors.Is(err, huh.ErrUserAborted) {
 				continue
 			}
@@ -133,20 +151,24 @@ func home(cmd *cobra.Command, dir string) error {
 
 func runForm(f *huh.Form) error { return tui.StyleForm(f).WithShowHelp(true).Run() }
 
-// askExamFolder offers the exam folders found under the current folder,
-// or any path.
-func askExamFolder(starting bool) (string, error) {
+// askExamFolder offers the exams of the vault and the exam folders found
+// under the current folder, or any path.
+func askExamFolder(starting bool, inVault []foundExam) (string, error) {
 	title := T("home.pick_edit")
 	if starting {
 		title = T("home.pick_start")
 	}
 	const other = "\x00other"
-	found := findExams(".", 3)
+	found := append(append([]foundExam{}, inVault...), findExams(".", 3)...)
 	choice := other
 	if len(found) > 0 {
 		var opts []huh.Option[string]
 		for _, e := range found {
-			opts = append(opts, huh.NewOption(fmt.Sprintf("%s  ·  %s", e.title, e.dir), e.dir))
+			where := e.dir
+			if e.vault {
+				where = T("home.in_vault")
+			}
+			opts = append(opts, huh.NewOption(fmt.Sprintf("%s  ·  %s", e.title, where), e.dir))
 		}
 		opts = append(opts, huh.NewOption(T("home.other_folder"), other))
 		choice = found[0].dir
@@ -168,7 +190,10 @@ func askExamFolder(starting bool) (string, error) {
 	return strings.TrimSpace(path), err
 }
 
-type foundExam struct{ dir, title string }
+type foundExam struct {
+	dir, title string // dir is the exam id for an exam of the vault
+	vault      bool
+}
 
 // skipDirs are never searched for exams.
 var skipDirs = []string{"node_modules", "vendor", "dist", "build", "invalid"}

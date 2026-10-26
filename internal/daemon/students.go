@@ -10,6 +10,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/lisk0vian/assess/internal/archive"
 	"github.com/lisk0vian/assess/internal/exam"
 	"github.com/lisk0vian/assess/internal/report"
 	"github.com/lisk0vian/assess/internal/server/student"
@@ -307,6 +308,17 @@ func (c *controlServer) studentRoutes(mux *http.ServeMux) {
 	mux.HandleFunc("POST /requests/{id}/approve", act(func(r *http.Request, _ map[string]any) error {
 		return d.students.Approve(r, r.PathValue("id"))
 	}))
+	mux.HandleFunc("POST /requests/{id}/enroll", act(func(r *http.Request, _ map[string]any) error {
+		if err := d.students.Enroll(r, r.PathValue("id")); err != nil {
+			return err
+		}
+		if d.vault != nil && d.classID != "" {
+			if err := archive.WriteClass(r.Context(), d.vault, d.svc, d.classID); err != nil {
+				d.cfg.Log.Warn("class copy", "err", err)
+			}
+		}
+		return nil
+	}))
 	mux.HandleFunc("POST /requests/{id}/reject", act(func(r *http.Request, _ map[string]any) error {
 		return d.students.Reject(r.PathValue("id"))
 	}))
@@ -379,4 +391,9 @@ func (c *Client) DecideRequest(ctx context.Context, requestID string, approve bo
 		verb = "approve"
 	}
 	return c.board(ctx, "POST", "/requests/"+requestID+"/"+verb, nil)
+}
+
+// EnrollRequest approves a request and adds the student to the class.
+func (c *Client) EnrollRequest(ctx context.Context, requestID string) (*Board, error) {
+	return c.board(ctx, "POST", "/requests/"+requestID+"/enroll", nil)
 }

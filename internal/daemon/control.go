@@ -36,6 +36,9 @@ type StatusView struct {
 	Submitted  int           `json:"submitted"`
 	UptimeMs   int64         `json:"uptime_ms"`
 	LastError  string        `json:"last_error,omitempty"`
+	Class      string        `json:"class,omitempty"` // the class taking the exam
+	RosterOnly bool          `json:"roster_only,omitempty"`
+	Expected   int           `json:"expected,omitempty"` // students on the class list
 }
 
 type controlServer struct {
@@ -128,6 +131,14 @@ func (d *daemon) status(ctx context.Context) (*StatusView, error) {
 		StartedAt: msOrZero(snap.Session.StartedAt), EndsAt: msOrZero(snap.Session.EndsAt), ServerNow: d.svc.Now().UnixMilli(),
 		StudentURL: d.studentURL, OtherURLs: d.otherURLs, Joined: len(snap.Attempts), Online: d.students.Online(),
 		UptimeMs: time.Since(d.startedAt).Milliseconds(), LastError: d.lastError(),
+		Class: d.className, RosterOnly: snap.Session.RosterOnly,
+	}
+	if d.className != "" {
+		for _, p := range snap.Participants {
+			if p.Source == session.SourceRoster {
+				v.Expected++
+			}
+		}
 	}
 	for _, a := range snap.Attempts {
 		switch a.State {

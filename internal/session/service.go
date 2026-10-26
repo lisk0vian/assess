@@ -92,6 +92,9 @@ func (s *Service) published(tx Tx, hash string) (*exam.Published, error) {
 type CreateOptions struct {
 	Duration time.Duration // default: the manifest duration
 	Grace    time.Duration // default: DefaultGrace; negative means none
+	// ClassID registers the members of a class before anyone joins.
+	ClassID    string
+	RosterOnly bool // only the class may join without approval
 }
 
 // CreateSession stores pub (if new) and opens a session in the lobby.
@@ -110,13 +113,15 @@ func (s *Service) CreateSession(ctx context.Context, pub *exam.Published, opts C
 	}
 	now := s.clock()
 	sess := &Session{
-		ID:        newID(),
-		ExamHash:  pub.Hash,
-		State:     StateLobby,
-		Duration:  opts.Duration,
-		Grace:     opts.Grace,
-		CreatedAt: now,
-		Secret:    newSecret(),
+		ID:         newID(),
+		ExamHash:   pub.Hash,
+		State:      StateLobby,
+		Duration:   opts.Duration,
+		Grace:      opts.Grace,
+		CreatedAt:  now,
+		Secret:     newSecret(),
+		ClassID:    opts.ClassID,
+		RosterOnly: opts.RosterOnly && opts.ClassID != "",
 	}
 	err := s.store.Update(ctx, func(tx Tx) error {
 		if err := tx.PutPublished(pub); err != nil {
@@ -128,6 +133,9 @@ func (s *Service) CreateSession(ctx context.Context, pub *exam.Published, opts C
 		}
 		sess.Code = code
 		if err := tx.InsertSession(sess); err != nil {
+			return err
+		}
+		if err := registerClass(tx, sess, now); err != nil {
 			return err
 		}
 		return tx.InsertEvent(&Event{SessionID: sess.ID, Kind: "session.created", Severity: SeverityInfo,
@@ -200,7 +208,10 @@ func (s *Service) AddParticipant(ctx context.Context, sessionID, studentID, name
 			return err
 		}
 		p = &Participant{ID: newID(), SessionID: sessionID, StudentID: studentID, Name: name, Source: src, CreatedAt: s.clock()}
-		return tx.InsertParticipant(p)
+		if err := tx.InsertParticipant(p); err != nil {
+			return err
+		}
+		return ensureStudent(tx, p)
 	})
 	return p, err
 }
@@ -226,6 +237,9 @@ func (s *Service) Join(ctx context.Context, sessionID, studentID, name string) (
 		case errors.Is(err, ErrNotFound):
 			part = &Participant{ID: newID(), SessionID: sessionID, StudentID: studentID, Name: name, Source: SourceSelf, CreatedAt: now}
 			if err := tx.InsertParticipant(part); err != nil {
+				return err
+			}
+			if err := ensureStudent(tx, part); err != nil {
 				return err
 			}
 		case err != nil:

@@ -1,6 +1,11 @@
 // Package sqlite implements session.Store on SQLite (modernc.org/sqlite, no
 // CGO). Writes go through a single connection so they are serialized; reads
 // use a separate pool and never block on writers thanks to WAL mode.
+//
+// In an encrypted vault the sensitive columns are sealed (package seal):
+// published content and assets, names and identifiers, answers, event data
+// and notes. Everything else (codes, times, states, scores) stays plain so
+// the database can be queried without the key.
 package sqlite
 
 import (
@@ -19,6 +24,7 @@ import (
 
 	_ "modernc.org/sqlite" // registers the "sqlite" driver
 
+	"github.com/lisk0vian/assess/internal/seal"
 	"github.com/lisk0vian/assess/internal/session"
 )
 
@@ -29,15 +35,29 @@ var migrations embed.FS
 type DB struct {
 	w *sql.DB // single connection: the only writer
 	r *sql.DB // read-only pool
+
+	cipher *seal.Cipher // nil: values are written plain
+	locked bool         // encrypted vault without its key: sealed values cannot be read or written
+}
+
+// Option configures Open.
+type Option func(*DB)
+
+// WithCipher seals sensitive values with c. A nil c with encrypted set
+// opens the database locked: plain columns work, sealed ones fail with
+// seal.ErrLocked and nothing sensitive is ever written in the clear.
+func WithCipher(c *seal.Cipher, encrypted bool) Option {
+	return func(db *DB) { db.cipher, db.locked = c, encrypted && c == nil }
 }
 
 var _ session.Store = (*DB)(nil)
 
 // Open opens (creating if needed) the database file at path and applies
 // pending migrations.
-func Open(ctx context.Context, path string) (*DB, error) {
+func Open(ctx context.Context, path string, opts ...Option) (*DB, error) {
 	dsn := "file:" + filepath.ToSlash(path) + "?" + strings.Join([]string{
 		"_pragma=foreign_keys(1)",
+		"_pragma=secure_delete(1)", // deleted values (a forgotten student) are overwritten
 		"_pragma=journal_mode(WAL)",
 		"_pragma=synchronous(NORMAL)",
 		"_pragma=busy_timeout(10000)",
@@ -51,6 +71,9 @@ func Open(ctx context.Context, path string) (*DB, error) {
 	w.SetConnMaxIdleTime(0)
 
 	db := &DB{w: w}
+	for _, o := range opts {
+		o(db)
+	}
 	if err := db.migrate(ctx); err != nil {
 		w.Close()
 		return nil, fmt.Errorf("migrate %s: %w", path, err)
@@ -73,15 +96,15 @@ func (db *DB) Close() error {
 
 // Update runs fn in a serialized write transaction.
 func (db *DB) Update(ctx context.Context, fn func(session.Tx) error) error {
-	return run(ctx, db.w, nil, fn)
+	return db.run(ctx, db.w, nil, fn)
 }
 
 // View runs fn in a read-only transaction with a consistent snapshot.
 func (db *DB) View(ctx context.Context, fn func(session.Tx) error) error {
-	return run(ctx, db.r, &sql.TxOptions{ReadOnly: true}, fn)
+	return db.run(ctx, db.r, &sql.TxOptions{ReadOnly: true}, fn)
 }
 
-func run(ctx context.Context, pool *sql.DB, opts *sql.TxOptions, fn func(session.Tx) error) (err error) {
+func (db *DB) run(ctx context.Context, pool *sql.DB, opts *sql.TxOptions, fn func(session.Tx) error) (err error) {
 	sqlTx, err := pool.BeginTx(ctx, opts)
 	if err != nil {
 		return err
@@ -92,7 +115,7 @@ func run(ctx context.Context, pool *sql.DB, opts *sql.TxOptions, fn func(session
 			panic(p)
 		}
 	}()
-	if err := fn(&tx{ctx: ctx, tx: sqlTx}); err != nil {
+	if err := fn(&tx{ctx: ctx, tx: sqlTx, c: db.cipher, locked: db.locked}); err != nil {
 		sqlTx.Rollback()
 		return err
 	}

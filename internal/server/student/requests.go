@@ -22,6 +22,8 @@ type RequestKind string
 const (
 	KindDevice RequestKind = "device" // the student already has an attempt on another device
 	KindLate   RequestKind = "late"   // joining after the join window closed
+	// KindUnlisted is a student outside the class list of a roster-only session.
+	KindUnlisted RequestKind = "unlisted"
 )
 
 // RequestStatus is the teacher's decision.
@@ -108,7 +110,7 @@ func (h *Handler) Approve(r *http.Request, id string) error {
 		return ErrUnknownRequest
 	}
 	attemptID := req.AttemptID
-	if req.Kind == KindLate {
+	if req.Kind == KindLate || req.Kind == KindUnlisted {
 		att, _, err := h.svc.Join(r.Context(), h.sessionID, req.StudentID, req.Name)
 		if err != nil {
 			return err
@@ -124,6 +126,18 @@ func (h *Handler) Approve(r *http.Request, id string) error {
 	_ = h.svc.RecordEvent(r.Context(), &session.Event{SessionID: h.sessionID, AttemptID: attemptID, Kind: "attempt.device_approved",
 		Severity: session.SeverityWarn, Data: map[string]any{"kind": string(req.Kind), "ip": req.IP}})
 	return nil
+}
+
+// Enroll approves a request and adds the student to the session's class.
+func (h *Handler) Enroll(r *http.Request, id string) error {
+	req, ok := h.reqs.get(id)
+	if !ok {
+		return ErrUnknownRequest
+	}
+	if err := h.svc.AddToSessionClass(r.Context(), h.sessionID, req.StudentID, req.Name); err != nil {
+		return err
+	}
+	return h.Approve(r, id)
 }
 
 // Reject denies the device.

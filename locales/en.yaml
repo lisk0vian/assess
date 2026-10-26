@@ -219,6 +219,7 @@ config:
     new_exam: Starting values for new exams (ax new); existing exams are not changed
     panel: Session panel
     results: Results export (ax results)
+    vault: Vault (exams, classes and results of this computer)
   key:
     language: Language of the terminal (menus, panel, reports, help).
     student_language: |-
@@ -243,6 +244,13 @@ config:
     results.format: Format of `ax results`.
     results.separator: CSV field separator. Use ";" for Excel in many European languages.
     results.bom: Start CSV files with a byte order mark, so Excel reads accents correctly.
+    vault.path: |-
+      Vault to use, by name (see `ax vault list`) or folder. Empty uses the
+      default one in the data folder. A .assess-vault folder in the current
+      folder or a parent wins.
+    vault.encrypt: Encrypt new vaults (ax vault init) with a password.
+    vault.unlock_minutes: Minutes an encrypted vault stays open after typing the password (0 always asks).
+    vault.keep_backups: Automatic backups to keep (one is made each time a session closes; 0 makes none).
 
 state:
   lobby: in the lobby
@@ -250,6 +258,9 @@ state:
   ended: ended
 
 home:
+  explore: "Explore exams, classes, students and sessions"
+  in_vault: in the vault
+  vault: "Vault: {vault}"
   idle: No exam is running.
   crashed: "The server stopped before the exam ended: you can resume it and nobody loses their answers."
   open: There is an open session without a server.
@@ -778,12 +789,14 @@ qtype:
   short: "short"
 
 astate:
+  absent: absent
   submitted: "submitted"
   annulled: "annulled"
   withdrawn: "withdrawn"
   active: "not submitted"
 
 monitor:
+  enrolled: "Approved and added to {class}: {name} ({id})."
   view:
     students: "Students"
     ranking: "Ranking"
@@ -841,6 +854,7 @@ monitor:
   strikes_total: "{n} strikes (annuls at {limit})"
   server_error: "Server error:"
   request:
+    unlisted: "is not on the list of {class}"
     device: "wants to join from another device"
     late: "wants to join after joining closed"
     more: "(+{n} more)"
@@ -880,6 +894,7 @@ monitor:
   warning: "Warning:"
   prompt_hint: "Enter confirms · Esc cancels"
   key:
+    enroll: "approve and add to {class}"
     approve: "approve"
     reject: "reject"
     quit: "quit (the exam keeps running)"
@@ -1204,3 +1219,498 @@ welcome:
   title: "Welcome to Assess"
   body: "Your settings will be saved in {path}.\nYou can change them any time from the menu (Settings) or with `ax config`."
   language: "Language of the interface"
+
+archive:
+  date: Date
+  class: Class
+  code: Code
+  duration: Duration
+  minutes: "{n} min"
+  students: Students
+  students_value: "{students} joined, {submitted} submitted, {annulled} annulled, {withdrawn} withdrawn"
+  scores: Scores
+  scores_value: "mean {mean} %, median {median} %, from {min} % to {max} %"
+  integrity: Integrity
+  integrity_value: "{strikes} active strikes, {reverted} penalties reverted"
+  questions: Questions
+  pairs:
+    one: "The report found {n} pair of students with suspiciously similar answers; `ax report` shows the evidence."
+    other: "The report found {n} pairs of students with suspiciously similar answers; `ax report` shows the evidence."
+  col:
+    name: Name
+    id: ID
+    state: State
+    percent: "%"
+    strikes: Strikes
+    signals: Signals
+    question: Question
+    prompt: Prompt
+    seen: Seen
+    rate: Correct
+
+backup:
+  short: Back up the whole vault into one file
+  long: |-
+    Copies the vault (exams, classes, session archives and the database) into
+    one ZIP file, by default in the vault's backups folder. It works while an
+    exam is running. An encrypted vault's backup stays encrypted: restoring it
+    needs the same password or the recovery key.
+    A backup is also made automatically each time a session closes (see the
+    vault.keep_backups setting).
+  example: |-
+    ax backup
+    ax backup --out E:\copias\
+  flag_out: File or folder to write the backup to (default the vault's backups folder)
+  done: "Backup written: {file} ({size})."
+  encrypted_note: The backup is encrypted like the vault; keep the password or the recovery key with it.
+  list_short: List the vault's backups
+  none: No backups yet.
+
+restore:
+  short: Restore a backup into a new vault folder
+  long: |-
+    Unpacks a backup made with `ax backup` (or an automatic one) into a new,
+    empty folder and adds it to your vaults. The vault in use is not touched;
+    switch to the restored one with --use or `ax vault use`.
+  example: ax restore backups/backup-2026-10-25-101500.zip D:\vaults\restored --use
+  done: "Restored into {dir} as the vault «{name}»."
+  encrypted_note: It is encrypted; it opens with the password it had, or with its recovery key.
+
+explore:
+  short: Browse exams, classes, students and sessions
+  long: |-
+    Opens a browser of the vault with four tabs: exams, classes, students and
+    sessions. Type to filter; Enter shows what you can do with the selected
+    row (history, edit, import a class list, start an exam, open a report…)
+    and Ctrl+N adds a new one.
+  title: Explore
+  tab:
+    exams: "Exams {n}"
+    classes: "Classes {n}"
+    students: "Students {n}"
+    sessions: "Sessions {n}"
+  empty:
+    exams: "No exams in the vault yet. Ctrl+N adds an exam folder."
+    classes: "No classes yet. Ctrl+N creates one, or imports a class list."
+    students: "No students yet. They appear when they join an exam; Ctrl+N adds one."
+    sessions: "No sessions yet."
+  matches:
+    one: "{n} match"
+    other: "{n} matches"
+  key:
+    tabs: tabs
+    actions: actions
+    quit: leave
+    new:
+      exams: add exam
+      classes: new class
+      students: new student
+  act:
+    back: Back
+    history: History
+    edit: Edit name or note
+    rename: Change the identifier
+    enroll: Add to a class
+    unenroll: Remove from a class
+    merge: Merge with another student
+    forget: Forget (delete their data)
+    members: Show the students
+    import: Import a class list (CSV)
+    add_student: Add a student
+    gradebook: Gradebook (Excel or CSV)
+    export: Export the list (CSV)
+    rename_class: Rename
+    delete: Delete the class
+    start: Start
+    edit_exam: Edit
+    sessions: Its sessions
+    export_exam: Export (.examx)
+    report: Report
+    results: Results (CSV)
+  ask:
+    id: Identifier
+    name: Name and surnames
+    note: Note
+    new_id: New identifier
+    class: Class
+    class_name: Class name
+    merge_into: Identifier of the student to keep
+    csv: Class list file (CSV)
+    csv_optional: Class list file (CSV), optional
+    exam_folder: Exam folder
+    export_exam: Package file
+    export_file: CSV file
+    results_file: CSV file
+    gradebook_file: Gradebook file
+    gradebook_hint: Ending in .xlsx writes an Excel workbook; .csv writes a CSV file.
+    start_class: Which class takes it?
+    roster_only: Only the students on the list?
+  no_class: No class
+  required: This cannot be empty.
+  no_file: There is no such file or folder.
+  unknown_student: There is no student with that identifier.
+  back: "Press Enter to go back to Explore… "
+  never_given: Not given yet.
+  session_counts: "{joined} joined, {submitted} submitted"
+  archived: "Archived in the vault:"
+
+find:
+  short: Search students, classes, exams and sessions
+  long: |-
+    Finds what matches the text the way a forgiving search would: case,
+    accents, spaces and dashes do not count, and a typo or two is fine.
+    Without text it lists everything that passes the filters.
+      --type      student, class, exam or session (repeat it or separate with commas)
+      --class     students of a class, sessions of a class
+      --exam      sessions of an exam, students who took it
+      --since     from a date on (YYYY-MM-DD)
+      --below     a score under this percentage
+      --flagged   students with strikes or integrity signals
+  example: |-
+    ax find garcia
+    ax find --class 3B --below 50
+    ax find --flagged --since 2026-09-01
+    ax find algebra --type session --csv
+  flag_type: "Only these kinds: student, class, exam, session"
+  flag_class: Only this class
+  flag_exam: Only this exam (id or title)
+  flag_since: Only from this date on (YYYY-MM-DD)
+  flag_below: Only scores below this percentage
+  flag_flagged: Only students with strikes or signals
+  bad_date: "{date} is not a date; write it as YYYY-MM-DD."
+  none: "Nothing matches “{q}”."
+  header: "Type|ID|Name|Details"
+  type:
+    student: student
+    class: class
+    exam: exam
+    session: session
+  exam_detail:
+    one: "{n} session"
+    other: "{n} sessions"
+  average: "average {pct} %"
+  flagged_note: "{exam}: {strikes} strikes, {signals} signals"
+
+gradebook:
+  short: A class's scores, students by exams
+  long: |-
+    Builds the gradebook of a class: one row per student, one column per exam
+    they sat (the latest attempt, as a percentage) and their average. It
+    prints a table, or writes CSV or an Excel workbook (.xlsx).
+  example: |-
+    ax gradebook 3B
+    ax gradebook 3B --out 3B.xlsx
+    ax gradebook 3B --csv > 3B.csv
+  flag_xlsx: Write an Excel workbook (needs --out)
+  xlsx_needs_out: "An Excel workbook needs a file: add --out grades.xlsx."
+  wrote: "Wrote {n} students × {exams} exams to {file}."
+  col:
+    id: ID
+    name: Name
+    average: Average
+
+people:
+  n_students:
+    one: "{n} student"
+    other: "{n} students"
+  archive_failed: "Could not update a session archive: {err}"
+  class_file_header: "A readable copy of this class; ax rewrites it whenever the class changes."
+  flag:
+    csv: Write CSV
+    class: Class
+    note: A note about the student
+    name: Name and surnames
+  student:
+    short: Show a student, or list them all
+    long: |-
+      Shows a student of the vault by identifier: their classes and every exam
+      they sat. Identifiers are unique, names can repeat; when nothing matches
+      exactly you choose among the closest ones.
+      Students appear when they join an exam or are added to a class.
+    example: |-
+      ax student A-12
+      ax student garcia
+      ax student list --class 3B --csv
+    list_short: List the students
+    none: No students yet.
+    header: "ID|Name|Classes|Note"
+    classes: "Classes:"
+    note: "Note:"
+    add_short: Add a student
+    add_example: ax student add A-12 Ana García --class 3B
+    added: "Added {id} {name}."
+    edit_short: Change a student's name or note
+    edit_nothing: "Say what to change: --name or --note."
+    edited: "Saved {id} {name}."
+    rename_short: Change a student's identifier everywhere
+    rename_long: The new identifier replaces the old one in the vault and in every session they took part in.
+    renamed:
+      one: "{old} is now {new} (in {n} session)."
+      other: "{old} is now {new} (in {n} sessions)."
+    merge_short: Merge two records of the same student
+    merge_long: |-
+      Moves the sessions and classes of the first student to the second and
+      deletes the first: for someone who typed a different identifier.
+    merge_plan: "{from} will be merged into {into}: {n} sessions, classes {classes}."
+    merge_confirm: Merge them?
+    merged: "{from} merged into {into}."
+    forget_short: Delete a student and everything recorded about them
+    forget_long: |-
+      Deletes the student from the vault and, in every finished session, their
+      answers, score, signals and penalties; the session archives are written
+      again without them. It cannot be undone. Older backups still hold them.
+    forget_plan: "This deletes {who}: {n} sessions, classes {classes}."
+    forget_confirm: Delete everything about this student? It cannot be undone
+    forgotten:
+      one: "{who} was forgotten ({n} session rewritten)."
+      other: "{who} was forgotten ({n} sessions rewritten)."
+    forget_backups: Backups made before keep their data until you delete them.
+  history:
+    short: Every exam a student sat
+    none: No sessions yet.
+    header: "Date|Exam|Class|State|%|Strikes|Code"
+  class:
+    short: Show a class, or list them all
+    long: |-
+      Classes are named lists of students ("3B"). Import a class list from a
+      CSV file, start an exam for a class with `ax start <exam> --class 3B`
+      and see its gradebook with `ax gradebook 3B`.
+    example: |-
+      ax class import 3B list-3B.csv
+      ax class 3B
+      ax class add 3B A-12 B-07
+    list_short: List the classes
+    none: No classes yet. Import one with `ax class import <name> <file.csv>`.
+    header: "Class|Students|Sessions"
+    create_short: Create an empty class
+    created: "Created the class {class}."
+    rename_short: Rename a class
+    renamed: "{old} is now {new}."
+    delete_short: Delete a class
+    delete_long: The students stay in the vault, and the sessions keep their results.
+    delete_confirm: "Delete the class {class}? Its students stay in the vault"
+    deleted: "Deleted the class {class}."
+    add_short: Put students in a class
+    added: "Added {n} to {class} ({already} were already in it)."
+    added_one: "{id} is in {class}."
+    remove_short: Take students out of a class
+    removed: "Took {n} out of {class}."
+    export_short: Write a class list as CSV
+    exported: "Wrote {n} students to {file}."
+    import_short: Import a class list from a CSV file
+    import_long: |-
+      Reads a spreadsheet saved as CSV: a column with the identifier and one
+      with the name (or first name and surnames). The separator (, ; or tab)
+      and the encoding (UTF-8 or Excel's Windows-1252) are detected. You see a
+      preview and the duplicates before anything is saved. The class is
+      created if it does not exist.
+    import_example: ax class import 3B list-3B.csv
+  import:
+    empty: The file is empty.
+    read: "Read {n} rows ({enc}, separator {sep}):"
+    counts: "{new} new students, {known} already in the vault."
+    different: "different name: {what} (the vault keeps its name)"
+    repeated: "{id} appears more than once; only the first is used"
+    invalid: "line {line} has no identifier or no name; skipped"
+    new_class: "The class {class} does not exist; it will be created."
+    confirm: "Put {n} students in {class}?"
+    done: "{class}: {created} new students, {added} added, {already} were already in it."
+
+pick:
+  did_you_mean: "Did you mean…? (nothing is exactly “{q}”)"
+  did_you_mean_list: "No {what} is exactly “{q}”. Did you mean:"
+  no_match: "No {what} matches “{q}”."
+  filter: "Filter:"
+  none: Nothing matches.
+  more: "{from}–{to} of {total}"
+  kind:
+    student: student
+    class: class
+    exam: exam
+    session: session
+  key:
+    move: move
+    choose: choose
+    cancel: cancel
+
+vault:
+  group: Vault
+  flag: Vault for this command (name or folder)
+  password_prompt: "Password of the vault «{name}»: "
+  wrong_password: Wrong password.
+  wrong_password_err: Wrong password, three times.
+  locked_no_terminal: "The vault «{name}» is encrypted and locked; run `ax vault unlock` in a terminal first."
+  agent_failed: "The vault could not stay open in the background ({err}); you will be asked again."
+  new_password: "New password: "
+  repeat_password: "Repeat it: "
+  short_password: "The password needs at least {n} characters."
+  mismatch: They do not match; try again.
+  no_password: No password was set.
+  busy: An exam is running on this vault; stop it first (ax stop --suspend keeps it open).
+  cmd:
+    short: Manage vaults, where exams, classes and results are kept
+    long: |-
+      A vault is a folder that keeps your exams, classes, session archives,
+      backups and the database together, so you can copy it to another
+      computer. It is encrypted with your password unless you choose not to.
+      Without a subcommand, shows the vault in use.
+
+      The vault in use is, in order: --vault, a .assess-vault folder here or in
+      a parent folder, the vault.path setting (`ax vault use`), or the default
+      one in the data folder.
+  state:
+    plain: not encrypted
+    open: encrypted, open
+    locked: encrypted, locked
+    missing: folder not found
+  source:
+    flag: the --vault option
+    folder: the .assess-vault folder of the current folder
+    setting: the vault.path setting
+    default: the default vault
+  info:
+    name: "Vault:     "
+    folder: "Folder:    "
+    chosen: "Chosen by: "
+    state: "State:     "
+    exams: "Exams:     "
+    sessions: "Sessions:  "
+    classes: "Classes:   "
+    students: "Students:  "
+    backup: "Backup:    "
+    no_backup: none yet (ax backup)
+    plain_hint: This vault is not encrypted; anyone who reads this disk can read it. `ax vault encrypt` protects it with a password.
+  init:
+    short: Create a vault
+    long: |-
+      Creates a vault in a folder (by default .assess-vault in the current
+      folder, which ax then uses whenever you work here or below). It is
+      encrypted with a password unless --no-encrypt or the vault.encrypt
+      setting say otherwise; you also get a recovery key, shown once.
+      If you ever forget the password and lose the recovery key, create a new
+      vault and carry on: the old one is never touched.
+    example: |-
+      ax vault init
+      ax vault init D:\school --name school --use
+      ax vault init --no-encrypt
+    flag_name: Name of the vault (default the folder name)
+    flag_no_encrypt: Do not encrypt it
+    flag_use: Make it the vault in use
+    need_terminal: Setting a password needs a terminal.
+    password_intro: Choose the vault's password. It protects exams, classes and results on this disk.
+    done: "Created the vault «{name}» in {dir}."
+    plain: It is not encrypted; `ax vault encrypt` adds a password later.
+    local_hint: ax uses it whenever you work in this folder or below.
+    use_hint: "Use it with `ax vault use {name}`, or with --vault {name}."
+  recovery:
+    title: "Recovery key. Write it down or print it, and keep it away from this computer:"
+    body: |-
+      It opens the vault if you forget the password (`ax vault passwd --recovery`).
+      It is shown only now.
+    enter: "Press Enter once you have kept it… "
+  list:
+    short: List the vaults
+    header: "  Name\tState\tFolder"
+  use:
+    short: Choose the vault in use
+    long: Saves the vault's name in the vault.path setting. A .assess-vault folder in the current folder still wins.
+    done: "Using the vault «{name}»."
+    env_wins: AX_VAULT_PATH is set and wins over the setting.
+  forget:
+    short: Remove a vault from the list (its folder stays)
+    unknown: "There is no vault called {name}."
+    done: "Forgot «{name}»; its folder {dir} is untouched."
+  lock:
+    short: Lock the vault now
+    done: The vault is locked; the next command asks for the password.
+  unlock:
+    short: Open the vault for a while
+    done:
+      one: "The vault stays open for {n} minute."
+      other: "The vault stays open for {n} minutes."
+  encrypt:
+    short: Encrypt the vault with a password
+    long: |-
+      Encrypts every file of the vault and the sensitive columns of its
+      database (exam content and answer keys, names and identifiers,
+      answers). Nothing is lost. If it is interrupted, run it again to finish.
+    done: "The vault «{name}» is encrypted."
+    backups_hint: Backups made before stay unencrypted; delete them if that matters (ax backup list).
+  decrypt:
+    short: Remove the vault's encryption
+    long: Writes every file and the database in the clear. Anyone who reads this disk will be able to read them.
+    confirm: Remove the encryption? Anyone who reads this disk will be able to read the vault
+    done: "The vault «{name}» is no longer encrypted."
+  passwd:
+    short: Change the vault's password
+    long: |-
+      Asks for the current password (or, with --recovery, the recovery key)
+      and a new one. The data does not change: only the key is wrapped again.
+    flag_recovery: Use the recovery key instead of the current password
+    recovery_prompt: "Recovery key: "
+    plain: This vault is not encrypted; `ax vault encrypt` adds a password.
+    done: Password changed.
+  add:
+    short: Put exams in the vault
+    long: |-
+      Packs an exam folder (or reads an .examx package) into the vault, after
+      checking it. Then it offers to delete the original folder: the vault
+      keeps the exam, and `ax edit <id>` or `ax vault export` give it back.
+    example: |-
+      ax vault add algebra-01
+      ax vault add shared.examx
+    flag_force: Replace an exam with the same id
+    flag_delete: Delete the original folders without asking
+    flag_keep: Keep the original folders without asking
+    no_id: "{dir} has no exam id in its manifest."
+    exists: "The vault already has an exam called {id}; --force replaces it."
+    passphrase: "Passphrase of the package: "
+    invalid:
+      one: "The exam has {n} problem; check it with `ax validate`."
+      other: "The exam has {n} problems; check it with `ax validate`."
+    done: "Saved «{title}» ({id}) in the vault «{name}»."
+    delete_original: "Delete the folder {dir}? The vault keeps the exam"
+    deleted: "Deleted {dir}."
+  export:
+    short: Take an exam out of the vault
+    long: |-
+      Writes an exam of the vault as an .examx package to share, or as a
+      folder (--folder). A package with the answer key is encrypted with a
+      passphrase you choose; --no-key leaves the key out.
+    example: |-
+      ax vault export algebra-01
+      ax vault export algebra-01 --no-key -o algebra-for-colleagues.examx
+      ax vault export algebra-01 --folder algebra-01
+    flag_out: Package file (default <id>.examx)
+    flag_folder: Write a folder instead of a package
+    flag_no_key: Leave the answer key out
+    flag_no_encrypt: Do not encrypt a package that holds the answer key
+    need_terminal: Choosing a passphrase needs a terminal (or use --no-key).
+    passphrase_intro: Choose a passphrase for the package; whoever imports it will need it.
+    plain_warning: "Warning: the package holds the answer key and is not encrypted."
+    exists: "{file} already exists."
+    done: "Wrote {file}."
+    folder_done: "Wrote the folder {dir}."
+  exams:
+    short: List the exams of the vault
+    long: The exams kept in the vault, with how many times each was given. `ax vault add` puts more in.
+    empty: The vault has no exams yet; add a folder with `ax vault add <folder>`.
+    header: "ID\tTitle\tKey\tSessions\tLast given"
+  exam:
+    not_found: "There is no folder called {ref}, and the vault has no exams."
+  start:
+    example: |-
+      ax start algebra-01
+      ax start ./algebra-01 --class 3B
+      ax start algebra-01 --class 3B --roster-only
+    flag_class: The class taking the exam (its students are listed before they join)
+    flag_roster_only: Only the students of the class get in; anyone else waits for your approval
+    roster_needs_class: --roster-only needs --class.
+  edit:
+    saved: "Saved in the vault «{name}»."
+  new:
+    saved: "Also saved in the vault «{name}»."
+  migrate:
+    running: An exam started with an earlier version of ax is still running; stop it (ax stop) and run this command again.
+    done: "Your data moved into the vault {dir} ({n} finished sessions archived). The old database is kept in {copy}."
+    archive_failed: "Some sessions could not be archived: {err}"

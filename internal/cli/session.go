@@ -22,7 +22,6 @@ import (
 	"github.com/lisk0vian/assess/internal/exam"
 	"github.com/lisk0vian/assess/internal/netutil"
 	"github.com/lisk0vian/assess/internal/session"
-	"github.com/lisk0vian/assess/internal/storage/sqlite"
 	"github.com/lisk0vian/assess/internal/version"
 )
 
@@ -36,6 +35,8 @@ type serveFlags struct {
 	port        int
 	joinWindow  time.Duration
 	allowPublic bool
+	class       string // ax start --class
+	rosterOnly  bool
 }
 
 func (f *serveFlags) register(cmd *cobra.Command) {
@@ -67,14 +68,15 @@ func (f *serveFlags) daemonArgs(cmd *cobra.Command) []string {
 	return args
 }
 
-// withService opens the data directory's database for a short operation.
-func withService(ctx context.Context, dir string, fn func(*session.Service) error) error {
-	db, err := sqlite.Open(ctx, datadir.DB(dir))
+// spawnDaemon starts the exam server on the active vault, handing it the
+// vault's key.
+func spawnDaemon(cmd *cobra.Command, dir string, args []string) (*daemon.State, error) {
+	vdir, key, err := daemonKey(cmd.Context(), dir)
 	if err != nil {
-		return err
+		return nil, err
 	}
-	defer db.Close()
-	return fn(session.NewService(db))
+	args = append(args, "--vault", vdir, "--keep-backups", strconv.Itoa(cfg.Int("vault.keep_backups")))
+	return daemon.Spawn(dir, args, key)
 }
 
 // ---------------- start ----------------
@@ -84,23 +86,29 @@ func newStartCmd() *cobra.Command {
 	var duration time.Duration
 	var noAttach bool
 	cmd := &cobra.Command{
-		Use:   "start <exam-folder>",
-		Short: T("cli.start.short"),
-		Long:  T("cli.start.long"),
-		Args:  cobra.ExactArgs(1),
+		Use:     "start <exam>",
+		Short:   T("cli.start.short"),
+		Long:    T("cli.start.long"),
+		Example: T("vault.start.example"),
+		Args:    cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return startExam(cmd, &sf, args[0], duration, noAttach)
 		},
+		ValidArgsFunction: completeExams,
 	}
 	sf.register(cmd)
 	cmd.Flags().DurationVar(&duration, "duration", 0, T("cli.start.flag_duration"))
 	cmd.Flags().BoolVar(&noAttach, "no-attach", false, T("cli.flag.no_attach"))
+	cmd.Flags().StringVar(&sf.class, "class", "", T("vault.start.flag_class"))
+	cmd.Flags().BoolVar(&sf.rosterOnly, "roster-only", false, T("vault.start.flag_roster_only"))
+	_ = cmd.RegisterFlagCompletionFunc("class", completeClasses)
 	return cmd
 }
 
-// startExam publishes the exam at examDir, opens its session and launches
-// the server in the background, then opens the panel unless noAttach.
-func startExam(cmd *cobra.Command, sf *serveFlags, examDir string, duration time.Duration, noAttach bool) error {
+// startExam publishes the exam (a folder, or an exam of the vault), opens
+// its session and launches the server in the background, then opens the
+// panel unless noAttach.
+func startExam(cmd *cobra.Command, sf *serveFlags, examRef string, duration time.Duration, noAttach bool) error {
 	ctx := cmd.Context()
 	out := cmd.OutOrStdout()
 	dir, err := dataDir()
@@ -110,6 +118,11 @@ func startExam(cmd *cobra.Command, sf *serveFlags, examDir string, duration time
 	if h, st, _ := daemon.Check(dir); h == daemon.Running {
 		return errors.New(T("cli.start.already_running", "title", st.ExamTitle))
 	}
+	examDir, cleanup, err := examFolder(cmd, dir, examRef)
+	if err != nil {
+		return err
+	}
+	defer cleanup()
 	pub, probs, err := exam.Publish(examDir)
 	if errors.Is(err, exam.ErrInvalidExam) {
 		printReport(cmd.ErrOrStderr(), validateReport{Path: examDir, Errors: probs.Count(exam.SeverityError), Warnings: probs.Count(exam.SeverityWarning), Problems: probs})
@@ -128,13 +141,23 @@ func startExam(cmd *cobra.Command, sf *serveFlags, examDir string, duration time
 		} else if !errors.Is(err, session.ErrNotFound) {
 			return err
 		}
-		_, err := svc.CreateSession(ctx, pub, session.CreateOptions{Duration: duration, Grace: grace})
+		opts := session.CreateOptions{Duration: duration, Grace: grace, RosterOnly: sf.rosterOnly}
+		if sf.class != "" {
+			c, err := resolveClass(cmd, svc, sf.class)
+			if err != nil {
+				return err
+			}
+			opts.ClassID = c.ID
+		} else if sf.rosterOnly {
+			return errors.New(T("vault.start.roster_needs_class"))
+		}
+		_, err := svc.CreateSession(ctx, pub, opts)
 		return err
 	})
 	if err != nil {
 		return err
 	}
-	st, err := daemon.Spawn(dir, sf.daemonArgs(cmd))
+	st, err := spawnDaemon(cmd, dir, sf.daemonArgs(cmd))
 	if err != nil {
 		return err
 	}
@@ -200,7 +223,7 @@ func newStatusCmd() *cobra.Command {
 				return errSilent
 			default:
 				fmt.Fprintln(out, T("cli.status.not_running"))
-				_ = withService(cmd.Context(), dir, func(svc *session.Service) error {
+				_ = withLockedService(cmd.Context(), dir, func(svc *session.Service) error {
 					if open, err := svc.OpenSession(cmd.Context()); err == nil {
 						fmt.Fprintln(out, "  "+T("cli.status.still_open", "code", open.Code))
 					}
@@ -277,15 +300,19 @@ func newStopCmd() *cobra.Command {
 					return errors.New(T("cli.stop.timeout"))
 				}
 			} else if !suspend {
-				err := withService(ctx, dir, func(svc *session.Service) error {
-					open, err := svc.OpenSession(ctx)
+				err := withStore(ctx, dir, func(s *store) error {
+					open, err := s.svc.OpenSession(ctx)
 					if errors.Is(err, session.ErrNotFound) {
 						return nil
 					}
 					if err != nil {
 						return err
 					}
-					return svc.End(ctx, open.ID)
+					if err := s.svc.End(ctx, open.ID); err != nil {
+						return err
+					}
+					closeArchive(ctx, s, open.ID)
+					return nil
 				})
 				if err != nil {
 					return err
@@ -353,7 +380,7 @@ func resumeSession(cmd *cobra.Command, sf *serveFlags, noAttach bool) error {
 	if h, _, _ := daemon.Check(dir); h == daemon.Running {
 		return errors.New(T("cli.resume.already_running"))
 	}
-	err = withService(ctx, dir, func(svc *session.Service) error {
+	err = withLockedService(ctx, dir, func(svc *session.Service) error {
 		_, err := svc.OpenSession(ctx)
 		if errors.Is(err, session.ErrNotFound) {
 			return errors.New(T("cli.resume.nothing_open"))
@@ -363,7 +390,7 @@ func resumeSession(cmd *cobra.Command, sf *serveFlags, noAttach bool) error {
 	if err != nil {
 		return err
 	}
-	st, err := daemon.Spawn(dir, sf.daemonArgs(cmd))
+	st, err := spawnDaemon(cmd, dir, sf.daemonArgs(cmd))
 	if err != nil {
 		return err
 	}
@@ -450,8 +477,8 @@ func followLog(ctx context.Context, w io.Writer, path string) error {
 
 func newDaemonCmd() *cobra.Command {
 	var host string
-	var port int
-	var fallback, allowPublic bool
+	var port, keepBackups int
+	var fallback, allowPublic, keyStdin bool
 	var joinWindow time.Duration
 	cmd := &cobra.Command{
 		Use:    "daemon",
@@ -467,10 +494,19 @@ func newDaemonCmd() *cobra.Command {
 			for _, p := range cfg.Problems {
 				log.Warn("settings", "problem", p.Error())
 			}
+			var key []byte
+			if keyStdin {
+				if key, err = readKey(os.Stdin); err != nil {
+					log.Error("daemon could not start", "err", err)
+					return err
+				}
+			}
 			ctx, stop := signal.NotifyContext(cmd.Context(), os.Interrupt, syscall.SIGTERM)
 			defer stop()
 			err = daemon.Run(ctx, daemon.Config{DataDir: dir, Host: host, Port: port, PortFallback: fallback,
-				JoinWindow: joinWindow, AllowPublic: allowPublic, Version: version.String(), Log: log})
+				JoinWindow: joinWindow, AllowPublic: allowPublic, Version: version.String(), Log: log,
+				VaultDir: vaultFlag, DBKey: key, KeepBackups: keepBackups})
+			clear(key)
 			if err != nil {
 				log.Error("daemon stopped with an error", "err", err)
 			}
@@ -482,6 +518,8 @@ func newDaemonCmd() *cobra.Command {
 	cmd.Flags().BoolVar(&fallback, "port-fallback", false, "use the next free port when busy")
 	cmd.Flags().DurationVar(&joinWindow, "join-window", 0, "close joining this long after the start")
 	cmd.Flags().BoolVar(&allowPublic, "allow-public", false, "accept non-private addresses")
+	cmd.Flags().BoolVar(&keyStdin, "key-stdin", false, "read the vault key from standard input")
+	cmd.Flags().IntVar(&keepBackups, "keep-backups", 0, "automatic backups to keep")
 	return cmd
 }
 

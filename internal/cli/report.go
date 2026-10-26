@@ -10,15 +10,11 @@ import (
 	tea "charm.land/bubbletea/v2"
 	"github.com/spf13/cobra"
 
+	"github.com/lisk0vian/assess/internal/archive"
 	"github.com/lisk0vian/assess/internal/report"
-	"github.com/lisk0vian/assess/internal/security"
 	"github.com/lisk0vian/assess/internal/session"
 	"github.com/lisk0vian/assess/internal/tui"
 )
-
-// historyLimit bounds how many earlier sessions feed the history and the
-// leak check.
-const historyLimit = 20
 
 func newReportCmd() *cobra.Command {
 	var sessionID string
@@ -36,6 +32,18 @@ func newReportCmd() *cobra.Command {
 			}
 			if err := requirePassword(cmd, dir); err != nil {
 				return err
+			}
+			if sessionID != "" {
+				err := withService(cmd.Context(), dir, func(svc *session.Service) error {
+					info, err := resolveSession(cmd, svc, sessionID)
+					if err == nil {
+						sessionID = info.ID
+					}
+					return err
+				})
+				if err != nil {
+					return err
+				}
 			}
 			rep, err := loadReport(cmd.Context(), dir, sessionID)
 			if err != nil {
@@ -71,7 +79,7 @@ func showReport(cmd *cobra.Command, dir, sessionID string) error {
 // runReport shows rep in the interactive panel.
 func runReport(cmd *cobra.Command, dir string, rep *report.Report) error {
 	idle := time.Duration(cfg.Int("panel.lock_minutes")) * time.Minute
-	if !security.HasPassword(dir) {
+	if !protected(dir) {
 		idle = 0
 	}
 	m := tui.NewReport(rep, idle)
@@ -79,6 +87,7 @@ func runReport(cmd *cobra.Command, dir string, rep *report.Report) error {
 		return err
 	}
 	if m.TimedOut {
+		lockVaults(cmd.Context(), dir)
 		fmt.Fprintln(cmd.OutOrStdout(), T("cli.report.timed_out", "n", int(idle.Minutes())))
 	}
 	return nil
@@ -99,7 +108,7 @@ func loadReport(ctx context.Context, dir, sessionID string) (*report.Report, err
 			}
 			sessionID = latest.ID
 		}
-		cur, err := svc.Archive(ctx, sessionID)
+		r, cur, err := archive.BuildReport(ctx, svc, sessionID)
 		if errors.Is(err, session.ErrNotFound) {
 			return errors.New(T("cli.no_session", "id", sessionID))
 		}
@@ -109,25 +118,7 @@ func loadReport(ctx context.Context, dir, sessionID string) (*report.Report, err
 		if cur.Session.State != session.StateEnded {
 			return errors.New(T("cli.report.not_ended"))
 		}
-		all, err := svc.ExamSessions(ctx, cur.Published.Exam.Manifest.ID)
-		if err != nil {
-			return err
-		}
-		var earlier []*session.Archive
-		for _, s := range all {
-			if s.ID == cur.Session.ID || s.State != session.StateEnded || s.StartedAt.IsZero() || !s.StartedAt.Before(cur.Session.StartedAt) {
-				continue
-			}
-			arc, err := svc.Archive(ctx, s.ID)
-			if err != nil {
-				return err
-			}
-			earlier = append(earlier, arc)
-		}
-		if len(earlier) > historyLimit {
-			earlier = earlier[len(earlier)-historyLimit:]
-		}
-		rep = report.Build(cur, earlier)
+		rep = r
 		return nil
 	})
 	return rep, err

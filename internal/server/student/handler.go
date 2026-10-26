@@ -117,6 +117,17 @@ func (h *Handler) join(w http.ResponseWriter, r *http.Request) {
 		}
 		return
 	}
+	if sess.RosterOnly {
+		listed, err := h.svc.Listed(r.Context(), h.sessionID, req.StudentID)
+		if err != nil {
+			h.fail(w, err)
+			return
+		}
+		if _, err := h.svc.AttemptOfStudent(r.Context(), h.sessionID, req.StudentID); !listed && errors.Is(err, session.ErrNotFound) {
+			h.askApproval(w, r, KindUnlisted, req.StudentID, name, "")
+			return
+		}
+	}
 	att, _, err := h.svc.Join(r.Context(), h.sessionID, req.StudentID, req.Name)
 	if errors.Is(err, session.ErrAlreadyJoined) {
 		existing, lookupErr := h.svc.AttemptOfStudent(r.Context(), h.sessionID, req.StudentID)

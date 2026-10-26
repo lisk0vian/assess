@@ -151,6 +151,10 @@ func keys(s ...string) []tea.Msg {
 			out = append(out, tea.KeyPressMsg{Code: tea.KeySpace, Text: " "})
 		case "shift+down":
 			out = append(out, tea.KeyPressMsg{Code: tea.KeyDown, Mod: tea.ModShift})
+		case "shift+tab":
+			out = append(out, tea.KeyPressMsg{Code: tea.KeyTab, Mod: tea.ModShift})
+		case "backspace":
+			out = append(out, tea.KeyPressMsg{Code: tea.KeyBackspace})
 		default:
 			for _, r := range k {
 				out = append(out, tea.KeyPressMsg{Code: r, Text: string(r)})
