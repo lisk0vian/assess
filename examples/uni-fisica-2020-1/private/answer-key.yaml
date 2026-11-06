@@ -1,0 +1,27 @@
+format: assess/v1
+exam: uni-fisica-2020-1
+answers:
+  q001:
+    option: c
+    points: 1
+  q002:
+    option: d
+    points: 1
+  q003:
+    option: e
+    points: 1
+  q004:
+    option: b
+    points: 1
+  q005:
+    option: c
+    points: 1
+  q006:
+    option: d
+    points: 1
+  q007:
+    option: d
+    points: 1
+  q008:
+    option: b
+    points: 1

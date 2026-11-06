@@ -1,0 +1,33 @@
+# Real questions from a real admission exam: eight Physics questions of UNI
+# (Lima, Peru), Admisión 2020-1, third test. Questions that need a figure were
+# left out. Source: the official solutions booklet of the Oficina Central de
+# Admisión. They remain UNI's; this short selection is here for study.
+# https://admision.uni.edu.pe/wp-content/uploads/2022/11/solucionario2020.pdf
+format: assess/v1
+id: uni-fisica-2020-1
+title: "UNI · Admisión 2020-1 · Física (selección)"
+language: es
+duration: 25m
+result_visibility: review
+
+instructions: |
+  Ocho preguntas reales de la tercera prueba del examen de admisión 2020-1 de
+  la **Universidad Nacional de Ingeniería** (Perú), tomadas de su solucionario
+  oficial.
+
+order:
+  shuffle_questions: false
+  shuffle_options: false
+
+proctoring:
+  profile: standard
+
+items:
+  - question: q001
+  - question: q002
+  - question: q003
+  - question: q004
+  - question: q005
+  - question: q006
+  - question: q007
+  - question: q008

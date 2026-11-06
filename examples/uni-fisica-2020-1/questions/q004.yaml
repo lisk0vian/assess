@@ -1,0 +1,18 @@
+# Tercera prueba, Física, pregunta 7.
+id: q004
+type: single
+prompt: |
+  Si la longitud de onda de un fotón es $\lambda = 500$ nm, calcule aproximadamente en eV, su energía.
+
+  $h = 6{,}626 \times 10^{-34}$ J·s, $c = 3 \times 10^{8}$ m/s, $1$ eV $= 1{,}602 \times 10^{-19}$ J
+options:
+  - id: a
+    text: '1,48'
+  - id: b
+    text: '2,48'
+  - id: c
+    text: '3,48'
+  - id: d
+    text: '4,48'
+  - id: e
+    text: '5,48'

@@ -1,0 +1,16 @@
+# Tercera prueba, Física, pregunta 2.
+id: q001
+type: single
+prompt: |
+  Determine aproximadamente en m, la profundidad real de una piscina, si la profundidad aparente que se observa, visto desde arriba es de 1,2 m. Considere el índice de refracción del agua igual a 1,33.
+options:
+  - id: a
+    text: '0,61'
+  - id: b
+    text: '0,82'
+  - id: c
+    text: '1,59'
+  - id: d
+    text: '1,81'
+  - id: e
+    text: '2,45'

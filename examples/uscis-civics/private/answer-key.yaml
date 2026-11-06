@@ -1,0 +1,83 @@
+format: assess/v1
+exam: uscis-civics
+answers:
+  q001:
+    accept: ["the Constitution", "Constitution"]
+    normalize: [trim, casefold, collapse_spaces]
+    points: 1
+  q002:
+    accept: ["We the People"]
+    normalize: [trim, casefold, collapse_spaces]
+    points: 1
+  q003:
+    accept: ["the Bill of Rights", "Bill of Rights"]
+    normalize: [trim, casefold, collapse_spaces]
+    points: 1
+  q004:
+    accept: ["twenty-seven", "twenty seven", "27"]
+    normalize: [trim, casefold, collapse_spaces]
+    points: 1
+  q005:
+    accept: ["capitalist economy", "market economy", "capitalist", "market"]
+    normalize: [trim, casefold, collapse_spaces]
+    points: 1
+  q006:
+    accept: ["one hundred", "100"]
+    normalize: [trim, casefold, collapse_spaces]
+    points: 1
+  q007:
+    accept: ["six", "6"]
+    normalize: [trim, casefold, collapse_spaces]
+    points: 1
+  q008:
+    accept: ["four hundred thirty-five", "435"]
+    normalize: [trim, casefold, collapse_spaces]
+    points: 1
+  q009:
+    accept: ["four", "4"]
+    normalize: [trim, casefold, collapse_spaces]
+    points: 1
+  q010:
+    accept: ["the President", "President"]
+    normalize: [trim, casefold, collapse_spaces]
+    points: 1
+  q011:
+    accept: ["Africans", "people from Africa"]
+    normalize: [trim, casefold, collapse_spaces]
+    points: 1
+  q012:
+    accept: ["Thomas Jefferson", "Jefferson"]
+    normalize: [trim, casefold, collapse_spaces]
+    points: 1
+  q013:
+    accept: ["July 4, 1776", "July 4 1776"]
+    normalize: [trim, casefold, collapse_spaces]
+    points: 1
+  q014:
+    accept: ["1787"]
+    normalize: [trim, casefold, collapse_spaces]
+    points: 1
+  q015:
+    accept: ["George Washington", "Washington"]
+    normalize: [trim, casefold, collapse_spaces]
+    points: 1
+  q016:
+    accept: ["Missouri", "Missouri River", "Mississippi", "Mississippi River"]
+    normalize: [trim, casefold, collapse_spaces]
+    points: 1
+  q017:
+    accept: ["California", "Arizona", "New Mexico", "Texas"]
+    normalize: [trim, casefold, collapse_spaces]
+    points: 1
+  q018:
+    accept: ["Washington, D.C.", "Washington DC", "Washington D.C."]
+    normalize: [trim, casefold, collapse_spaces]
+    points: 1
+  q019:
+    accept: ["The Star-Spangled Banner", "Star-Spangled Banner", "The Star Spangled Banner", "Star Spangled Banner"]
+    normalize: [trim, casefold, collapse_spaces]
+    points: 1
+  q020:
+    accept: ["July 4"]
+    normalize: [trim, casefold, collapse_spaces]
+    points: 1

@@ -1,0 +1,16 @@
+# Tercera prueba, Física, pregunta 5.
+id: q003
+type: single
+prompt: |
+  Un objeto oscila con una frecuencia angular de 4 rad/s. En $t = 0$ s, se encuentra a 4 cm de su posición de equilibrio con una rapidez de 12 cm/s. Calcule en cm, la amplitud de la oscilación.
+options:
+  - id: a
+    text: '1'
+  - id: b
+    text: '2'
+  - id: c
+    text: '3'
+  - id: d
+    text: '4'
+  - id: e
+    text: '5'

@@ -10,6 +10,8 @@ in PowerShell or `./ax.exe` in Git Bash.
 | [`programacion-go`](programacion-go) | es | `strict` | Code blocks, required fullscreen, options revealed on hover, desktop only, 2 min timed question, review after the session, custom accent |
 | [`ml-basics-en`](ml-basics-en) | en | `standard` | English UI, SVG diagrams from `assets/`, a pool, logo and accent |
 | [`historia-ventana`](historia-ventana) | es | `standard` + overrides | Tables, lists, quotes, a map, 5 strikes, options always visible except on one question |
+| [`uni-fisica-2020-1`](uni-fisica-2020-1) | es | `standard` | Eight real Physics questions from the UNI admission exam 2020-1 (Peru), from its official solutions booklet; fixed order, review after the session |
+| [`uscis-civics`](uscis-civics) | en | `off` | Real questions from the official U.S. naturalization civics list; 10 of 20 per student, short text answers |
 | [`quimica-secundaria`](quimica-secundaria) | es | `standard` + photo protections, windowed | The reading guide, the stillness warning, hover options; the lens off on a short question; a 2 min timed question with a long text |
 | [`quimica-san-marcos`](quimica-san-marcos) | es | `standard`, windowed | Chemistry admission practice (UNMSM style), fixed order, visible options, review after the session |
 | [`quimica-repaso-san-marcos`](quimica-repaso-san-marcos) | es | `off` | Quick chemistry review (UNMSM style), 12 one-line questions, 8 minutes, review with the mistakes at the end |
@@ -28,7 +30,7 @@ invalid ones keep failing.
 ## 1. Validate
 
 ```sh
-ax validate examples/algebra-01 examples/programacion-go examples/ml-basics-en examples/historia-ventana examples/quimica-secundaria examples/quimica-san-marcos examples/quimica-repaso-san-marcos examples/cultura-general-san-marcos examples/quiz-rapido
+ax validate examples/algebra-01 examples/programacion-go examples/ml-basics-en examples/historia-ventana examples/quimica-secundaria examples/quimica-san-marcos examples/quimica-repaso-san-marcos examples/cultura-general-san-marcos examples/quiz-rapido examples/uni-fisica-2020-1 examples/uscis-civics
 ax validate examples/invalid/clave-incorrecta   # missing answer, unknown option
 ax validate examples/invalid/campo-desconocido  # typo in a key, bad duration
 ax validate examples/invalid/pool-injusto       # pool picks everything, unequal points

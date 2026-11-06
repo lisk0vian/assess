@@ -1,0 +1,16 @@
+# Tercera prueba, Física, pregunta 12.
+id: q007
+type: single
+prompt: |
+  Se lanza un proyectil con una rapidez inicial $V_0$ y un ángulo de 37° con la horizontal alcanzando una altura máxima de 63 m. Calcule en m, la altura que alcanza el proyectil si se lanza con la misma rapidez inicial $V_0$ y con un ángulo de 53°.
+options:
+  - id: a
+    text: '35'
+  - id: b
+    text: '70'
+  - id: c
+    text: '84'
+  - id: d
+    text: '112'
+  - id: e
+    text: '160'

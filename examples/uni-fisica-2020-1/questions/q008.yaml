@@ -1,0 +1,18 @@
+# Tercera prueba, Física, pregunta 13.
+id: q008
+type: single
+prompt: |
+  Una superficie de cierto metal se irradia con una fuente de luz con longitud de onda $\lambda = 200$ nm. Si los electrones emitidos tienen una energía de 1,2 eV, determine aproximadamente en eV, la función de trabajo del metal.
+
+  $h = 6{,}626 \times 10^{-34}$ J·s, $c = 3 \times 10^{8}$ m/s, $1$ eV $= 1{,}602 \times 10^{-19}$ J
+options:
+  - id: a
+    text: '4'
+  - id: b
+    text: '5'
+  - id: c
+    text: '6'
+  - id: d
+    text: '7'
+  - id: e
+    text: '8'

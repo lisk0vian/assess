@@ -1,0 +1,25 @@
+# Real questions from a real test: the civics part of the U.S. naturalization
+# test, from the official list of 100 (USCIS, rev. 01/19, the 2008 version).
+# Questions whose answer changes with elections were left out. The real test is
+# oral: an officer asks up to 10 questions and 6 right answers pass. This exam
+# draws 10 of these 20 for each student.
+# https://www.uscis.gov/sites/default/files/document/questions-and-answers/100q.pdf
+format: assess/v1
+id: uscis-civics
+title: "U.S. Naturalization Test · Civics"
+language: en
+duration: 10m
+result_visibility: review
+
+instructions: |
+  Ten questions from the official civics list of the **U.S. naturalization
+  test** (USCIS). The real test is oral, and six right answers pass.
+
+proctoring:
+  profile: off
+
+items:
+  - pool:
+      id: civics
+      pick: 10
+      from: [q001, q002, q003, q004, q005, q006, q007, q008, q009, q010, q011, q012, q013, q014, q015, q016, q017, q018, q019, q020]

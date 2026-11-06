@@ -1,0 +1,16 @@
+# Tercera prueba, Física, pregunta 4.
+id: q002
+type: single
+prompt: |
+  El volumen de un planeta A es 8 veces el volumen de la tierra. Encuentre la aceleración de la gravedad en la superficie del planeta A, si su masa es 3 veces la masa de la tierra ($g$ es la gravedad en la superficie de la tierra).
+options:
+  - id: a
+    text: '$\frac{2g}{9}$'
+  - id: b
+    text: '$\frac{3g}{8}$'
+  - id: c
+    text: '$\frac{4g}{9}$'
+  - id: d
+    text: '$\frac{3g}{4}$'
+  - id: e
+    text: '$\frac{7g}{9}$'
