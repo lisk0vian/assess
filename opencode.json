@@ -1,0 +1,14 @@
+{
+  "mcp": {
+    "servers": {
+      "playwright": {
+        "type": "local",
+        "command": [
+          "pnpm dlx",
+          "@playwright/mcp@latest",
+          "--browser=msedge"
+        ]
+      }
+    }
+  }
+}
