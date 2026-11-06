@@ -1,0 +1,23 @@
+<template>
+  <style>
+    #root { position: absolute; inset: 0; overflow: hidden; background: #ec2a8a; }
+    .abs { position: absolute; }
+    .disp { font-family: "Sofia Sans Extra Condensed", sans-serif; font-weight: 800; text-transform: uppercase; line-height: 0.92; white-space: nowrap; }
+    #w { left: 0; width: 1920px; top: 220px; text-align: center; color: #141414; font-size: 420px; letter-spacing: .03em; }
+  #cmd { left: 480px; top: 690px; width: 960px; height: 132px; background: #141414; color: #ecebe6; display: flex; align-items: center; justify-content: center; font: 500 58px "JetBrains Mono", monospace; font-variant-ligatures: none; }
+  #tag { left: 0; width: 1920px; top: 860px; text-align: center; font: 700 40px "Sofia Sans", sans-serif; color: #141414; }
+  </style>
+  <div id="root" data-composition-id="endcard" data-width="1920" data-height="1080">
+    <div class="abs disp" id="w">Assess</div>
+    <div class="abs" id="cmd"><span id="c">go build ./cmd/ax</span></div>
+    <div class="abs" id="tag" data-hold>Open source · Apache-2.0</div>
+  </div>
+  <script>
+    const tl = gsap.timeline({ paused: true });
+    tl.fromTo("#w", { clipPath: "inset(0 50% 0 50%)" }, { clipPath: "inset(0 0% 0 0%)", duration: 0.5, ease: "power4.out" }, 0.1);
+    tl.fromTo("#cmd", { scaleX: 0 }, { scaleX: 1, duration: 0.3, ease: "power4.out", transformOrigin: "50% 50%" }, 0.65);
+    tl.fromTo("#c", { opacity: 0 }, { opacity: 1, duration: 0.15 }, 0.9);
+    tl.fromTo("#tag", { opacity: 0 }, { opacity: 1, duration: 0.2 }, 1.1);
+    window.__timelines["endcard"] = tl;
+  </script>
+</template>

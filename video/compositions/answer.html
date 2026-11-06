@@ -1,0 +1,52 @@
+<template>
+  <style>
+    #root { position: absolute; inset: 0; overflow: hidden; background: #e8e6e1; }
+    .abs { position: absolute; }
+    .disp { font-family: "Sofia Sans Extra Condensed", sans-serif; font-weight: 800; text-transform: uppercase; line-height: 0.92; white-space: nowrap; }
+    #cam { inset: 0; transform-origin: 0 0; }
+    .shot { position: absolute; left: 74px; top: 84px; width: 1771px; height: 996px; opacity: 0; }
+    #a-v { opacity: 1; }
+    .plate { left: 0; top: 884px; height: 124px; padding: 0 44px 0 96px; display: flex; align-items: center; background: #141414; color: #ecebe6; font-size: 76px; letter-spacing: .02em; }
+    #wipe { left: 0; top: 0; width: 1920px; height: 1080px; background: #111110; }
+    .cur { left: 0; top: 0; width: 60px; height: 75px; opacity: 0; z-index: 20; }
+  </style>
+  <div id="root" data-composition-id="answer" data-width="1920" data-height="1080">
+    <div class="abs" id="cam">
+      <img class="clip shot" id="a-v" src="assets/shots3/q-veil.png" alt="The exam: a multiple choice question" data-start="0" data-duration="5.8" data-track-index="1" />
+      <img class="clip shot" id="a-h" src="assets/shots3/q-hover.png" alt="The exam: a multiple choice question" data-start="0" data-duration="5.8" data-track-index="1" />
+      <img class="clip shot" id="a-a" src="assets/shots3/q-a.png" alt="The exam: a multiple choice question" data-start="0" data-duration="5.8" data-track-index="1" />
+      <img class="clip shot" id="a-h2" src="assets/shots3/q-hover2.png" alt="The exam: a multiple choice question" data-start="0" data-duration="5.8" data-track-index="1" />
+      <img class="clip shot" id="a-ac" src="assets/shots3/q-ac.png" alt="The exam: a multiple choice question" data-start="0" data-duration="5.8" data-track-index="1" />
+      <img class="clip shot" id="a-p" src="assets/shots3/q-ac-prompt.png" alt="The exam: a multiple choice question" data-start="0" data-duration="5.8" data-track-index="1" />
+    </div>
+    <div class="abs disp plate" id="p1" data-layout-allow-overlap>Options show only under the pointer</div>
+    <div class="abs disp plate" id="p2" data-layout-allow-overlap>Your answers save themselves</div>
+    <div class="abs cur" id="cur"><svg width="60" height="75" viewBox="0 0 48 60" aria-hidden="true"><path d="M5 3 L5 49 L16.5 39 L24.5 55 L33 51 L25 35.5 L41 35 Z" fill="#f8f7f4" stroke="#141414" stroke-width="3" stroke-linejoin="round"/></svg></div>
+    <div class="abs" id="wipe"></div>
+  </div>
+  <script>
+    const tl = gsap.timeline({ paused: true });
+    tl.fromTo("#cam", { x: 0, y: 0, scale: 1 }, { x: -699, y: -576, scale: 1.683, duration: 0.6, ease: "power3.inOut" }, 0.8);
+    tl.fromTo("#p1", { xPercent: -100 }, { xPercent: 0, duration: 0.4, ease: "power4.out" }, 1.25);
+    tl.fromTo("#cur", { x: 1500, y: 1120, opacity: 1 }, { x: 820, y: 640, opacity: 1, duration: 0.5, ease: "power2.inOut" }, 1.4);
+    tl.set("#a-h", { opacity: 1 }, 1.82);
+    tl.set("#a-v", { opacity: 0 }, 1.82);
+    tl.fromTo("#cur", { scale: 1 }, { scale: 0.86, duration: 0.05, ease: "power2.in", yoyo: true, repeat: 1, immediateRender: false }, 2.5);
+    tl.set("#a-a", { opacity: 1 }, 2.55);
+    tl.set("#a-h", { opacity: 0 }, 2.55);
+    tl.fromTo("#cur", { x: 820, y: 640 }, { x: 900, y: 524, duration: 0.42, ease: "power2.inOut", immediateRender: false }, 2.75);
+    tl.set("#a-h2", { opacity: 1 }, 3.1);
+    tl.set("#a-a", { opacity: 0 }, 3.1);
+    tl.fromTo("#cur", { scale: 1 }, { scale: 0.86, duration: 0.05, ease: "power2.in", yoyo: true, repeat: 1, immediateRender: false }, 3.6);
+    tl.set("#a-ac", { opacity: 1 }, 3.65);
+    tl.set("#a-h2", { opacity: 0 }, 3.65);
+    tl.to("#p1", { xPercent: -100, duration: 0.2, ease: "power2.in" }, 3.7);
+    tl.fromTo("#p2", { xPercent: -100 }, { xPercent: 0, duration: 0.4, ease: "power4.out" }, 3.85);
+    tl.to("#cur", { opacity: 0, duration: 0.15 }, 4.3);
+    tl.set("#a-p", { opacity: 1 }, 4.4);
+    tl.set("#a-ac", { opacity: 0 }, 4.4);
+    tl.to("#cam", { x: 0, y: 0, scale: 1, duration: 0.55, ease: "power3.inOut" }, 4.4);
+    tl.fromTo("#wipe", { xPercent: 100 }, { xPercent: 0, duration: 0.4, ease: "power3.in" }, 5.4);
+    window.__timelines["answer"] = tl;
+  </script>
+</template>

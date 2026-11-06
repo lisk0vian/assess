@@ -1,0 +1,46 @@
+<template>
+  <style>
+    #root { position: absolute; inset: 0; overflow: hidden; background: #111110; }
+    .abs { position: absolute; }
+    .disp { font-family: "Sofia Sans Extra Condensed", sans-serif; font-weight: 800; text-transform: uppercase; line-height: 0.92; white-space: nowrap; }
+    #big { left: 96px; top: 150px; color: #ecebe6; font-size: 400px; }
+    #lab { left: 96px; top: 540px; color: #a7a59f; font: 400 36px/56px "JetBrains Mono", monospace; white-space: pre; }
+    #chart { left: 800px; top: 150px; display: flex; align-items: flex-end; height: 590px; }
+    .col { width: 102px; font: 400 32px/44px "JetBrains Mono", monospace; color: #ecebe6; text-align: center; }
+    .col i { display: block; width: 90px; background: #ecebe6; transform-origin: 50% 100%; }
+    .col u { display: block; text-decoration: none; color: #a7a59f; font-size: 28px; }
+    #rv { left: 96px; top: 800px; width: 1728px; border-top: 2px solid #353431; padding-top: 22px; }
+    .r { font: 400 36px/56px "JetBrains Mono", monospace; color: #ecebe6; white-space: pre; }
+    .r.h { color: #a7a59f; }
+    .hit2 { color: #ec2a8a; font-weight: 700; }
+  </style>
+  <div id="root" data-composition-id="report" data-width="1920" data-height="1080">
+    <div class="abs disp" id="big"><span id="n">0</span> %</div>
+    <div class="abs" id="lab">mean · median 75 %
+median time 3.4 min</div>
+    <div class="abs" id="chart"><div class="col"><span>1</span><i id="b0" style="height:66px"></i><u>0</u></div><div class="col"><span>1</span><i id="b1" style="height:66px"></i><u>10</u></div><div class="col"><span>&#160;</span><i id="b2" style="height:0px"></i><u>20</u></div><div class="col"><span>3</span><i id="b3" style="height:198px"></i><u>30</u></div><div class="col"><span>&#160;</span><i id="b4" style="height:0px"></i><u>40</u></div><div class="col"><span>1</span><i id="b5" style="height:66px"></i><u>50</u></div><div class="col"><span>3</span><i id="b6" style="height:198px"></i><u>60</u></div><div class="col"><span>6</span><i id="b7" style="height:396px"></i><u>70</u></div><div class="col"><span>2</span><i id="b8" style="height:132px"></i><u>80</u></div><div class="col"><span>7</span><i id="b9" style="height:462px"></i><u>90</u></div></div>
+    <div class="abs" id="rv">
+      <div class="r h" id="r0">TO REVIEW · students with strikes or evidence</div>
+      <div class="r hit2" id="r1">Emma Vogel                 submitted     0 %   2 strikes</div>
+      <div class="r hit2" id="r2">Noah Fischer               submitted    63 %   1 strike</div>
+    </div>
+  </div>
+  <script>
+    const tl = gsap.timeline({ paused: true });
+    const n = { v: 0 };
+    tl.to(n, { v: 70, duration: 0.9, ease: "power3.out", onUpdate: () => { document.querySelector("#n").textContent = Math.round(n.v); } }, 0.15);
+    tl.fromTo("#lab", { opacity: 0 }, { opacity: 1, duration: 0.2 }, 0.8);
+    tl.fromTo("#b0", { scaleY: 0 }, { scaleY: 1, duration: 0.5, ease: "power4.out" }, 0.25);
+    tl.fromTo("#b1", { scaleY: 0 }, { scaleY: 1, duration: 0.5, ease: "power4.out" }, 0.30);
+    tl.fromTo("#b2", { scaleY: 0 }, { scaleY: 1, duration: 0.5, ease: "power4.out" }, 0.35);
+    tl.fromTo("#b3", { scaleY: 0 }, { scaleY: 1, duration: 0.5, ease: "power4.out" }, 0.40);
+    tl.fromTo("#b4", { scaleY: 0 }, { scaleY: 1, duration: 0.5, ease: "power4.out" }, 0.45);
+    tl.fromTo("#b5", { scaleY: 0 }, { scaleY: 1, duration: 0.5, ease: "power4.out" }, 0.50);
+    tl.fromTo("#b6", { scaleY: 0 }, { scaleY: 1, duration: 0.5, ease: "power4.out" }, 0.55);
+    tl.fromTo("#b7", { scaleY: 0 }, { scaleY: 1, duration: 0.5, ease: "power4.out" }, 0.60);
+    tl.fromTo("#b8", { scaleY: 0 }, { scaleY: 1, duration: 0.5, ease: "power4.out" }, 0.65);
+    tl.fromTo("#b9", { scaleY: 0 }, { scaleY: 1, duration: 0.5, ease: "power4.out" }, 0.70);
+    tl.fromTo("#rv", { clipPath: "inset(0 0 100% 0)" }, { clipPath: "inset(0 0 0% 0)", duration: 0.3, ease: "none" }, 1.5);
+    window.__timelines["report"] = tl;
+  </script>
+</template>

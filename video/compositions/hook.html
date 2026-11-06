@@ -1,0 +1,40 @@
+<template>
+  <style>
+    #root { position: absolute; inset: 0; overflow: hidden; background: #111110; }
+    .abs { position: absolute; }
+    .disp { font-family: "Sofia Sans Extra Condensed", sans-serif; font-weight: 800; text-transform: uppercase; line-height: 0.92; white-space: nowrap; }
+    #term { left: 120px; top: 210px; }
+    .ln { font: 400 56px/92px "JetBrains Mono", monospace; color: #ecebe6; white-space: pre; opacity: 0; font-variant-ligatures: none; }
+    #l1 { opacity: 1; font-weight: 700; } #cmd { display: inline-block; clip-path: inset(0 100% 0 0); }
+    .dim { color: #a7a59f; font-size: 46px; }
+    #code { color: #ec2a8a; font-weight: 800; font-size: 96px; line-height: 128px; }
+    #car { left: 0; top: 0; width: 44px; height: 92px; background: #ec2a8a; transform-origin: 0 50%; }
+  </style>
+  <div id="root" data-composition-id="hook" data-width="1920" data-height="1080">
+    <div class="abs" id="term">
+      <div class="ln" id="l1"><span id="cmd">&gt; ax start examples/ml-basics-en</span></div>
+      <div class="ln dim" id="l2">Exam server running in the background (pid 6576)</div>
+      <div class="ln " id="l3">&#160;</div>
+      <div class="ln dim" id="l4">  Exam      Machine Learning Basics</div>
+      <div class="ln dim" id="l5">  Students  http://192.168.100.8:27337/</div>
+      <div class="ln" id="l6">  <span class="dim">Code</span>      <span id="code">3NY25X</span></div>
+    </div>
+    <div class="abs" id="car"></div>
+  </div>
+  <script>
+    const tl = gsap.timeline({ paused: true });
+    const chars = 32;
+    tl.fromTo("#cmd", { clipPath: "inset(0 100% 0 0)" }, { clipPath: "inset(0 0% 0 0)", duration: 1.0, ease: "steps(" + chars + ")" }, 0.1);
+    tl.fromTo("#car", { x: 120, y: 210 }, { x: 120 + chars * 33.6, y: 210, duration: 1.0, ease: "steps(" + chars + ")" }, 0.1);
+    tl.set("#l2", { opacity: 1 }, 1.25);
+    tl.set("#car", { y: 302 }, 1.25);
+    tl.set("#car", { x: 120 }, 1.25);
+    tl.set("#l4", { opacity: 1 }, 1.5);
+    tl.set("#l5", { opacity: 1 }, 1.65);
+    tl.set("#l6", { opacity: 1 }, 1.85);
+    tl.set("#car", { x: 880, y: 684, height: 112 }, 1.85);
+    tl.to("#term", { opacity: 0.0, duration: 0.2 }, 3.5);
+    tl.to("#car", { x: 0, y: 0, width: 1920, height: 1080, duration: 0.5, ease: "power3.in" }, 3.25);
+    window.__timelines["hook"] = tl;
+  </script>
+</template>

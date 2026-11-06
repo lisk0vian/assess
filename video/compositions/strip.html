@@ -1,0 +1,52 @@
+<template>
+  <style>
+    #root { position: absolute; inset: 0; overflow: hidden; background: transparent; }
+    .abs { position: absolute; }
+    .disp { font-family: "Sofia Sans Extra Condensed", sans-serif; font-weight: 800; text-transform: uppercase; line-height: 0.92; white-space: nowrap; }
+    #root { background: transparent; pointer-events: none; }
+    #bar { left: 0; top: 0; width: 1920px; height: 84px; display: flex; align-items: stretch; background: #f8f7f4; border-bottom: 2px solid #141414; color: #141414; }
+    .c { display: flex; align-items: center; justify-content: center; border-right: 1px solid #cdcbc5; font-family: "Sofia Sans Extra Condensed", sans-serif; font-weight: 800; text-transform: uppercase; letter-spacing: .12em; font-size: 34px; }
+    #logo { width: 274px; font-size: 40px; letter-spacing: .14em; }
+    .s { width: 236px; position: relative; }
+    .s b { position: relative; font-weight: 800; }
+    #mark { left: 274px; top: 0; width: 236px; height: 82px; background: #ec2a8a; }
+    #clock { flex: 1; gap: 22px; border-right: 0; font-size: 34px; }
+    #t { font-size: 58px; letter-spacing: .03em; }
+  </style>
+  <div id="root" data-composition-id="strip" data-width="1920" data-height="1080">
+    <div class="abs" id="bar">
+      <div class="abs" id="mark"></div>
+      <div class="c" id="logo" style="position:relative">Assess</div>
+      <div class="c s"><b id="st0">Join</b></div>
+      <div class="c s"><b id="st1">Answer</b></div>
+      <div class="c s"><b id="st2">Supervise</b></div>
+      <div class="c s"><b id="st3">Submit</b></div>
+      <div class="c s"><b id="st4">Report</b></div>
+      <div class="c" id="clock"><span>Time left</span><span id="t">20:00</span></div>
+    </div>
+  </div>
+  <script>
+    const tl = gsap.timeline({ paused: true });
+    tl.fromTo("#bar", { y: -90 }, { y: 0, duration: 0.3, ease: "power4.out" }, 0.1);
+    tl.set("#st0", { color: "#141414" }, 0);
+    tl.to("#mark", { x: 236, duration: 0.3, ease: "power3.inOut" }, 4.4);
+    tl.set("#st0", { color: "inherit" }, 4.550000000000001);
+    tl.set("#st1", { color: "#141414" }, 4.550000000000001);
+    tl.to("#mark", { x: 472, duration: 0.3, ease: "power3.inOut" }, 12.6);
+    tl.set("#st1", { color: "inherit" }, 12.75);
+    tl.set("#st2", { color: "#141414" }, 12.75);
+    tl.to("#mark", { x: 708, duration: 0.3, ease: "power3.inOut" }, 17);
+    tl.set("#st2", { color: "inherit" }, 17.15);
+    tl.set("#st3", { color: "#141414" }, 17.15);
+    tl.to("#mark", { x: 944, duration: 0.3, ease: "power3.inOut" }, 19.8);
+    tl.set("#st3", { color: "inherit" }, 19.95);
+    tl.set("#st4", { color: "#141414" }, 19.95);
+    tl.set("#bar", { backgroundColor: "#1c1c1a", color: "#ecebe6", borderBottomColor: "#353431" }, 10.2);
+    tl.set("#bar", { backgroundColor: "#f8f7f4", color: "#141414", borderBottomColor: "#141414" }, 17);
+    tl.set("#bar", { backgroundColor: "#1c1c1a", color: "#ecebe6", borderBottomColor: "#353431" }, 19.8);
+    const c = { v: 1200 };
+    tl.to(c, { v: 437, duration: 19.6, ease: "none", onUpdate: () => { const s = Math.round(c.v); document.querySelector("#t").textContent = String(Math.floor(s / 60)).padStart(2, "0") + ":" + String(s % 60).padStart(2, "0"); } }, 4.4);
+    tl.to("#bar", { y: -90, duration: 0.25, ease: "power2.in" }, 24.05);
+    window.__timelines["strip"] = tl;
+  </script>
+</template>

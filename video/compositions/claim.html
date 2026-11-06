@@ -1,0 +1,26 @@
+<template>
+  <style>
+    #root { position: absolute; inset: 0; overflow: hidden; background: #111110; }
+    .abs { position: absolute; }
+    .disp { font-family: "Sofia Sans Extra Condensed", sans-serif; font-weight: 800; text-transform: uppercase; line-height: 0.92; white-space: nowrap; }
+    #a { left: 96px; top: 150px; color: #ecebe6; font-size: 300px; }
+  #a em { font-style: normal; color: #ec2a8a; }
+  #b { left: 96px; top: 560px; color: #ecebe6; font-size: 150px; line-height: 1.02; }
+  #b div { opacity: 0; }
+  #flood { left: 0; top: 0; width: 1920px; height: 1080px; background: #ec2a8a; opacity: 0; }
+  </style>
+  <div id="root" data-composition-id="claim" data-width="1920" data-height="1080">
+    <div class="abs disp" id="a">One <em>portable</em> file</div>
+    <div class="abs disp" id="b"><div id="b1">No cloud.</div><div id="b2">No accounts.</div><div id="b3">No installs.</div></div>
+    <div class="abs" id="flood"></div>
+  </div>
+  <script>
+    const tl = gsap.timeline({ paused: true });
+    tl.fromTo("#a", { opacity: 0, filter: "blur(10px)" }, { opacity: 1, filter: "blur(0px)", duration: 0.2, ease: "power2.out" }, 0);
+    tl.fromTo("#b1", { opacity: 0, filter: "blur(10px)" }, { opacity: 1, filter: "blur(0px)", duration: 0.2, ease: "power2.out" }, 0.55);
+    tl.fromTo("#b2", { opacity: 0, filter: "blur(10px)" }, { opacity: 1, filter: "blur(0px)", duration: 0.2, ease: "power2.out" }, 0.8);
+    tl.fromTo("#b3", { opacity: 0, filter: "blur(10px)" }, { opacity: 1, filter: "blur(0px)", duration: 0.2, ease: "power2.out" }, 1.05);
+    tl.fromTo("#flood", { opacity: 0 }, { opacity: 1, duration: 0.35, ease: "power2.inOut" }, 2.05);
+    window.__timelines["claim"] = tl;
+  </script>
+</template>

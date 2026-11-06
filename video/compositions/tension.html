@@ -1,0 +1,39 @@
+<template>
+  <style>
+    #root { position: absolute; inset: 0; overflow: hidden; background: #e8e6e1; }
+    .abs { position: absolute; }
+    .disp { font-family: "Sofia Sans Extra Condensed", sans-serif; font-weight: 800; text-transform: uppercase; line-height: 0.92; white-space: nowrap; }
+    #stack { left: 120px; top: 150px; width: 760px; height: 1100px; }
+    .sheet { position: absolute; width: 720px; height: 1100px; background: #f8f7f4; box-shadow: 0 18px 40px -8px rgba(20,20,20,.2); padding: 56px; }
+    #s1 { left: 0; top: 34px; rotate: -2.4deg; } #s2 { left: 26px; top: 18px; rotate: 1.8deg; } #s3 { left: 40px; top: 0; }
+    .row { display: flex; gap: 28px; align-items: center; height: 92px; border-bottom: 2px solid #cdcbc5; font: 400 40px "JetBrains Mono", monospace; color: #5b5a56; }
+    .row i { flex: 1; height: 26px; background: repeating-linear-gradient(45deg, rgba(20,20,20,.3) 0 4px, transparent 4px 12px); }
+    .row b { width: 72px; height: 44px; border: 3px solid #141414; }
+    #word { left: 96px; top: 40px; font-size: 118px; color: #141414; letter-spacing: .005em; z-index: 3; }
+    #word span { display: inline-block; margin-right: 26px; }
+    #plate { left: 960px; top: 0; width: 960px; height: 1080px; background: #111110; transform-origin: 100% 50%; }
+    #off { left: 1056px; top: 300px; width: 768px; color: #ecebe6; }
+    #arc { width: 260px; height: 260px; display: block; margin-bottom: 70px; }
+    #offt { font-size: 148px; white-space: normal; }
+  </style>
+  <div id="root" data-composition-id="tension" data-width="1920" data-height="1080">
+    <div class="abs" id="stack"><div class="sheet" id="s1"></div><div class="sheet" id="s2"></div><div class="sheet" id="s3"><div class="row"><span>01</span><i></i><b></b></div><div class="row"><span>02</span><i></i><b></b></div><div class="row"><span>03</span><i></i><b></b></div><div class="row"><span>04</span><i></i><b></b></div><div class="row"><span>05</span><i></i><b></b></div><div class="row"><span>06</span><i></i><b></b></div><div class="row"><span>07</span><i></i><b></b></div></div></div>
+    <div class="abs disp" id="word"><span id="w1">Print.</span><span id="w2">Carry.</span><span id="w3">Collect.</span></div>
+    <div class="abs" id="plate"></div>
+    <div class="abs" id="off"><svg id="arc" viewBox="0 0 132 132" aria-hidden="true"><circle cx="66" cy="66" r="54" fill="none" stroke="#ecebe6" stroke-width="6" stroke-dasharray="140 200"/></svg><div class="disp" id="offt">Or no<br/>connection</div></div>
+  </div>
+  <script>
+    const tl = gsap.timeline({ paused: true });
+    tl.fromTo("#s1", { y: 900 }, { y: 0, duration: 0.42, ease: "power4.out" }, 0);
+    tl.fromTo("#s2", { y: 900 }, { y: 0, duration: 0.42, ease: "power4.out" }, 0.08);
+    tl.fromTo("#s3", { y: 900 }, { y: 0, duration: 0.42, ease: "power4.out" }, 0.16);
+    tl.fromTo("#w2", { opacity: 0, filter: "blur(8px)" }, { opacity: 1, filter: "blur(0px)", duration: 0.15 }, 0.5);
+    tl.fromTo("#w3", { opacity: 0, filter: "blur(8px)" }, { opacity: 1, filter: "blur(0px)", duration: 0.15 }, 0.75);
+    tl.fromTo("#plate", { xPercent: 100 }, { xPercent: 0, duration: 0.45, ease: "power4.out" }, 1.35);
+    tl.fromTo("#off", { x: 960 }, { x: 0, duration: 0.45, ease: "power4.out" }, 1.4);
+    tl.fromTo("#arc", { rotate: 0 }, { rotate: 300, duration: 1.7, ease: "power1.inOut", transformOrigin: "50% 50%" }, 1.45);
+    tl.to("#off", { opacity: 0, filter: "blur(10px)", duration: 0.16 }, 2.95);
+    tl.to("#plate", { scaleX: 2, duration: 0.42, ease: "power3.inOut" }, 2.96);
+    window.__timelines["tension"] = tl;
+  </script>
+</template>
