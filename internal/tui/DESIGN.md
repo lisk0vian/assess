@@ -313,7 +313,7 @@ Design may go ahead of the code. This table keeps that honest.
 | Accept another answer later | Yes, as a recorded correction; the published key stays as it was | |
 | Impact preview | Yes, `PreviewCorrection` | |
 | Report export | `--json`, text and results CSV | Web page and report Excel |
-| Compare groups | History of one exam | Per-question comparison |
+| Compare groups | Yes: *Comparar los grupos* on an exam of the hub, `ax exam compare <exam> [class...]` | Each class's latest finished session, mean and median, questions by gap, and the warning that classes are not comparable by themselves. `report.Compare` holds the numbers |
 | All question types, pools, tolerance, partial | Yes | New layout |
 | Student view in the browser | Yes, through Probarlo yo | |
 | Locked panel | Yes | Layout |
@@ -407,7 +407,7 @@ The canvas source is written in Spanish and translated by `design/en.json`. To f
 5. Done: vault hub in `explore.go`, Settings in `settings.go`, help on those screens, duplicate and export. The commands behind the actions still ask through `huh` forms outside the hub. Import preview, questions to review, USB and question text in `/` come with the new capabilities.
 6. Done: first use, Preparar sesión and recovery in `setup_view.go`, wired in `internal/cli/setup.go`. Probarlo yo is done in `internal/cli/try.go`. The nobody-joined band, the network guide, the firewall script for IT and the reconnection count come later.
 
-**After that**, because they are new capabilities rather than screens: correcting grades (done, in `internal/session/correction.go`), Pegar varias (done, in `paste.go`), Probarlo yo with the example exam (done, in `internal/cli/try.go`), and comparing classes.
+**After that**, because they are new capabilities rather than screens: correcting grades (done, in `internal/session/correction.go`), Pegar varias (done, in `paste.go`), Probarlo yo with the example exam (done, in `internal/cli/try.go`), and comparing classes (done, in `internal/report/compare.go` and `internal/cli/compare.go`).
 
 ## Adding a screen
 

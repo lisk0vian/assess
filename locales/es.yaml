@@ -277,6 +277,25 @@ home:
   no_manifest: Ahí no hay un manifest.yaml.
 
 cli:
+  compare:
+    short: Compara los grupos que hicieron un examen, pregunta a pregunta
+    long: |-
+      Toma la última sesión terminada del examen de cada grupo y las pone lado
+      a lado: cuántos entregaron, la media y la mediana, y las preguntas en
+      las que los grupos más se diferencian. Nombra grupos para comparar solo
+      esos.
+    flag_all: muestra todas las preguntas, no solo donde más se diferencian
+    title: "«{title}» en {n} grupos"
+    groups_header: "Grupo,Fecha,Entregaron,Media,Mediana"
+    differ: "Donde más se diferencian (parte que acertó):"
+    same: "Les va más o menos igual en todas las preguntas (parte que acertó):"
+    question: Pregunta
+    gap: Diferencia (puntos)
+    more: "… {n} más (--all las muestra)"
+    caution: "Dos grupos no son comparables por sí solos: cuentan el día, el tiempo dado, lo que se explicó y quiénes son. Úsalo para ver qué repasar, no para juzgar a un grupo."
+    no_exam: "No hay ninguna sesión de «{exam}». ax exam list muestra los exámenes."
+    no_class: "{class} no tiene ninguna sesión terminada de «{exam}»."
+    need_two: "Para comparar hacen falta dos grupos con una sesión terminada de «{exam}»."
   try:
     short: Haz tú el examen, como un alumno, en el navegador de este equipo
     long: |-
@@ -302,7 +321,7 @@ cli:
     class: "Grupos: list, show, new, rename, delete, import, export, template, add, remove, grades"
     student: "Alumnos: list, show, new, edit, rename, merge, history, delete"
     vault: "Bóvedas, donde se guarda todo: list, new, use, lock, unlock, password, encrypt, decrypt, remove"
-    exam: "Exámenes: list, new, edit, check, try, import, export, guide"
+    exam: "Exámenes: list, new, edit, check, try, compare, import, export, guide"
     session: "Sesiones: start, stop, status, open, resume, logs, report, results, list"
     backup: "Copias de la bóveda: new (ax backup a secas también hace una), list, restore"
   session_list:
@@ -1559,6 +1578,7 @@ explore:
       classes: nuevo grupo
       students: nuevo alumno
   act:
+    compare: Comparar los grupos que lo hicieron
     assign: Asignar a un grupo
     move: Cambiar de grupo
     template: Guardar una lista vacía para rellenar (CSV)

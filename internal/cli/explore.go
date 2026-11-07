@@ -217,7 +217,7 @@ func exploreActions(tab int, id string, sessions []*session.Overview, p *session
 		return []tui.MenuItem{item("members", "members"), item("book", "gradebook"), item("import", "import"), item("template", "template"),
 			item("add", "add_student"), item("export", "export"), item("rename", "rename_class"), item("delete", "delete")}
 	case tui.TabExams:
-		return []tui.MenuItem{item("start", "start"), item("try", "try"), item("edit", "edit_exam"), item("duplicate", "duplicate"), item("sessions", "sessions"), item("export", "export_exam")}
+		return []tui.MenuItem{item("start", "start"), item("try", "try"), item("compare", "compare"), item("edit", "edit_exam"), item("duplicate", "duplicate"), item("sessions", "sessions"), item("export", "export_exam")}
 	case tui.TabSessions:
 		for _, x := range sessions {
 			if x.ID == id && x.State == session.StateEnded {
@@ -727,6 +727,8 @@ func examAction(cmd *cobra.Command, dir string, st tui.ExploreState, act string)
 	switch act {
 	case "start":
 		return st, prepareAndStart(cmd, dir, st.ID, defaultServeFlags())
+	case "compare":
+		return st, runSub(cmd, newExamCompareCmd(), st.ID)
 	case "try":
 		examDir, cleanup, err := examFolder(cmd, dir, st.ID)
 		if err != nil {

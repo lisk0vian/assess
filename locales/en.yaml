@@ -279,6 +279,25 @@ home:
   no_manifest: There is no manifest.yaml there.
 
 cli:
+  compare:
+    short: Compare the classes that sat an exam, question by question
+    long: |-
+      Takes each class's latest finished session of the exam and sets them
+      side by side: how many submitted, the mean and median, and the
+      questions where the classes differ most. Name classes to compare only
+      those.
+    flag_all: show every question, not only where they differ most
+    title: "“{title}” in {n} classes"
+    groups_header: "Class,Date,Submitted,Mean,Median"
+    differ: "Where they differ most (share who got it right):"
+    same: "They do about the same on every question (share who got it right):"
+    question: Question
+    gap: Gap (points)
+    more: "… {n} more (--all shows them)"
+    caution: "Two classes are not comparable by themselves: the day, the time given, what was taught and who they are all count. Use it to see what to go over again, not to judge a class."
+    no_exam: "No session of “{exam}”. ax exam list shows the exams."
+    no_class: "{class} has no finished session of “{exam}”."
+    need_two: "Comparing needs two classes with a finished session of “{exam}”."
   try:
     short: Sit an exam yourself, as a student would, in this computer's browser
     long: |-
@@ -304,7 +323,7 @@ cli:
     class: "Classes: list, show, new, rename, delete, import, export, template, add, remove, grades"
     student: "Students: list, show, new, edit, rename, merge, history, delete"
     vault: "Vaults, where everything is kept: list, new, use, lock, unlock, password, encrypt, decrypt, remove"
-    exam: "Exams: list, new, edit, check, try, import, export, guide"
+    exam: "Exams: list, new, edit, check, try, compare, import, export, guide"
     session: "Sessions: start, stop, status, open, resume, logs, report, results, list"
     backup: "Backups of the vault: new (ax backup alone makes one too), list, restore"
   session_list:
@@ -1555,6 +1574,7 @@ explore:
       classes: new class
       students: new student
   act:
+    compare: Compare the classes that sat it
     assign: Assign to a class
     move: Move to another class
     template: Save an empty list to fill in (CSV)
