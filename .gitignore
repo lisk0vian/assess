@@ -23,6 +23,9 @@ coverage.out
 /.agents/
 /.claude/
 
+# Stray third-party installer
+/install.cmd
+
 # Design tooling scratch (keep the direction brief and the design sidecar)
 /.impeccable/*
 !/.impeccable/surfaces/
