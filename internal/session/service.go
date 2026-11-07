@@ -211,7 +211,8 @@ func (s *Service) AddParticipant(ctx context.Context, sessionID, studentID, name
 		if err := tx.InsertParticipant(p); err != nil {
 			return err
 		}
-		return ensureStudent(tx, p)
+		_, err := ensureStudent(tx, p)
+		return err
 	})
 	return p, err
 }
@@ -239,8 +240,15 @@ func (s *Service) Join(ctx context.Context, sessionID, studentID, name string) (
 			if err := tx.InsertParticipant(part); err != nil {
 				return err
 			}
-			if err := ensureStudent(tx, part); err != nil {
+			st, err := ensureStudent(tx, part)
+			if err != nil {
 				return err
+			}
+			// Open to anyone with the code: whoever comes in joins the class, once.
+			if sess.ClassID != "" && !sess.RosterOnly {
+				if _, err := tx.AddMember(sess.ClassID, st.ID); err != nil {
+					return err
+				}
 			}
 		case err != nil:
 			return err

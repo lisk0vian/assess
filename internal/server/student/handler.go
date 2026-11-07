@@ -57,6 +57,7 @@ func New(svc *session.Service, sessionID string, opts Options) *Handler {
 		live: newHub(), joins: newLimiter(12, time.Minute), reqs: newRequests(), gaps: map[string]time.Time{}}
 	h.mux.HandleFunc("POST /api/join", h.join)
 	h.mux.HandleFunc("GET /api/join/status", h.pendingStatus)
+	h.mux.HandleFunc("GET /api/join/info", h.joinInfo)
 	h.mux.HandleFunc("GET /api/me", h.withAttempt(h.me))
 	h.mux.HandleFunc("GET /api/questions/{id}", h.withAttempt(h.question))
 	h.mux.HandleFunc("PUT /api/answers/{id}", h.withAttempt(h.answer))
@@ -109,6 +110,18 @@ func (h *Handler) join(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	name := strings.Join(strings.Fields(req.Name), " ")
+	if name == "" { // on the list, the identifier is enough
+		known, err := h.svc.KnownName(r.Context(), h.sessionID, req.StudentID)
+		if err != nil {
+			h.fail(w, err)
+			return
+		}
+		if known == "" {
+			writeError(w, http.StatusBadRequest, "name_required", "write your name: this identifier is not on the list")
+			return
+		}
+		name, req.Name = known, known
+	}
 	if win := h.opts.JoinWindow; win > 0 && sess.State == session.StateRunning && h.svc.Now().After(sess.StartedAt.Add(win)) {
 		if existing, err := h.svc.AttemptOfStudent(r.Context(), h.sessionID, req.StudentID); err == nil {
 			h.askApproval(w, r, KindDevice, req.StudentID, name, existing.ID)
@@ -150,6 +163,25 @@ func (h *Handler) join(w http.ResponseWriter, r *http.Request) {
 	}
 	h.log.Info("student joined", "attempt", att.ID, "student", d.Participant.StudentID)
 	h.writeMe(w, d)
+}
+
+// joinInfo tells the join form whether the session lets in only its list,
+// so the form asks for the identifier alone.
+func (h *Handler) joinInfo(w http.ResponseWriter, r *http.Request) {
+	if !h.joins.allow(clientIP(r), time.Now()) {
+		writeError(w, http.StatusTooManyRequests, "too_many_attempts", "too many attempts; wait a minute")
+		return
+	}
+	sess, _, err := h.svc.Session(r.Context(), h.sessionID)
+	if err != nil {
+		h.fail(w, err)
+		return
+	}
+	if !strings.EqualFold(strings.TrimSpace(r.URL.Query().Get("code")), sess.Code) {
+		writeError(w, http.StatusNotFound, "bad_code", "no open exam uses that code")
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]bool{"roster_only": sess.RosterOnly})
 }
 
 // setAttemptCookie hands the device its credential. Secure follows the

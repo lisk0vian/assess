@@ -100,6 +100,8 @@ export type Key =
   | "wait_title"
   | "wait_body"
   | "err_rejected"
+  | "err_name_required"
+  | "join_id_only_hint"
   | "msg_title"
   | "pause_title"
   | "pause_body"

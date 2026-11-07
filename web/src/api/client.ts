@@ -50,6 +50,7 @@ export const api = {
   submit: () => request<MeView>("POST", "/api/submit"),
   pledge: () => request<MeView>("POST", "/api/pledge"),
   /** Polls a pending device approval: 202 while waiting, MeView once approved. */
+  joinInfo: (code: string) => request<{ roster_only: boolean }>("GET", "/api/join/info?code=" + encodeURIComponent(code)),
   joinStatus: () => request<MeView | { status: "pending" }>("GET", "/api/join/status"),
 };
 

@@ -656,9 +656,25 @@ func (s *Service) Listed(ctx context.Context, sessionID, studentID string) (bool
 
 // ensureStudent makes everyone who takes part a student of the vault, so
 // their history follows their identifier.
-func ensureStudent(tx Tx, p *Participant) error {
-	_, err := tx.EnsureStudent(&Student{ID: newID(), Ref: p.StudentID, Name: p.Name, CreatedAt: p.CreatedAt, UpdatedAt: p.CreatedAt})
-	return err
+func ensureStudent(tx Tx, p *Participant) (*Student, error) {
+	return tx.EnsureStudent(&Student{ID: newID(), Ref: p.StudentID, Name: p.Name, CreatedAt: p.CreatedAt, UpdatedAt: p.CreatedAt})
+}
+
+// KnownName is the name a student is listed with in a session, empty when
+// their identifier is not on it: on the list, the identifier is enough.
+func (s *Service) KnownName(ctx context.Context, sessionID, studentID string) (string, error) {
+	var name string
+	err := s.store.View(ctx, func(tx Tx) error {
+		p, err := tx.GetParticipantByStudent(sessionID, NormalizeStudentID(studentID))
+		if errors.Is(err, ErrNotFound) {
+			return nil
+		}
+		if err == nil {
+			name = p.Name
+		}
+		return err
+	})
+	return name, err
 }
 
 // SetArchive records where the archive of a session was written.

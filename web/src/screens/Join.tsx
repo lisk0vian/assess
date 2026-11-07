@@ -15,6 +15,7 @@ const errorKeys: Record<string, Key> = {
   too_many_attempts: "err_too_many",
   outside_network: "err_network",
   rejected: "err_rejected",
+  name_required: "err_name_required",
 };
 
 export function Join({ onJoined }: { onJoined: (me: MeView) => void }) {
@@ -25,6 +26,22 @@ export function Join({ onJoined }: { onJoined: (me: MeView) => void }) {
   const [error, setError] = useState<Key | null>(null);
   const [busy, setBusy] = useState(false);
   const [waiting, setWaiting] = useState(false);
+  // A session that lets in only its class list knows every name: the ID is enough,
+  // unless the ID is not on the list.
+  const [idOnly, setIdOnly] = useState(false);
+  const [needName, setNeedName] = useState(false);
+  const askName = !idOnly || needName;
+
+  useEffect(() => {
+    const c = code.trim();
+    setIdOnly(false);
+    if (c.length !== 6) return;
+    let live = true;
+    api.joinInfo(c).then((info) => live && setIdOnly(info.roster_only), () => {});
+    return () => {
+      live = false;
+    };
+  }, [code]);
 
   // While the teacher decides, poll the request every two seconds.
   useEffect(() => {
@@ -48,9 +65,13 @@ export function Join({ onJoined }: { onJoined: (me: MeView) => void }) {
     setBusy(true);
     setError(null);
     try {
-      onJoined(await api.join(code.trim(), name.trim(), studentID.trim()));
+      onJoined(await api.join(code.trim(), askName ? name.trim() : "", studentID.trim()));
     } catch (err) {
       if (err instanceof ApiError && err.code === "pending_approval") setWaiting(true);
+      else if (err instanceof ApiError && err.code === "name_required") {
+        setNeedName(true);
+        setError("err_name_required");
+      }
       else setError(err instanceof ApiError ? (errorKeys[err.code] ?? "err_generic") : "err_generic");
     } finally {
       setBusy(false);
@@ -66,14 +87,14 @@ export function Join({ onJoined }: { onJoined: (me: MeView) => void }) {
           <p className="muted">{t("wait_body")}</p>
           <p className="save is-saving" style={{ marginTop: 14 }}>
             <LoaderCircle {...iconProps} />
-            {name} · {studentID}
+            {askName && name.trim() ? `${name} · ${studentID}` : studentID}
           </p>
         </section>
       </main>
     );
   }
 
-  const ready = code.trim().length === 6 && name.trim() && studentID.trim();
+  const ready = code.trim().length === 6 && (!askName || name.trim()) && studentID.trim();
   return (
     <main className="solo">
       <form className="sheet" onSubmit={submit} noValidate>
@@ -95,14 +116,17 @@ export function Join({ onJoined }: { onJoined: (me: MeView) => void }) {
             />
             <span className="field__hint" id="code-hint">{t("join_code_hint")}</span>
           </label>
-          <label className="field">
-            <span className="label">{t("join_name")}</span>
-            <input className="input input--text" value={name} onChange={(e) => setName(e.target.value)} maxLength={100} autoComplete="name" autoFocus={!!fromLink} />
-            <span className="field__hint">{t("join_name_hint")}</span>
-          </label>
+          {askName && (
+            <label className={`field ${error === "err_name_required" ? "is-error" : ""}`}>
+              <span className="label">{t("join_name")}</span>
+              <input className="input input--text" value={name} onChange={(e) => setName(e.target.value)} maxLength={100} autoComplete="name" autoFocus={!!fromLink || needName} />
+              <span className="field__hint">{t("join_name_hint")}</span>
+            </label>
+          )}
           <label className={`field ${error === "err_already_joined" ? "is-error" : ""}`}>
             <span className="label">{t("join_id")}</span>
-            <input className="input input--text" value={studentID} onChange={(e) => setStudentID(e.target.value)} maxLength={64} autoComplete="off" />
+            <input className="input input--text" value={studentID} onChange={(e) => setStudentID(e.target.value)} maxLength={64} autoComplete="off" autoFocus={!!fromLink && idOnly} />
+            {!askName && <span className="field__hint">{t("join_id_only_hint")}</span>}
           </label>
           {error && (
             <p className="field__error" role="alert">
