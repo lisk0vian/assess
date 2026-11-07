@@ -84,27 +84,3 @@ func languageOptions(current string) []huh.Option[string] {
 	}
 	return out
 }
-
-func visibilityOptions() []huh.Option[string] {
-	return []huh.Option[string]{
-		huh.NewOption(T("form.visibility.none"), "none"),
-		huh.NewOption(T("form.visibility.score"), "score"),
-		huh.NewOption(T("form.visibility.review"), "review"),
-	}
-}
-
-func profileOptions() []huh.Option[string] {
-	return []huh.Option[string]{
-		huh.NewOption(T("form.profile.standard"), "standard"),
-		huh.NewOption(T("form.profile.strict"), "strict"),
-		huh.NewOption(T("form.profile.off"), "off"),
-	}
-}
-
-func readSpeedOptions() []huh.Option[string] {
-	return []huh.Option[string]{
-		huh.NewOption(T("form.read_speed.slow"), "slow"),
-		huh.NewOption(T("form.read_speed.normal"), "normal"),
-		huh.NewOption(T("form.read_speed.fast"), "fast"),
-	}
-}

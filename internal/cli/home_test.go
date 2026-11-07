@@ -54,7 +54,8 @@ func TestFindExams(t *testing.T) {
 	if strings.Join(titles, ",") != "dos,uno" {
 		t.Fatalf("found %v (want uno and dos; not invalid/ nor deeper than 3 levels)", titles)
 	}
-	if found := findExams(filepath.Join("..", "..", "examples"), 3); len(found) != 9 {
+	valid, _ := filepath.Glob(filepath.Join("..", "..", "examples", "*", "manifest.yaml")) // invalid/ holds broken exams one level down
+	if found := findExams(filepath.Join("..", "..", "examples"), 3); len(found) != len(valid) {
 		t.Fatalf("examples: %+v", found)
 	}
 }

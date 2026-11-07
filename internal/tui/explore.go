@@ -926,16 +926,15 @@ func (m *Explore) drawBook(g *grid, y, H int) {
 		rowBg := selRow(g, 0, Y, g.w, on, bg)
 		g.text(2, Y, fit(r.Name, nw-1), nameStyle(on, rowBg))
 		for j, v := range r.Cells[:shown] {
-			switch {
-			case v == nil:
+			if v == nil {
 				g.text(x+j*cw, Y, "—", style{fg: rInk2, bg: rowBg})
-			default:
-				st := style{fg: rInk2, bg: rowBg}
-				if *v < 50 { // a reading aid, not a pass mark
-					st = style{fg: rInk, bg: rowBg, bold: true}
-				}
-				g.text(x+j*cw, Y, percent(*v), st)
+				continue
 			}
+			st := style{fg: rInk2, bg: rowBg}
+			if *v < 50 { // a reading aid, not a pass mark
+				st = style{fg: rInk, bg: rowBg, bold: true}
+			}
+			g.text(x+j*cw, Y, percent(*v), st)
 		}
 		meanCell(g, x+shown*cw+ansi.StringWidth(T("hub.col.mean"))+2, Y, r.Mean, rowBg)
 	}

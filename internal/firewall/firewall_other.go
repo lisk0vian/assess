@@ -4,7 +4,7 @@ package firewall
 
 import "errors"
 
-// ErrUnsupported: ax only manages the Windows firewall.
+// ErrUnsupported is returned outside Windows: ax only manages its firewall.
 var ErrUnsupported = errors.New("ax manages the firewall only on Windows; elsewhere ports above 1024 need no permission")
 
 // Check reports that no firewall step is needed.

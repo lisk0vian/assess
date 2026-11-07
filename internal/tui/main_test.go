@@ -15,5 +15,6 @@ func TestMain(m *testing.M) {
 		panic(err)
 	}
 	exam.DefaultLanguage = "es"
+	plainGlyphs = false // the screens are checked with their real glyphs, whatever the CI console
 	os.Exit(m.Run())
 }
