@@ -2,7 +2,5 @@
 .thumbnails/
 .axdata/
 # Captured working shots and session logs
-/shots/
-/shots2/
-/assets/shots/
-/assets/s*.txt
+shots*/
+s[0-9]*-*.txt
