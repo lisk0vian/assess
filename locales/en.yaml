@@ -279,6 +279,19 @@ home:
   no_manifest: There is no manifest.yaml there.
 
 cli:
+  try:
+    short: Sit an exam yourself, as a student would, in this computer's browser
+    long: |-
+      Opens the exam in your browser as a student sees it: join, answer,
+      submit and see what they would see. It is a rehearsal on this computer
+      only; nothing is kept in the vault or in anybody's history. Without an
+      exam, it opens the example exam.
+    open: "Rehearsing “{title}”: {url}  (code {code})"
+    open_yourself: "Open that address in your browser."
+    wait: "Press Enter here when you have finished."
+    scored: "Your try: {score} of {max} points ({pct} %)."
+    unsubmitted: "You did not submit it."
+    forgotten: "The rehearsal is gone: nothing was kept."
   shortcut_of: "= {cmd}"
   actions: "{cmd} also: {list}   (ax help {help} <action> for each one)"
   unknown: "“{word}” is not something {cmd} does."
@@ -291,7 +304,7 @@ cli:
     class: "Classes: list, show, new, rename, delete, import, export, template, add, remove, grades"
     student: "Students: list, show, new, edit, rename, merge, history, delete"
     vault: "Vaults, where everything is kept: list, new, use, lock, unlock, password, encrypt, decrypt, remove"
-    exam: "Exams: list, new, edit, check, import, export, guide"
+    exam: "Exams: list, new, edit, check, try, import, export, guide"
     session: "Sessions: start, stop, status, open, resume, logs, report, results, list"
     backup: "Backups of the vault: new (ax backup alone makes one too), list, restore"
   session_list:
@@ -694,6 +707,7 @@ editor:
     key_line: new line
     key_cancel: cancel
   ui:
+    key_try: try it yourself
     title_first: "Write a title first: it names the exam's folder."
     write_first: "Write something first, then open it in the editor."
     saves_itself: "Saves itself as you write"
@@ -1566,6 +1580,7 @@ explore:
     delete: Delete the class
     start: Start
     edit_exam: Edit
+    try: Try it yourself in the browser
     sessions: Its sessions
     export_exam: Export (.examx)
     report: Report

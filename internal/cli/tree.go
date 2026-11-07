@@ -41,6 +41,7 @@ var verbs = map[string][]string{
 	"history":  {"historial"},
 	"merge":    {"join", "fusionar", "unir"},
 	"check":    {"validate", "verify", "validar", "comprobar", "revisar"},
+	"try":      {"preview", "rehearse", "test", "probar", "ensayar", "practicar"},
 	"guide":    {"format", "help-format", "formato", "guia", "guía"},
 	"template": {"plantilla"},
 	"use":      {"switch", "usar"},
@@ -257,7 +258,7 @@ func addTree(root *cobra.Command) {
 
 	// Things.
 	exam := thing("exam", newExamsCmd, as("list", newExamsCmd()), newNewCmd(), newEditCmd(), as("check", newValidateCmd()),
-		as("import", child(newVaultCmd(), "add")), as("export", child(newVaultCmd(), "export")), as("guide", newFormatCmd()))
+		as("import", child(newVaultCmd(), "add")), as("export", child(newVaultCmd(), "export")), newTryCmd(), as("guide", newFormatCmd()))
 	sess := thing("session", newSessionListCmd, newSessionListCmd(), newStartCmd(), newStopCmd(), newStatusCmd(),
 		as("open", newAttachCmd()), newResumeCmd(), newLogsCmd(), newReportCmd(), newResultsCmd())
 

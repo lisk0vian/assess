@@ -37,7 +37,8 @@ func (m *Editor) keyTable() []keyGroup {
 		if m.d.Problems.HasErrors() {
 			enter = T("editor.ui.key_go_problem")
 		}
-		return []keyGroup{{T("wizard.step.review"), []keyItem{k("↑↓", T("editor.ui.key_problem"), len(m.d.Problems) > 0), k("Enter", enter, true), k("Q", T("editor.ui.key_save_exit"), true),
+		return []keyGroup{{T("wizard.step.review"), []keyItem{k("↑↓", T("editor.ui.key_problem"), len(m.d.Problems) > 0), k("Enter", enter, true),
+			k("P", T("editor.ui.key_try"), !m.d.Problems.HasErrors()), k("Q", T("editor.ui.key_save_exit"), true),
 			k("⇧Tab", T("wizard.key.back"), true), k("?", T("monitor.ui.key_help"), false)}}}
 	}
 	return []keyGroup{

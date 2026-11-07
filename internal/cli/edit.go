@@ -55,6 +55,18 @@ func editExam(cmd *cobra.Command, sf *serveFlags, ref string, duration time.Dura
 	if _, err := tea.NewProgram(m).Run(); err != nil {
 		return err
 	}
+	for m.Try { // rehearse in the browser, then back to the editor
+		if err := tryExam(cmd, dir, nil); err != nil {
+			return err
+		}
+		if err := d.Reload(); err != nil {
+			return err
+		}
+		m = tui.NewEditor(d, cfg.Str("editor"))
+		if _, err := tea.NewProgram(m).Run(); err != nil {
+			return err
+		}
+	}
 	out := cmd.OutOrStdout()
 	inVault := dir != ref
 	if v, _, err := activeVault(dataDir); err == nil {

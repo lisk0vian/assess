@@ -55,7 +55,7 @@ func TestHubReadsTheVault(t *testing.T) {
 	if det := data.Details(tui.TabVault, "vault"); det == nil || det.Sub == "" {
 		t.Fatalf("vault detail: %+v", det)
 	}
-	if acts := data.Actions(tui.TabExams, exam.ID); len(acts) != 5 {
+	if acts := data.Actions(tui.TabExams, exam.ID); len(acts) != 6 || acts[1].Key != "try" {
 		t.Fatalf("exam actions: %+v", acts)
 	}
 }

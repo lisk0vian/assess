@@ -75,6 +75,19 @@ func newExamWizard(cmd *cobra.Command) error {
 	if _, err := tea.NewProgram(m).Run(); err != nil {
 		return err
 	}
+	for m.Try && m.Dir != "" { // rehearse in the browser, then back to the editor
+		if err := tryExam(cmd, m.Dir, nil); err != nil {
+			return err
+		}
+		d, err := exam.OpenDraft(m.Dir)
+		if err != nil {
+			return err
+		}
+		m = tui.NewEditor(d, cfg.Str("editor"))
+		if _, err := tea.NewProgram(m).Run(); err != nil {
+			return err
+		}
+	}
 	if m.Dir == "" {
 		return nil
 	}

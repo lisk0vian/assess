@@ -88,6 +88,8 @@ type Editor struct {
 	Dir string
 	// Start reports that the editor closed asking to start the exam.
 	Start bool
+	// Try reports that it closed asking to rehearse the exam in the browser.
+	Try bool
 }
 
 type editorRow struct {
@@ -646,6 +648,13 @@ func (m *Editor) reviewKey(s string) tea.Cmd {
 	switch s {
 	case "q", "Q":
 		return m.finish()
+	case "p", "P":
+		if m.d.Problems.HasErrors() {
+			m.fail(errors.New(T("editor.fix_first")))
+			return nil
+		}
+		m.Try = true
+		return tea.Quit
 	case "?":
 		m.showHelp = true
 	case "up":

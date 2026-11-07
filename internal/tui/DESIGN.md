@@ -302,7 +302,7 @@ Design may go ahead of the code. This table keeps that honest.
 | Density and view bar | No | Layout only, from `daemon.Board` |
 | First-run flow | Yes, over `vault.Init`; encrypted unless `Ctrl+U` | Choosing the folder; an older ax still migrates as before |
 | Example exam | Not in the binary | Embed one |
-| Probarlo yo | No | A rehearsal session, not counted in history |
+| Probarlo yo | Yes: `P` on Revisar, *Probarlo yo* on an exam of the hub, `ax exam try [exam]` | A session in a throwaway database, served on `127.0.0.1` only; ends on `Enter` with the grade, and nothing reaches the vault. Without an exam it rehearses the example exam |
 | Pre-flight checks | Yes, on Preparar sesión | |
 | Open the port from the TUI | Yes, `A` on Preparar sesión | |
 | Recovery screen | Yes, from Inicio; time down from the last heartbeat | The count of saved answers; `ax session resume` stays plain for scripts |
@@ -315,7 +315,7 @@ Design may go ahead of the code. This table keeps that honest.
 | Report export | `--json`, text and results CSV | Web page and report Excel |
 | Compare groups | History of one exam | Per-question comparison |
 | All question types, pools, tolerance, partial | Yes | New layout |
-| Student view in the browser | No | Serve a preview locally |
+| Student view in the browser | Yes, through Probarlo yo | |
 | Locked panel | Yes | Layout |
 | Closed vault, recovery | Commands | Screen over `vault` |
 | Help on every screen | Only in the wizard | Generate it from each screen's key table |
@@ -405,9 +405,9 @@ The canvas source is written in Spanish and translated by `design/en.json`. To f
 3. Done: report in `report_view.go`, with the five views. Export comes with the new capabilities.
 4. Done: exam editor in `editor.go`, `question_edit.go`, `editor_view.go` and `textfield.go`, joining `Wizard` and `Editor`. Pegar is done in `paste.go`; the student view in the browser comes with the new capabilities.
 5. Done: vault hub in `explore.go`, Settings in `settings.go`, help on those screens, duplicate and export. The commands behind the actions still ask through `huh` forms outside the hub. Import preview, questions to review, USB and question text in `/` come with the new capabilities.
-6. Done: first use, Preparar sesión and recovery in `setup_view.go`, wired in `internal/cli/setup.go`. The nobody-joined band, the network guide, the firewall script for IT, Probarlo yo and the reconnection count come later.
+6. Done: first use, Preparar sesión and recovery in `setup_view.go`, wired in `internal/cli/setup.go`. Probarlo yo is done in `internal/cli/try.go`. The nobody-joined band, the network guide, the firewall script for IT and the reconnection count come later.
 
-**After that**, because they are new capabilities rather than screens: correcting grades (done, in `internal/session/correction.go`), Pegar varias (done, in `paste.go`), Probarlo yo with the example exam, and comparing classes.
+**After that**, because they are new capabilities rather than screens: correcting grades (done, in `internal/session/correction.go`), Pegar varias (done, in `paste.go`), Probarlo yo with the example exam (done, in `internal/cli/try.go`), and comparing classes.
 
 ## Adding a screen
 

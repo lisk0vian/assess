@@ -600,3 +600,20 @@ func TestTextField(t *testing.T) {
 		t.Fatalf("wide glyphs: %v %d %d", rows, row, col)
 	}
 }
+
+// P on Review rehearses the exam in the browser, once nothing blocks it.
+func TestExamReviewTryIt(t *testing.T) {
+	m := newTestExam(t)
+	drive(m, keys("Ensayo", "tab", "n", "Sin marcar", "tab", "Una", "enter", "Otra", "esc", "tab", "tab", "p")...)
+	if m.Try || !m.isErr {
+		t.Fatal("an exam with errors is not rehearsed")
+	}
+	drive(m, keys("shift+tab", "shift+tab", "enter", "down", "space", "esc", "tab", "tab")...)
+	if v := view(m); !strings.Contains(v, "probarlo yo") {
+		t.Fatalf("the key bar offers it:\n%s", v)
+	}
+	drive(m, keys("p")...)
+	if !m.Try {
+		t.Fatalf("P rehearses a ready exam: %v", m.d.Problems)
+	}
+}
