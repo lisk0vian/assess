@@ -461,7 +461,7 @@ func newStudentForgetCmd() *cobra.Command {
 	return cmd
 }
 
-// ================= ax history =================
+// ================= ax student history =================
 
 func newHistoryCmd() *cobra.Command {
 	var f listFormat

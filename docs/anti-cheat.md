@@ -82,7 +82,7 @@ Keystrokes are measured by type and speed only. Their content is not recorded.
 
 ## What the report flags
 
-`ax report` looks for evidence after the exam. Evidence is a reason to look
+`ax session report` looks for evidence after the exam. Evidence is a reason to look
 closer, not proof.
 
 - **Similar answers:** pairs of students who share unusual wrong answers, or

@@ -13,7 +13,7 @@ import (
 const DefaultPort = 27337
 
 // PortRange is how many ports from the configured one the server may try
-// when it is busy; `ax firewall setup` opens exactly this range.
+// when it is busy; `ax firewall open` opens exactly this range.
 const PortRange = 30
 
 // Iface is one address of a network interface.

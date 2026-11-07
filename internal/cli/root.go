@@ -59,10 +59,10 @@ func newRootCmd() *cobra.Command {
 			_ = cmd.Help()
 		},
 	})
-	root.AddGroup(&cobra.Group{ID: "exam", Title: T("cli.group.exam")},
-		&cobra.Group{ID: "session", Title: T("cli.group.session")},
-		&cobra.Group{ID: "vault", Title: T("vault.group")},
+	root.AddGroup(&cobra.Group{ID: "daily", Title: T("cli.group.daily")},
+		&cobra.Group{ID: "things", Title: T("cli.group.things")},
 		&cobra.Group{ID: "setup", Title: T("cli.group.setup")})
+	root.Args = unknownAction
 	root.SetCompletionCommandGroupID("setup")
 	root.SetHelpCommandGroupID("setup")
 	// Bare `ax` opens the panel of a running exam, or the menu in a
@@ -80,18 +80,7 @@ func newRootCmd() *cobra.Command {
 		}
 		return cmd.Help()
 	}
-	add := func(group string, cmds ...*cobra.Command) {
-		for _, c := range cmds {
-			c.GroupID = group
-			root.AddCommand(c)
-		}
-	}
-	add("exam", newNewCmd(), newEditCmd(), newValidateCmd(), newFormatCmd(), newExamsCmd())
-	add("session", newStartCmd(), newAttachCmd(), newStatusCmd(), newStopCmd(), newResumeCmd(), newLogsCmd(), newResultsCmd(), newReportCmd())
-	add("vault", newVaultCmd(), newStudentCmd(), newClassCmd(), newFindCmd(), newHistoryCmd(), newGradebookCmd(),
-		newExploreCmd(), newBackupCmd(), newRestoreCmd())
-	add("setup", newConfigCmd(), newFirewallCmd(), newPortableCmd(), newI18nCmd(), newAdminCmd(), newVersionCmd())
-	root.AddCommand(newDaemonCmd())
+	addTree(root)
 	return root
 }
 

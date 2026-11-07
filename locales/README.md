@@ -8,6 +8,6 @@ editor, reports, command help) and the student web app (`web:` section).
   or `pt-BR.yaml`), set `language:` to the language's own name and translate
   the values. Keep the keys and the `{placeholders}` as they are.
 - Missing keys fall back to English, so a partial translation already works.
-- `ax i18n check` lists missing keys and placeholder mistakes.
+- `ax language check` lists missing keys and placeholder mistakes.
 - Teachers can try a catalog without rebuilding: put it in
   `~/.config/assess/locales/` and set `language: <code>` with `ax config`.

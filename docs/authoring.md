@@ -1,8 +1,8 @@
 # Writing an exam with an AI assistant
 
 This guide is for AI assistants (and people) writing an Assess exam as files.
-It is self-contained: follow it and `ax validate` will pass. The complete
-reference is [format.md](format.md); `ax format` prints both.
+It is self-contained: follow it and `ax exam check` will pass. The complete
+reference is [format.md](format.md); `ax exam guide` prints both.
 
 Teachers who prefer not to touch files can use `ax new` (a guided wizard)
 or `ax edit <folder>` instead.
@@ -13,7 +13,7 @@ or `ax edit <folder>` instead.
    replace the sample questions) or by writing the files below from scratch.
 2. Write `manifest.yaml`, one file per question in `questions/`, and the
    answer key in `private/answer-key.yaml`.
-3. Run `ax validate --json <folder>` and fix every problem it lists, until
+3. Run `ax exam check --json <folder>` and fix every problem it lists, until
    it reports `"valid": true`. Each problem names the file, line and field.
 4. Hand the folder to the teacher: `ax edit <folder>` to review it, then
    `ax start <folder>`.
@@ -169,7 +169,7 @@ answers:                         # one entry per question, keys by type
 - **Images**: put files in `assets/` and reference them relatively:
   `![Mapa](assets/mapa.svg)`. Only png, jpg, gif, webp and svg are served.
 - **Photo protections**: `standard` and `strict` show prompts through a
-  lens, one range of 4–15 words at a time (see `ax format`); each range
+  lens, one range of 4–15 words at a time (see `ax exam guide`); each range
   repeats the last two words of the previous one so the student keeps the
   context. The first view reads them automatically; after that, tap the zone
   you want to read or use the controls under the prompt, swipe or the
@@ -184,5 +184,5 @@ answers:                         # one entry per question, keys by type
 > Create an Assess exam (format `assess/v1`) in the folder `tema-3` about
 > the Industrial Revolution for 15-year-old students, in Spanish: 10
 > questions mixing single choice, multiple choice, true/false and short
-> answers, 45 minutes, standard proctoring. Follow `ax format`, then run
-> `ax validate --json tema-3` and fix every problem until it is valid.
+> answers, 45 minutes, standard proctoring. Follow `ax exam guide`, then run
+> `ax exam check --json tema-3` and fix every problem until it is valid.

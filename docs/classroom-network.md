@@ -44,7 +44,7 @@ kept out.
 
 ### The fix, once per computer
 
-`ax firewall setup` creates **one rule by port, not by program**: inbound TCP
+`ax firewall open` creates **one rule by port, not by program**: inbound TCP
 on `server.port` and the next 29 ports (the server only moves within that
 range when a port is busy), on domain and private networks. Because it does
 not depend on the folder, every copy and every future version of ax works
@@ -56,7 +56,7 @@ from then on.
 - `--public` also opens networks Windows marks as public. Classroom Wi-Fi is
   often marked public, and `ax firewall` says so. It is better to have IT
   mark the school network as private.
-- `ax firewall remove` takes the rule away.
+- `ax firewall close` takes the rule away.
 
 ### Without waiting for anyone
 

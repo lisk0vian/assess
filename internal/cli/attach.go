@@ -53,7 +53,7 @@ var isTerminal = func() bool {
 
 // panelOptions protects the panel: with the vault's password when the
 // vault is encrypted (locking the panel locks the vault too), or with the
-// panel password of `ax admin`.
+// panel password of `ax config password`.
 func panelOptions(dir string) tui.Options {
 	opts := tui.Options{}
 	lockAfter := time.Duration(cfg.Int("panel.lock_minutes")) * time.Minute

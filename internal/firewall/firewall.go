@@ -5,7 +5,7 @@
 // the first time ax listens, Windows asks for an administrator. Instead of
 // a rule per program (which breaks when ax moves to another folder or a USB
 // stick), ax opens its port range once, by port: whoever has the password
-// does it once (`ax firewall setup`, which asks for elevation, or the script
+// does it once (`ax firewall open`, which asks for elevation, or the script
 // of `ax firewall script` through the school's IT), and every copy and
 // version of ax works from then on.
 package firewall

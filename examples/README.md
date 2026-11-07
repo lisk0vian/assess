@@ -17,7 +17,7 @@ in PowerShell or `./ax.exe` in Git Bash.
 | [`quimica-repaso-san-marcos`](quimica-repaso-san-marcos) | es | `off` | Quick chemistry review (UNMSM style), 12 one-line questions, 8 minutes, review with the mistakes at the end |
 | [`cultura-general-san-marcos`](cultura-general-san-marcos) | es | `standard`, windowed | General culture admission practice (UNMSM style), fixed order, visible options, review with the mistakes at the end |
 | [`quiz-rapido`](quiz-rapido) | es | `off` | No proctoring, fixed order, hidden score, 5 minutes (try the automatic end) |
-| [`invalid/`](invalid) | — | — | Broken exams that `ax validate` rejects with clear messages |
+| [`invalid/`](invalid) | — | — | Broken exams that `ax exam check` rejects with clear messages |
 
 Profiles: `standard` and `strict` turn on every protection (pledge, curtain,
 copy and paste blocked, capture shield, watermark, required fullscreen,
@@ -30,12 +30,12 @@ invalid ones keep failing.
 ## 1. Validate
 
 ```sh
-ax validate examples/algebra-01 examples/programacion-go examples/ml-basics-en examples/historia-ventana examples/quimica-secundaria examples/quimica-san-marcos examples/quimica-repaso-san-marcos examples/cultura-general-san-marcos examples/quiz-rapido examples/uni-fisica-2020-1 examples/uscis-civics
-ax validate examples/invalid/clave-incorrecta   # missing answer, unknown option
-ax validate examples/invalid/campo-desconocido  # typo in a key, bad duration
-ax validate examples/invalid/pool-injusto       # pool picks everything, unequal points
-ax validate examples/invalid/vigilancia-mal     # proctoring values out of range
-ax validate --json examples/invalid/pool-injusto
+ax exam check examples/algebra-01 examples/programacion-go examples/ml-basics-en examples/historia-ventana examples/quimica-secundaria examples/quimica-san-marcos examples/quimica-repaso-san-marcos examples/cultura-general-san-marcos examples/quiz-rapido examples/uni-fisica-2020-1 examples/uscis-civics
+ax exam check examples/invalid/clave-incorrecta   # missing answer, unknown option
+ax exam check examples/invalid/campo-desconocido  # typo in a key, bad duration
+ax exam check examples/invalid/pool-injusto       # pool picks everything, unequal points
+ax exam check examples/invalid/vigilancia-mal     # proctoring values out of range
+ax exam check --json examples/invalid/pool-injusto
 ```
 
 ## 2. Run a session
@@ -67,13 +67,13 @@ In the panel:
 
 ```sh
 ax status            # is the server running? (Running / Not running / Crashed)
-ax attach            # reopen the panel (plain `ax` does the same)
-ax logs -f           # follow the server log
+ax session open            # reopen the panel (plain `ax` does the same)
+ax session logs -f           # follow the server log
 ax stop              # end the exam and stop the server
-ax results --sep ";" --out notas.csv   # CSV for Excel with a Spanish locale
-ax results --format json
-ax report            # once the exam ended: charts, questions, evidence (I in the panel)
-ax report --json > informe.json
+ax session results --sep ";" --out notas.csv   # CSV for Excel with a Spanish locale
+ax session results --format json
+ax session report            # once the exam ended: charts, questions, evidence (I in the panel)
+ax session report --json > informe.json
 ```
 
 To try several exams without mixing data, give each one its own data folder:
@@ -125,7 +125,7 @@ approve it (**A**).
 
 **Crash and resume.** While an exam runs, kill the server (Task Manager, or
 `taskkill /F /PID <pid>` with the PID from `ax status`). `ax status` then
-reports *Crashed*. Run `ax resume`: students reconnect and keep their answers.
+reports *Crashed*. Run `ax session resume`: students reconnect and keep their answers.
 
 **Time runs out.** Start `quiz-rapido` (5 minutes) and wait. Every attempt is
 submitted with what was saved. The score stays hidden (`result_visibility: none`).
@@ -145,9 +145,9 @@ answer they gave and the correct answer.
 ax                    # menu: create, edit or start an exam
 ax new                # step-by-step wizard, no files to learn
 ax new mi-examen      # template with every question type
-ax format             # the file format: hand it to an AI to write exams for you
+ax exam guide             # the file format: hand it to an AI to write exams for you
 ax edit mi-examen     # forms for settings, questions and answers; E opens $EDITOR
-ax validate mi-examen
+ax exam check mi-examen
 ```
 
 The format is described in [docs/format.md](../docs/format.md).

@@ -47,9 +47,9 @@ reversed, edit it here and note why in the commit.
   (Windows: `DETACHED_PROCESS | CREATE_NEW_PROCESS_GROUP`; Unix: `setsid`).
 - The TUI is a client: `Ctrl+C`/`q` only detaches. The exam ends only when time
   runs out, the teacher ends it, or `ax stop` is run.
-- Commands: `ax start <dir>`, `ax attach` (or bare `ax` when a session is
-  active; with none, bare `ax` in a terminal opens the menu), `ax status [--json]`, `ax logs [-f]`, `ax stop`, `ax stop --suspend`,
-  `ax resume`.
+- Commands: `ax start <dir>`, `ax session open` (or bare `ax` when a session is
+  active; with none, bare `ax` in a terminal opens the menu), `ax status [--json]`, `ax session logs [-f]`, `ax stop`, `ax stop --suspend`,
+  `ax session resume`.
 - **Absolute end time** stored in SQLite: the clock keeps running while the
   server is down; on resume the TUI offers global extra time to compensate.
 - Health: lock file with PID + heartbeat row in SQLite. `ax status` reports
@@ -64,7 +64,7 @@ reversed, edit it here and note why in the commit.
   ones last; ←→ in the panel picks another); TUI shows URL, session code and
   a QR code. Plain HTTP on the LAN; optional `--tls-cert/--tls-key`.
 - Windows firewall: `ax firewall` checks without rights whether students can
-  get in; `ax firewall setup|script|remove` manage one rule by port, made
+  get in; `ax firewall open|script|remove` manage one rule by port, made
   once per computer by an administrator or IT, so every copy of ax works.
   See [classroom-network.md](classroom-network.md).
 - Portable copy: `ax.yaml` next to the program holds its settings and makes
@@ -93,8 +93,8 @@ reversed, edit it here and note why in the commit.
   the stored one: retries and out-of-order deliveries are harmless.
 - Student IDs are normalized (trimmed, uppercased, inner spaces removed) so
   "a 123" and "A123" are the same student.
-- Results: `ax results <session> --format csv|json`.
-- Backups: `ax backup` (`VACUUM INTO`, works while running), `ax restore`, and
+- Results: `ax session results <session> --format csv|json`.
+- Backups: `ax backup new` (`VACUUM INTO`, works while running), `ax backup restore`, and
   an automatic backup when each session ends.
 
 ## Participants
@@ -105,7 +105,7 @@ reversed, edit it here and note why in the commit.
   remaining time. Global or per-student extra time; early close.
 - Reconnection: an attempt cookie resumes on the same device. Another device,
   or a reused ID, needs **teacher approval in the TUI** and is logged.
-- Manual add/remove from the TUI (Huh form) and `ax student add|remove|list`.
+- Manual add/remove from the TUI (Huh form) and `ax student new|remove|list`.
   Removing a student who started marks the attempt `withdrawn` (data kept,
   can be readmitted).
 - Network drops: the browser queues changes with sequence numbers
@@ -133,7 +133,7 @@ reversed, edit it here and note why in the commit.
 - A second tab of the same browser shows "already open". Classroom HTTP is not
   a secure context, so tabs negotiate over `BroadcastChannel` (Web Locks is
   HTTPS-only).
-- `ax results [--format csv|json] [--sep ";"]` exports one row per student
+- `ax session results [--format csv|json] [--sep ";"]` exports one row per student
   with per-question points; CSV carries a UTF-8 BOM for Excel.
 
 ## Teacher TUI (implemented in phase 4)
@@ -157,8 +157,8 @@ reversed, edit it here and note why in the commit.
 - Approval requests: a student ID already in use on another device, or a
   join after `--join-window`, waits on "Esperando a tu profesor" until the
   teacher decides. Approved devices share the attempt.
-- `ax admin set-password` (Argon2id in `admin.json`, owner-only) protects
-  `ax attach`, `ax stop` and the panel, which locks after 5 idle minutes or with
+- `ax config password` (Argon2id in `admin.json`, owner-only) protects
+  `ax session open`, `ax stop` and the panel, which locks after 5 idle minutes or with
   L and then shows no names. Pause state and pending requests live in memory:
   a daemon restart clears them (the attempts themselves are in SQLite).
 - Integrity (phase 5): an AVISOS column (active strikes / limit · warn and
@@ -178,11 +178,11 @@ reversed, edit it here and note why in the commit.
 - Actions: start, extra time, end, kick/void, readmit, approve reconnection,
   message a student, pause a student, annotate/revert a penalty, remove a
   strike, add/remove student.
-- Optional password (`ax admin set-password`, Argon2id), asked on `attach`,
+- Optional password (`ax config password`, Argon2id), asked on `attach`,
   `stop` and reports; **auto-lock** after 5 min idle and manual lock (`L`);
   a locked TUI shows no personal data. The password protects the TUI, not the
   disk — lock the OS session too.
-- Reports (`ax report`, closed sessions only, rendered with ntcharts v2):
+- Reports (`ax session report`, closed sessions only, rendered with ntcharts v2):
   score histogram, time distribution, % correct per question, signal timeline,
   session history, collusion analysis (identical wrong answers, synchronized
   answering, weighted by seating), "left-and-got-it-right" correlation, leaked
@@ -202,10 +202,10 @@ reversed, edit it here and note why in the commit.
   keep editing, or quit. Esc goes back a step; leaving with work asks first.
   Built with Bubble Tea, bubbles (list, viewport, help, key, spinner), huh
   and lipgloss. Question ids are assigned in order (q001…).
-- Files stay first-class: `ax format` prints the [authoring guide](authoring.md)
+- Files stay first-class: `ax exam guide` prints the [authoring guide](authoring.md)
   (a complete valid example, checked by the tests, plus a checklist and a
   request a teacher can give an AI) and the format reference, so an AI with
-  only the binary can write an exam and loop on `ax validate --json`.
+  only the binary can write an exam and loop on `ax exam check --json`.
 
 - `ax edit <dir>` opens the exam in the terminal: the settings row, the items
   in order (pools grouped with their questions, questions no item names
@@ -239,7 +239,7 @@ reversed, edit it here and note why in the commit.
 
 ## Reports (implemented in phase 6)
 
-- `ax report [--session id] [--json]`: only once the session has ended; asks
+- `ax session report [--session id] [--json]`: only once the session has ended; asks
   for the panel password and closes itself after 5 idle minutes when one is
   set. Piped output is plain text, `--json` is the full analysis for tools.
   In the panel, **I** opens the report of an ended session.
@@ -484,7 +484,7 @@ question design.
   with 200.
 - Tests: golden-file format tests, grading edge cases, real SQLite in temp
   dirs, `httptest`, `teatest`, Playwright, load test, chaos test (kill the
-  daemon, `ax resume`).
+  daemon, `ax session resume`).
 - CI: GitHub Actions on Windows/Linux/macOS (`go test`, `golangci-lint`, web
   build, `size-limit`). Releases with GoReleaser (unsigned at first; SmartScreen
   warning documented).
@@ -510,7 +510,7 @@ question design.
 - **Translations**: one catalog per language in `locales/<lang>.yaml` (English
   is the reference and the default; Spanish is built in), plus catalogs in
   `~/.config/assess/locales/`. Missing keys fall back to English; plurals use
-  `one`/`other`. `ax i18n list|check|new` help contributors, and a test checks
+  `one`/`other`. `ax language list|check|new` help contributors, and a test checks
   that every key used in Go and in the web app exists and that the built-in
   catalogs are complete.
 - **Student page**: its texts are the `web:` section of the catalogs. The
@@ -532,7 +532,7 @@ question design.
   default vault in the data folder (created plain on first use). Named vaults
   are listed in `vaults.yaml` next to the settings file; forgetting one never
   deletes it.
-- **Encryption** (age): `ax vault init` encrypts by default (`--no-encrypt`,
+- **Encryption** (age): `ax vault new` encrypts by default (`--no-encrypt`,
   `vault.encrypt`). A random X25519 identity encrypts every file; it is kept
   in `vault.yaml` wrapped twice, with the password (scrypt) and with a
   recovery key shown once. Files can be added without the password (they are
@@ -554,9 +554,9 @@ question design.
   panel's lock (manual or idle) and a timed-out report close it. Forgetting
   or merging students, decrypting, exporting and changing the password always
   ask again. The exam server receives the database key through its standard
-  input, never on its command line or on disk; `ax resume` unlocks again.
+  input, never on its command line or on disk; `ax session resume` unlocks again.
 - **One password**: with an encrypted vault the panel and the reports are
-  protected by the vault's password; `ax admin set-password` remains for
+  protected by the vault's password; `ax config password` remains for
   plain vaults.
 - **Students and classes**: tables `students`, `classes`, `class_members`
   (migration 0004). Everyone who joins a session becomes a student; the
@@ -568,12 +568,12 @@ question design.
 - **Finding things**: the identifier is the default reference; otherwise a
   forgiving search (`internal/search`: no case, accents, spaces or dashes,
   substrings, words, one or two typos) offers a "Did you mean…?" picker in a
-  terminal, or lists the candidates in the error. `ax find`, `ax history`,
-  `ax exams`, `ax gradebook` (CSV or a CGO-free `.xlsx`). `ax explore` (and
+  terminal, or lists the candidates in the error. `ax find`, `ax student history`,
+  `ax exam list`, `ax class grades` (CSV or a CGO-free `.xlsx`). `ax explore` (and
   the menu) is the TUI for all of it, running the same commands.
 - **Archive and backups**: when a session ends (server or `ax stop`) its
   archive is written and an automatic backup made (`vault.keep_backups`).
-  `ax backup` (ZIP, `VACUUM INTO`, works during an exam) and `ax restore`
+  `ax backup new` (ZIP, `VACUUM INTO`, works during an exam) and `ax backup restore`
   into a new folder. Forgetting a student rewrites the affected archives;
   older backups keep their data.
 - **Migration**: the database of earlier versions moves into the default
@@ -583,21 +583,21 @@ question design.
 ## Phases
 
 0. **Foundations** — repo, module, this document, example exam, CI, license.
-1. **Format & validation** — YAML schema, `ax new`, `ax validate`.
+1. **Format & validation** — YAML schema, `ax new`, `ax exam check`.
 2. **Domain & SQLite** — migrations, publication, attempts, pools/seeds,
    grading, events.
 3. **Daemon + student web (first delivery)** — design system and prototypes
    with `/impeccable`; `start/status/logs/stop/resume/attach`; minimal TUI
    with links, QR and counters; join control (`join_until`, private networks
    only, rate limits, headcount); single tab; unified telemetry channel;
-   lobby, server timer, queued autosave, submit, `ax results`.
+   lobby, server timer, queued autosave, submit, `ax session results`.
 4. **Supervision TUI** — live table, ranking, actions, reconnection approval,
    add/remove, password and lock, seat map.
 5. **Anti-cheat** — signals, rule engine and strikes, hover reveal,
    curtain, fullscreen modes, watermark, `time_limit`, profiles, device
    policy, input forensics, poisoned clipboard, honor pledge,
    `telemetry_tampered`.
-6. **Reports** — `ax report` with ntcharts and the analyses above.
+6. **Reports** — `ax session report` with ntcharts and the analyses above.
 7. **TUI editor** — home menu, Huh forms, answer-key editing, `$EDITOR`.
 8. **Settings & translations** — `~/.config/assess/config.yaml`, `ax config`,
    Settings screen, catalogs for the terminal and the student page.

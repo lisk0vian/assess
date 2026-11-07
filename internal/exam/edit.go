@@ -637,7 +637,7 @@ func Create(dir string, ex *Exam) error {
 	}
 	d := &Draft{Dir: dir, Exam: ex}
 	man := manifestNode(&ex.Manifest)
-	man.HeadComment = "# Assess exam manifest — format assess/v1 (`ax format` describes it)"
+	man.HeadComment = "# Assess exam manifest — format assess/v1 (`ax exam guide` describes it)"
 	if err := d.write(ManifestFile, man); err != nil {
 		return err
 	}

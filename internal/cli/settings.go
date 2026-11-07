@@ -128,7 +128,7 @@ func welcome() {
 func underConfig(cmd *cobra.Command) bool {
 	for c := cmd; c != nil; c = c.Parent() {
 		switch c.Name() {
-		case "config", "help", "version", "completion", "i18n":
+		case "config", "help", "version", "completion", "i18n", "language":
 			return true
 		}
 	}

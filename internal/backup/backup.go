@@ -22,7 +22,7 @@ import (
 	"github.com/lisk0vian/assess/internal/vault"
 )
 
-// Prefixes of backup file names: made by `ax backup`, or automatically
+// Prefixes of backup file names: made by `ax backup new`, or automatically
 // when a session closes (those are pruned).
 const (
 	ManualPrefix = "backup-"

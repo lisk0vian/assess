@@ -136,7 +136,7 @@ func TestMonitorLock(t *testing.T) {
 	n := NewMonitor(&daemon.Client{}, &daemon.State{}, Options{})
 	n.Update(boardMsg{board: board(session.StateRunning)})
 	press(n, "l")
-	if n.mode == modeLocked || !strings.Contains(n.notice, "set-password") {
+	if n.mode == modeLocked || !strings.Contains(n.notice, "config password") {
 		t.Fatal("locking without a password should explain how to set one")
 	}
 }

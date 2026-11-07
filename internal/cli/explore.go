@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"path/filepath"
 	"strconv"
 	"strings"
 
@@ -145,6 +146,9 @@ func exploreData(cmd *cobra.Command, dir string) (*tui.ExploreData, error) {
 		}
 		for _, stu := range p.List {
 			cl := strings.Join(p.ClassNames(stu.ID), ", ")
+			if cl == "" {
+				cl = T("explore.no_class") // so a student left out of every class can be found with /
+			}
 			d.Tabs[tui.TabStudents] = append(d.Tabs[tui.TabStudents], tui.ExploreRow{ID: stu.ID, Key: stu.Ref, Label: stu.Name,
 				Detail: cl, Search: []string{stu.Note}})
 		}
@@ -166,7 +170,7 @@ func exploreData(cmd *cobra.Command, dir string) (*tui.ExploreData, error) {
 			}
 			return exploreDetails(cmd, dir, p, sessions, tab, id)
 		}
-		d.Actions = func(tab int, id string) []tui.MenuItem { return exploreActions(tab, id, sessions) }
+		d.Actions = func(tab int, id string) []tui.MenuItem { return exploreActions(tab, id, sessions, p) }
 		d.Book = func(id string) (*tui.Book, error) { return readBook(cmd, dir, p, id) }
 		return nil
 	})
@@ -196,14 +200,22 @@ func item(key, label string) tui.MenuItem {
 }
 
 // exploreActions lists what can be done with a row.
-func exploreActions(tab int, id string, sessions []*session.Overview) []tui.MenuItem {
+func exploreActions(tab int, id string, sessions []*session.Overview, p *session.People) []tui.MenuItem {
 	switch tab {
 	case tui.TabStudents:
-		return []tui.MenuItem{item("history", "history"), item("edit", "edit"), item("rename", "rename"), item("enroll", "enroll"),
-			item("unenroll", "unenroll"), item("merge", "merge"), item("forget", "forget")}
+		in := len(p.Of[id])
+		if in == 0 { // first what a student in no class needs
+			return []tui.MenuItem{item("enroll", "assign"), item("history", "history"), item("edit", "edit"), item("rename", "rename"),
+				item("merge", "merge"), item("forget", "forget")}
+		}
+		out := []tui.MenuItem{item("history", "history"), item("edit", "edit"), item("rename", "rename"), item("enroll", "enroll")}
+		if len(p.Classes) > in {
+			out = append(out, item("move", "move"))
+		}
+		return append(out, item("unenroll", "unenroll"), item("merge", "merge"), item("forget", "forget"))
 	case tui.TabClasses:
-		return []tui.MenuItem{item("members", "members"), item("book", "gradebook"), item("import", "import"), item("add", "add_student"),
-			item("export", "export"), item("rename", "rename_class"), item("delete", "delete")}
+		return []tui.MenuItem{item("members", "members"), item("book", "gradebook"), item("import", "import"), item("template", "template"),
+			item("add", "add_student"), item("export", "export"), item("rename", "rename_class"), item("delete", "delete")}
 	case tui.TabExams:
 		return []tui.MenuItem{item("start", "start"), item("edit", "edit_exam"), item("duplicate", "duplicate"), item("sessions", "sessions"), item("export", "export_exam")}
 	case tui.TabSessions:
@@ -559,19 +571,32 @@ func studentAction(cmd *cobra.Command, p *session.People, stu *session.Student, 
 			return err
 		}
 		return runSub(cmd, newStudentRenameCmd(), stu.Ref, ref)
-	case "enroll", "unenroll":
-		if len(p.Classes) == 0 {
-			return errors.New(T("people.class.none"))
-		}
-		class := p.Classes[0].Name
-		if err := runForm(huh.NewForm(huh.NewGroup(huh.NewSelect[string]().Title(T("explore.ask.class")).
-			Options(classOptions(p)...).Value(&class)))); err != nil {
+	case "enroll":
+		class, err := pickClass(cmd, p, stu, false, T("explore.ask.class"), true)
+		if err != nil {
 			return err
 		}
-		if act == "enroll" {
-			return runSub(cmd, newClassAddCmd(), class, stu.Ref)
+		return runSub(cmd, newClassAddCmd(), class, stu.Ref)
+	case "unenroll":
+		class, err := pickClass(cmd, p, stu, true, T("explore.ask.class"), false)
+		if err != nil {
+			return err
 		}
 		return runSub(cmd, newClassRemoveCmd(), class, stu.Ref)
+	case "move":
+		from, err := pickClass(cmd, p, stu, true, T("explore.ask.move_from"), false)
+		if err != nil {
+			return err
+		}
+		to, err := pickClass(cmd, p, stu, false, T("explore.ask.move_to"), true)
+		if err != nil {
+			return err
+		}
+		// Added first, so a failure never leaves the student in no class.
+		if err := runSub(cmd, newClassAddCmd(), to, stu.Ref); err != nil {
+			return err
+		}
+		return runSub(cmd, newClassRemoveCmd(), from, stu.Ref)
 	case "merge":
 		into, err := askText(T("explore.ask.merge_into"), T("people.student.merge_long"), "", func(s string) error {
 			if p.ByRef[session.NormalizeStudentID(s)] == nil {
@@ -589,10 +614,66 @@ func studentAction(cmd *cobra.Command, p *session.People, stu *session.Student, 
 	return errBack
 }
 
+// newClass is the choice that creates a class on the way.
+const newClass = `\new` // never a class name: those cannot hold a backslash
+
+// pickClass asks for one of the classes the student is in (in) or is not in.
+// With create, a new class can be named there; it is created before returning.
+func pickClass(cmd *cobra.Command, p *session.People, stu *session.Student, in bool, title string, create bool) (string, error) {
+	mine := map[string]bool{}
+	for _, id := range p.Of[stu.ID] {
+		mine[id] = true
+	}
+	var opts []huh.Option[string]
+	for _, c := range p.Classes {
+		if mine[c.ID] == in {
+			opts = append(opts, huh.NewOption(c.Name, c.Name))
+		}
+	}
+	if create {
+		opts = append(opts, huh.NewOption(T("explore.act.new_class"), newClass))
+	}
+	if len(opts) == 0 {
+		return "", errors.New(T("people.class.none"))
+	}
+	class := opts[0].Value
+	if len(opts) > 1 {
+		if err := runForm(huh.NewForm(huh.NewGroup(huh.NewSelect[string]().Title(title).Options(opts...).Value(&class)))); err != nil {
+			return "", err
+		}
+	}
+	if class != newClass {
+		return class, nil
+	}
+	name, err := askText(T("explore.ask.class_name"), "", "", notEmpty)
+	if err != nil {
+		return "", err
+	}
+	name = strings.TrimSpace(name)
+	return name, runSub(cmd, newClassCreateCmd(), name)
+}
+
+// writeTemplate saves an example class list to fill in, with a BOM so Excel
+// reads accents as UTF-8.
+func writeTemplate(file string) error {
+	return os.WriteFile(file, append([]byte{0xEF, 0xBB, 0xBF}, T("people.template.csv")...), 0o644)
+}
+
 func classAction(cmd *cobra.Command, c *session.Class, act string) error {
 	switch act {
+	case "template":
+		file, err := askText(T("explore.ask.template_file"), T("people.template.hint"), T("people.template.file"), notEmpty)
+		if err != nil {
+			return err
+		}
+		if err := writeTemplate(strings.TrimSpace(file)); err != nil {
+			return err
+		}
+		abs, _ := filepath.Abs(strings.TrimSpace(file))
+		fmt.Fprintln(cmd.OutOrStdout(), T("people.template.saved", "file", abs))
+		return nil
 	case "import":
-		file, err := askText(T("explore.ask.csv"), T("people.class.import_long"), "", fileExists)
+		file, err := askText(T("explore.ask.csv"), T("people.template.format"), "", fileExists)
 		if err != nil {
 			return err
 		}
@@ -722,7 +803,7 @@ func exploreNew(cmd *cobra.Command, tab int) error {
 		name, file := "", ""
 		err := runForm(huh.NewForm(huh.NewGroup(
 			huh.NewInput().Title(T("explore.ask.class_name")).Value(&name).Validate(notEmpty),
-			huh.NewInput().Title(T("explore.ask.csv_optional")).Description(T("people.class.import_long")).Value(&file).
+			huh.NewInput().Title(T("explore.ask.csv_optional")).Description(T("people.template.format")).Value(&file).
 				Validate(func(s string) error {
 					if strings.TrimSpace(s) == "" {
 						return nil

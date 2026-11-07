@@ -265,7 +265,7 @@ Keys: `Tab` next step, `N` new, `V` paste, `Enter` edit, `?` the rest (`D` delet
 
 ### Vault hub
 
-Home, explorer and vault become one screen with six sections, so the teacher never needs a separate command. Replaces the `huh` menu in `internal/cli/home.go` and the tabs of `Explore`, and absorbs `ax vault`, `ax backup`, `ax class`, `ax student` and `ax gradebook` for interactive use. The commands stay for scripts.
+Home, explorer and vault become one screen with six sections, so the teacher never needs a separate command. Replaces the `huh` menu in `internal/cli/home.go` and the tabs of `Explore`, and absorbs `ax vault`, `ax backup new`, `ax class`, `ax student` and `ax class grades` for interactive use. The commands stay for scripts.
 
 | Section | Job | Shows |
 |---|---|---|
@@ -305,7 +305,7 @@ Design may go ahead of the code. This table keeps that honest.
 | Probarlo yo | No | A rehearsal session, not counted in history |
 | Pre-flight checks | Yes, on Preparar sesión | |
 | Open the port from the TUI | Yes, `A` on Preparar sesión | |
-| Recovery screen | Yes, from Inicio; time down from the last heartbeat | The count of saved answers; `ax resume` stays plain for scripts |
+| Recovery screen | Yes, from Inicio; time down from the last heartbeat | The count of saved answers; `ax session resume` stays plain for scripts |
 | Give time back on resume | Yes, `ExtendSession` before the server restarts | |
 | Student card and panels | Actions exist as keys | Layout, over `AttemptAction` and `RevertPenalties` |
 | Time back on readmit | Separate actions | Do both in one step |
@@ -321,7 +321,7 @@ Design may go ahead of the code. This table keeps that honest.
 | Help on every screen | Only in the wizard | Generate it from each screen's key table |
 | Settings | Yes, on the grid | |
 | Duplicate an exam | Yes, `Draft.Rename` over a copy | Screen instead of a form |
-| Import and export `.examx` | `ax vault add`, `ax vault export` | Screens over `examx` |
+| Import and export `.examx` | `ax exam import`, `ax exam export` | Screens over `examx` |
 | Search in question text | `ax find` covers students, groups, exams and sessions | Add question text |
 | Backups, password, switching vault, USB | Yes, as commands | Screens over those functions |
 

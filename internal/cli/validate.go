@@ -21,7 +21,7 @@ func newValidateCmd() *cobra.Command {
 		Use:     "validate <exam-folder>...",
 		Short:   T("cli.validate.short"),
 		Long:    T("cli.validate.long"),
-		Example: "  ax validate ./exams/algebra-01\n  ax validate --strict exams/*",
+		Example: "  ax exam check ./exams/algebra-01\n  ax exam check --strict exams/*",
 		Args:    cobra.MinimumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			out := cmd.OutOrStdout()

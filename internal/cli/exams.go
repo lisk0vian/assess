@@ -167,7 +167,7 @@ func examFolder(cmd *cobra.Command, dataDir, ref string) (string, func(), error)
 	return extractExam(v, e.file)
 }
 
-// ---------------- ax exams ----------------
+// ---------------- ax exam list ----------------
 
 func newExamsCmd() *cobra.Command {
 	var asJSON, asCSV bool

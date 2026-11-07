@@ -54,7 +54,7 @@ view lists what happened, and you can revert any penalty.
 |---|---|
 | ![The Link view with the address, session code and QR code](docs/images/panel-link.png) | ![The Incidents view: time, student, signal, question and consequence](docs/images/panel-incidents.png) |
 
-After the exam, `ax report` shows score and time charts, how each question
+After the exam, `ax session report` shows score and time charts, how each question
 behaved, and the incident timeline. It also flags evidence worth a look:
 similar wrong answers, correct answers right after leaving the exam, and
 questions that may have leaked. Evidence is a prompt to review, not proof.
@@ -190,7 +190,7 @@ will use in class:
 ax firewall
 ```
 
-On Windows, `ax firewall setup` opens the port once per computer. It needs an
+On Windows, `ax firewall open` opens the port once per computer. It needs an
 administrator's password, once. If you have none, `ax firewall script` writes a
 file to hand to your IT staff. See [Classroom network](docs/classroom-network.md).
 
@@ -198,7 +198,7 @@ file to hand to your IT staff. See [Classroom network](docs/classroom-network.md
 Errors name the file, line and field:
 
 ```sh
-ax validate my-exam
+ax exam check my-exam
 ```
 
 **4. Import your class (optional).** Save the list as CSV with an ID column and
@@ -257,8 +257,8 @@ to stop it too. Every attempt is submitted with what was saved.
 |---|---|
 | Students cannot open the link | Run `ax firewall`. In the **Link** view, **←→** switches the address. |
 | The school Wi-Fi blocks devices from each other | Connect the laptop and the students to your phone's hotspot. |
-| You closed the panel or the terminal | Run `ax attach`. The exam was not affected. |
-| The server stopped or the laptop restarted | Run `ax resume`. The clock kept running, and students reconnect with their answers. |
+| You closed the panel or the terminal | Run `ax session open`. The exam was not affected. |
+| The server stopped or the laptop restarted | Run `ax session resume`. The clock kept running, and students reconnect with their answers. |
 | A student's browser closed | They reopen the link on the same device and continue. |
 | A student changed device | They join with the same ID, and you approve with **A**. |
 | A strike was unfair | Select it in **Incidents** and press **Z**. The lost time comes back. |
@@ -267,17 +267,17 @@ to stop it too. Every attempt is submitted with what was saved.
 ### After the exam
 
 ```sh
-ax report                               # charts, questions, incidents, evidence
-ax results --out grades.csv             # one row per student, points per question
-ax results --sep ";" --out grades.csv   # for Excel with a European locale
-ax gradebook 3B --out 3B.xlsx --xlsx    # the class, across exams
+ax session report                               # charts, questions, incidents, evidence
+ax session results --out grades.csv             # one row per student, points per question
+ax session results --sep ";" --out grades.csv   # for Excel with a European locale
+ax class grades 3B --out 3B.xlsx --xlsx    # the class, across exams
 ax explore                              # browse exams, classes, students, sessions
-ax backup                               # the whole vault in one ZIP file
+ax backup new                               # the whole vault in one ZIP file
 ```
 
 Results are kept in the vault, and a backup is made when each session closes.
 To protect the panel and the report on a shared computer, set a password with
-`ax admin set-password`, and lock your computer too.
+`ax config password`, and lock your computer too.
 
 ## Creating an exam
 
@@ -289,7 +289,7 @@ Pick the way that suits you:
 | A guided wizard | `ax new` | Your first exam. It asks for the details and questions, with a live preview, and no files to learn |
 | Forms in the terminal | `ax edit my-exam` | Changing settings, questions and answers. **E** opens your editor |
 | A template | `ax new my-exam --title "History 1"` | Writing the files by hand. It has one sample question of each type |
-| An AI assistant | `ax format` | Printing a guide you can give to an AI, which then writes the exam files |
+| An AI assistant | `ax exam guide` | Printing a guide you can give to an AI, which then writes the exam files |
 
 An exam is a plain folder. You can copy it, back it up or keep it in git:
 
@@ -365,7 +365,7 @@ Results are saved there and a backup is made each time a session closes. To
 protect them, create your own vault. It is encrypted unless you say otherwise:
 
 ```sh
-ax vault init D:\school --name school --use
+ax vault new D:\school --name school --use
 ```
 
 Write down the recovery key. It is shown once. If you lose both the password
@@ -376,12 +376,12 @@ use `ax vault encrypt`.
 ax vault                    # the vault in use, and what it holds
 ax vault list               # all your vaults
 ax vault use school         # switch vault
-ax vault add my-exam        # keep an exam in the vault
+ax exam import my-exam        # keep an exam in the vault
 ax start my-exam            # start it by id, from any folder
-ax vault export my-exam --folder my-exam   # get the folder back
-ax vault export my-exam --no-key -o share.examx   # share it without the answers
+ax exam export my-exam --folder my-exam   # get the folder back
+ax exam export my-exam --no-key -o share.examx   # share it without the answers
 ax vault lock               # lock now
-ax vault passwd             # change the password
+ax vault password             # change the password
 ```
 
 The vault stays open for `vault.unlock_minutes` after you enter the password
@@ -390,10 +390,10 @@ The vault stays open for `vault.unlock_minutes` after you enter the password
 Find and review what is stored:
 
 ```sh
-ax exams                    # exams, and how many times each was given
+ax exam list                    # exams, and how many times each was given
 ax class                    # classes
 ax student A-01             # one student
-ax history A-01             # every exam a student sat
+ax student history A-01             # every exam a student sat
 ax find perez               # search everything, tolerating typos
 ax explore                  # browse it all in the terminal
 ```
@@ -401,8 +401,8 @@ ax explore                  # browse it all in the terminal
 Back up and restore:
 
 ```sh
-ax backup                                        # the whole vault in one ZIP
-ax restore backup.zip D:\restored --use          # into a new, empty folder
+ax backup new                                        # the whole vault in one ZIP
+ax backup restore backup.zip D:\restored --use          # into a new, empty folder
 ```
 
 An encrypted vault hides its contents, but file names stay readable, so exam

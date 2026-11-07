@@ -324,9 +324,9 @@ func Spawn(dir string, args []string, key []byte) (*State, error) {
 	for {
 		select {
 		case err := <-exited:
-			return nil, fmt.Errorf("the exam server exited during start-up (%w); see `ax logs`", err)
+			return nil, fmt.Errorf("the exam server exited during start-up (%w); see `ax session logs`", err)
 		case <-deadline:
-			return nil, errors.New("the exam server did not start within 15 s; see `ax logs`")
+			return nil, errors.New("the exam server did not start within 15 s; see `ax session logs`")
 		case <-tick.C:
 			if h, st, _ := Check(dir); h == Running && st.PID == cmd.Process.Pid {
 				_ = cmd.Process.Release()

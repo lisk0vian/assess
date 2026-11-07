@@ -1,5 +1,5 @@
 # English: the reference catalog. Every other language is compared with it
-# (`ax i18n check`), and any key a translation lacks is shown from here.
+# (`ax language check`), and any key a translation lacks is shown from here.
 #
 # Values are plain text with {name} placeholders. Plurals are a map with
 # `one` and `other`, chosen by the {n} argument.
@@ -106,6 +106,8 @@ web:
   wait_title: "Waiting for your teacher"
   wait_body: "Your teacher has to approve this device. Keep this tab open."
   err_rejected: "Your teacher did not approve this device."
+  err_name_required: "That ID is not on the class list. Write your name so your teacher can let you in."
+  join_id_only_hint: "Your teacher has the class list: your ID is enough."
   msg_title: "Message from your teacher"
   pause_title: "Exam paused"
   pause_body: "Your teacher paused your exam to talk with you. Your time keeps running; they can give you extra time."
@@ -219,7 +221,7 @@ config:
     server: Exam server (ax start)
     new_exam: Starting values for new exams (ax new); existing exams are not changed
     panel: Session panel
-    results: Results export (ax results)
+    results: Results export (ax session results)
     vault: Vault (exams, classes and results of this computer)
   key:
     language: Language of the terminal (menus, panel, reports, help).
@@ -242,14 +244,14 @@ config:
     new_exam.shuffle_options: Shuffle the options of each question.
     new_exam.instructions: Instructions shown before the exam starts.
     panel.lock_minutes: Minutes without activity before a password-protected panel locks (0 never).
-    results.format: Format of `ax results`.
+    results.format: Format of `ax session results`.
     results.separator: CSV field separator. Use ";" for Excel in many European languages.
     results.bom: Start CSV files with a byte order mark, so Excel reads accents correctly.
     vault.path: |-
       Vault to use, by name (see `ax vault list`) or folder. Empty uses the
       default one in the data folder. A .assess-vault folder in the current
       folder or a parent wins.
-    vault.encrypt: Encrypt new vaults (ax vault init) with a password.
+    vault.encrypt: Encrypt new vaults (ax vault new) with a password.
     vault.unlock_minutes: Minutes an encrypted vault stays open after typing the password (0 always asks).
     vault.keep_backups: Automatic backups to keep (one is made each time a session closes; 0 makes none).
 
@@ -277,6 +279,24 @@ home:
   no_manifest: There is no manifest.yaml there.
 
 cli:
+  shortcut_of: "= {cmd}"
+  actions: "{cmd} also: {list}   (ax help {help} <action> for each one)"
+  unknown: "“{word}” is not something {cmd} does."
+  did_you_mean: "Did you mean: {list}?"
+  see_help: "See what it does with: {cmd}"
+  show:
+    class: Show a class and its students
+    student: Show a student and their classes
+  thing:
+    class: "Classes: list, show, new, rename, delete, import, export, template, add, remove, grades"
+    student: "Students: list, show, new, edit, rename, merge, history, delete"
+    vault: "Vaults, where everything is kept: list, new, use, lock, unlock, password, encrypt, decrypt, remove"
+    exam: "Exams: list, new, edit, check, import, export, guide"
+    session: "Sessions: start, stop, status, open, resume, logs, report, results, list"
+    backup: "Backups of the vault: new (ax backup alone makes one too), list, restore"
+  session_list:
+    short: List the sessions, newest first
+    header: "Date,Exam,Class,Code,State,Submitted,Mean"
   error_prefix: "error:"
   need_terminal: Run this in a terminal.
   cancelled: cancelled
@@ -293,6 +313,8 @@ cli:
       Run `ax` alone for the menu. Settings live in ~/.config/assess/config.yaml
       (`ax config`).
   group:
+    daily: Every day
+    things: "Things (ax <thing> <action>)"
     exam: Exams
     session: Sessions
     setup: Setup
@@ -332,7 +354,7 @@ cli:
       is proctored, and checks everything before writing the folder.
 
       With a folder, it writes a valid exam with one sample question of each type,
-      ready to edit by hand, with `ax edit`, or by an AI (see `ax format`).
+      ready to edit by hand, with `ax edit`, or by an AI (see `ax exam guide`).
 
       Starting values (duration, proctoring...) come from the settings (`ax config`).
     example: |2-
@@ -348,7 +370,7 @@ cli:
         questions/q00N.yaml      one file per question
         private/answer-key.yaml  correct answers and points (never sent to students)
         assets/                  images used in questions
-    next: "\nNext: `ax edit {dir}` to write your questions (or edit the files and run `ax validate`)"
+    next: "\nNext: `ax edit {dir}` to write your questions (or edit the files and run `ax exam check`)"
     wizard_done: "Created {dir}. `ax start {q}` runs it; `ax edit {q}` changes it."
     flag_id: "exam id (default: derived from the folder name)"
     flag_title: exam title
@@ -365,7 +387,7 @@ cli:
     example: |2-
         ax edit examples/algebra-01
         EDITOR="code -w" ax edit ./my-exam
-    no_terminal: the editor needs a terminal; edit the YAML files and run `ax validate`
+    no_terminal: the editor needs a terminal; edit the YAML files and run `ax exam check`
     flag_duration: "exam duration when started with S (default: the manifest's)"
     saved: "Saved. `ax start {dir}` runs it."
   format:
@@ -379,7 +401,7 @@ cli:
   admin:
     short: Manage the teacher panel password
     long: |-
-      The password protects `ax attach`, `ax stop` and the panel (which locks itself
+      The password protects `ax session open`, `ax stop` and the panel (which locks itself
       after a few idle minutes, the panel.lock_minutes setting, or with L). It does
       not encrypt the database: anyone using your OS account can read it, so lock
       your computer too.
@@ -394,8 +416,8 @@ cli:
     cleared: Password removed.
   attach:
     short: Open the panel of the running session
-    start_hint: "start one with `ax start <exam-folder>` or `ax resume`"
-    closed: "Panel closed. The exam keeps running; `ax attach` reopens it."
+    start_hint: "start one with `ax start <exam-folder>` or `ax session resume`"
+    closed: "Panel closed. The exam keeps running; `ax session open` reopens it."
     protected: this panel is password protected; run the command in a terminal
     password_prompt: "Panel password: "
     wrong_password: Wrong password.
@@ -410,21 +432,21 @@ cli:
       Port, address and joining window come from the settings (`ax config`)
       unless given as flags.
     flag_duration: "exam duration (default: the manifest's)"
-    already_running: "an exam is already running ({title}); use `ax attach` or `ax stop`"
-    still_open: "session {code} is still open without a server; use `ax resume` to continue it or `ax stop` to end it"
+    already_running: "an exam is already running ({title}); use `ax session open` or `ax stop`"
+    still_open: "session {code} is still open without a server; use `ax session resume` to continue it or `ax stop` to end it"
     running: "Exam server running in the background (pid {pid})"
     exam: Exam
     students: Students
     code: Code
-    resumed_hint: "The session continues where it was; students reconnect on their own (`ax attach` opens the panel)."
-    lobby_hint: "Students wait in the lobby until you start the exam (`ax attach`, then S)."
+    resumed_hint: "The session continues where it was; students reconnect on their own (`ax session open` opens the panel)."
+    lobby_hint: "Students wait in the lobby until you start the exam (`ax session open`, then S)."
   status:
     short: Show whether the exam server is running
     running: "● Running  {title}"
     crashed: "✕ Crashed  the exam server stopped unexpectedly; answers saved so far are safe"
-    resume_hint: "Run `ax resume` to continue the session."
+    resume_hint: "Run `ax session resume` to continue the session."
     not_running: "○ Not running"
-    still_open: "Session {code} is still open: `ax resume` continues it, `ax stop` ends it."
+    still_open: "Session {code} is still open: `ax session resume` continues it, `ax stop` ends it."
     running_left: "running · {left} left"
     session: Session
     code: code
@@ -437,15 +459,15 @@ cli:
     long: |-
       Stop ends the exam for everyone, submits every attempt with what is saved
       and stops the server. With --suspend the server stops but the session stays
-      open, the clock keeps running, and `ax resume` continues it.
+      open, the clock keeps running, and `ax session resume` continues it.
     confirm: End the exam for everyone and submit all attempts?
     timeout: "the server did not stop in time; check `ax status`"
-    suspended: "Server stopped; the session stays open. `ax resume` continues it."
+    suspended: "Server stopped; the session stays open. `ax session resume` continues it."
     ended: Exam ended and server stopped. Results are saved.
     flag_suspend: stop the server but keep the session open
   resume:
     short: Restart the server for a session that is still open
-    already_running: "the exam server is already running; use `ax attach`"
+    already_running: "the exam server is already running; use `ax session open`"
     nothing_open: "there is no open session to resume; use `ax start <exam-folder>`"
   logs:
     short: Show the exam server log
@@ -461,9 +483,9 @@ cli:
       recent session. Format, separator and byte order mark come from the
       settings (results.*) unless given as flags.
     example: |2-
-        ax results > grades.csv
-        ax results --sep ";" --out grades.csv   # Excel in many European languages
-        ax results --format json
+        ax session results > grades.csv
+        ax session results --sep ";" --out grades.csv   # Excel in many European languages
+        ax session results --format json
     bad_format: "unknown format \"{format}\" (use csv or json)"
     bad_sep: --sep must be a single character
     wrote:
@@ -485,9 +507,9 @@ cli:
       It is only available once the session has ended, and asks for the panel
       password if one is set. Defaults to the most recent session.
     example: |2-
-        ax report
-        ax report --json > report.json
-        ax report > report.txt   # plain text when not a terminal
+        ax session report
+        ax session report --json > report.json
+        ax session report > report.txt   # plain text when not a terminal
     timed_out:
       one: Report closed after {n} idle minute.
       other: Report closed after {n} idle minutes.
@@ -539,7 +561,7 @@ cli:
     set_short: Change a setting in the file
     set_done: "{key} = {value}"
     list_short: Print every setting with its value and where it comes from
-    restart_hint: The running exam keeps its server settings; they apply the next time it starts (ax stop --suspend, then ax resume).
+    restart_hint: The running exam keeps its server settings; they apply the next time it starts (ax stop --suspend, then ax session resume).
     reset_short: Put one setting, or the whole file, back to the defaults
     reset_long: |-
       With a key, reset comments that setting out again so its default applies.
@@ -899,13 +921,13 @@ monitor:
   message_all_sent: "Message sent to everyone."
   reverted: "Penalty reverted."
   nothing_to_revert: "There are no active penalties to revert."
-  no_password: "Set a password with `ax admin set-password` to be able to lock."
+  no_password: "Set a password with `ax config password` to be able to lock."
   started: "Exam started."
   extended_all: "5 more minutes for everyone."
   confirm_end: "End the exam for everyone and submit what is saved?"
   ended: "Exam ended: submissions saved. The server keeps running to see results."
   end_and_stop: "end and stop the server"
-  confirm_stop: "Stop the server? Results stay saved (`ax results`)."
+  confirm_stop: "Stop the server? Results stay saved (`ax session results`)."
   resumed_all: "Everyone can continue."
   confirm_pause_all: "Pause the exam for everyone? Their time keeps running."
   paused_all: "Exam paused for everyone (the time keeps running)."
@@ -1310,8 +1332,8 @@ archive:
   integrity_value: "{strikes} active strikes, {reverted} penalties reverted"
   questions: Questions
   pairs:
-    one: "The report found {n} pair of students with suspiciously similar answers; `ax report` shows the evidence."
-    other: "The report found {n} pairs of students with suspiciously similar answers; `ax report` shows the evidence."
+    one: "The report found {n} pair of students with suspiciously similar answers; `ax session report` shows the evidence."
+    other: "The report found {n} pairs of students with suspiciously similar answers; `ax session report` shows the evidence."
   col:
     name: Name
     id: ID
@@ -1334,8 +1356,8 @@ backup:
     A backup is also made automatically each time a session closes (see the
     vault.keep_backups setting).
   example: |-
-    ax backup
-    ax backup --out E:\copias\
+    ax backup new
+    ax backup new --out E:\copias\
   flag_out: File or folder to write the backup to (default the vault's backups folder)
   done: "Backup written: {file} ({size})."
   encrypted_note: The backup is encrypted like the vault; keep the password or the recovery key with it.
@@ -1345,10 +1367,10 @@ backup:
 restore:
   short: Restore a backup into a new vault folder
   long: |-
-    Unpacks a backup made with `ax backup` (or an automatic one) into a new,
+    Unpacks a backup made with `ax backup new` (or an automatic one) into a new,
     empty folder and adds it to your vaults. The vault in use is not touched;
     switch to the restored one with --use or `ax vault use`.
-  example: ax restore backups/backup-2026-10-25-101500.zip D:\vaults\restored --use
+  example: ax backup restore backups/backup-2026-10-25-101500.zip D:\vaults\restored --use
   done: "Restored into {dir} as the vault «{name}»."
   encrypted_note: It is encrypted; it opens with the password it had, or with its recovery key.
 
@@ -1519,6 +1541,10 @@ explore:
       classes: new class
       students: new student
   act:
+    assign: Assign to a class
+    move: Move to another class
+    template: Save an empty list to fill in (CSV)
+    new_class: "+ A new class"
     duplicate: Duplicate
     export_sealed: With a password
     export_no_key: Without the answers
@@ -1545,6 +1571,9 @@ explore:
     report: Report
     results: Results (CSV)
   ask:
+    move_from: Move out of which class?
+    move_to: Into which class?
+    template_file: Where to save the list
     import_exam: Exam package (.examx) or folder
     export_how: The file carries the correct answers. How do you want it?
     copy_title: Title of the copy
@@ -1619,9 +1648,9 @@ gradebook:
     they sat (the latest attempt, as a percentage) and their average. It
     prints a table, or writes CSV or an Excel workbook (.xlsx).
   example: |-
-    ax gradebook 3B
-    ax gradebook 3B --out 3B.xlsx
-    ax gradebook 3B --csv > 3B.csv
+    ax class grades 3B
+    ax class grades 3B --out 3B.xlsx
+    ax class grades 3B --csv > 3B.csv
   flag_xlsx: Write an Excel workbook (needs --out)
   xlsx_needs_out: "An Excel workbook needs a file: add --out grades.xlsx."
   wrote: "Wrote {n} students × {exams} exams to {file}."
@@ -1631,6 +1660,23 @@ gradebook:
     average: Average
 
 people:
+  template:
+    saved_cli: "Saved {file}. Fill it in, save it as CSV, then: ax class import <class> {file}"
+    file: class-list.csv
+    csv: |
+      id,name
+      A-01,Ana García
+      A-02,Luis Pérez
+    hint: "Open it in Excel, LibreOffice or Google Sheets, write one student per row and save it as CSV. Then choose Import a class list."
+    saved: "Saved {file}. Fill it in, save it as CSV and choose Import a class list."
+    format: |-
+      One student per row: their identifier (enrolment number, ID card…) and their name. The first row names the columns, for example:
+
+        id,name
+        A-01,Ana García
+        A-02,Luis Pérez
+
+      Columns can also be first name and surnames, separated by , ; or tab, as Excel saves them. You see what was read before anything is saved. Save an empty list to fill in gives you this file.
   n_students:
     one: "{n} student"
     other: "{n} students"
@@ -1658,7 +1704,7 @@ people:
     classes: "Classes:"
     note: "Note:"
     add_short: Add a student
-    add_example: ax student add A-12 Ana García --class 3B
+    add_example: ax student new A-12 Ana García --class 3B
     added: "Added {id} {name}."
     edit_short: Change a student's name or note
     edit_nothing: "Say what to change: --name or --note."
@@ -1695,7 +1741,7 @@ people:
     long: |-
       Classes are named lists of students ("3B"). Import a class list from a
       CSV file, start an exam for a class with `ax start <exam> --class 3B`
-      and see its gradebook with `ax gradebook 3B`.
+      and see its gradebook with `ax class grades 3B`.
     example: |-
       ax class import 3B list-3B.csv
       ax class 3B
@@ -1799,7 +1845,7 @@ vault:
     classes: "Classes:   "
     students: "Students:  "
     backup: "Backup:    "
-    no_backup: none yet (ax backup)
+    no_backup: none yet (ax backup new)
     plain_hint: This vault is not encrypted; anyone who reads this disk can read it. `ax vault encrypt` protects it with a password.
   init:
     short: Create a vault
@@ -1811,9 +1857,9 @@ vault:
       If you ever forget the password and lose the recovery key, create a new
       vault and carry on: the old one is never touched.
     example: |-
-      ax vault init
-      ax vault init D:\school --name school --use
-      ax vault init --no-encrypt
+      ax vault new
+      ax vault new D:\school --name school --use
+      ax vault new --no-encrypt
     flag_name: Name of the vault (default the folder name)
     flag_no_encrypt: Do not encrypt it
     flag_use: Make it the vault in use
@@ -1826,7 +1872,7 @@ vault:
   recovery:
     title: "Recovery key. Write it down or print it, and keep it away from this computer:"
     body: |-
-      It opens the vault if you forget the password (`ax vault passwd --recovery`).
+      It opens the vault if you forget the password (`ax vault password --recovery`).
       It is shown only now.
     enter: "Press Enter once you have kept it… "
   list:
@@ -1876,10 +1922,10 @@ vault:
     long: |-
       Packs an exam folder (or reads an .examx package) into the vault, after
       checking it. Then it offers to delete the original folder: the vault
-      keeps the exam, and `ax edit <id>` or `ax vault export` give it back.
+      keeps the exam, and `ax edit <id>` or `ax exam export` give it back.
     example: |-
-      ax vault add algebra-01
-      ax vault add shared.examx
+      ax exam import algebra-01
+      ax exam import shared.examx
     flag_force: Replace an exam with the same id
     flag_delete: Delete the original folders without asking
     flag_keep: Keep the original folders without asking
@@ -1887,8 +1933,8 @@ vault:
     exists: "The vault already has an exam called {id}; --force replaces it."
     passphrase: "Passphrase of the package: "
     invalid:
-      one: "The exam has {n} problem; check it with `ax validate`."
-      other: "The exam has {n} problems; check it with `ax validate`."
+      one: "The exam has {n} problem; check it with `ax exam check`."
+      other: "The exam has {n} problems; check it with `ax exam check`."
     done: "Saved «{title}» ({id}) in the vault «{name}»."
     delete_original: "Delete the folder {dir}? The vault keeps the exam"
     deleted: "Deleted {dir}."
@@ -1899,9 +1945,9 @@ vault:
       folder (--folder). A package with the answer key is encrypted with a
       passphrase you choose; --no-key leaves the key out.
     example: |-
-      ax vault export algebra-01
-      ax vault export algebra-01 --no-key -o algebra-for-colleagues.examx
-      ax vault export algebra-01 --folder algebra-01
+      ax exam export algebra-01
+      ax exam export algebra-01 --no-key -o algebra-for-colleagues.examx
+      ax exam export algebra-01 --folder algebra-01
     flag_out: Package file (default <id>.examx)
     flag_folder: Write a folder instead of a package
     flag_no_key: Leave the answer key out
@@ -1914,8 +1960,8 @@ vault:
     folder_done: "Wrote the folder {dir}."
   exams:
     short: List the exams of the vault
-    long: The exams kept in the vault, with how many times each was given. `ax vault add` puts more in.
-    empty: The vault has no exams yet; add a folder with `ax vault add <folder>`.
+    long: The exams kept in the vault, with how many times each was given. `ax exam import` puts more in.
+    empty: The vault has no exams yet; add a folder with `ax exam import <folder>`.
     header: "ID\tTitle\tKey\tSessions\tLast given"
   exam:
     not_found: "There is no folder called {ref}, and the vault has no exams."
@@ -1947,9 +1993,9 @@ firewall:
     The rule ax uses is by port, not by program: once it exists, every copy
     of ax works, from any folder or USB stick and in any future version, so
     an administrator only has to act once per computer:
-      ax firewall setup     asks for the administrator's password (a Windows window) and opens the port
+      ax firewall open     asks for the administrator's password (a Windows window) and opens the port
       ax firewall script    writes a script and a note for your IT staff (also usable as a group policy)
-      ax firewall remove    takes the rule away again
+      ax firewall close    takes the rule away again
   check_short: Show whether students can reach ax on each network
   setup_short: Open the student port in the Windows firewall (asks for an administrator once)
   remove_short: Remove the firewall rule
@@ -1973,14 +2019,14 @@ firewall:
   covered: open for students
   not_covered: closed (Windows blocks students)
   blocked: blocked by a rule (a Windows prompt was cancelled)
-  app_only: "Students can reach this copy of ax, through the rule Windows made for its folder. A copy in another folder or USB stick will ask for an administrator again; `ax firewall setup` opens the port once for every copy."
+  app_only: "Students can reach this copy of ax, through the rule Windows made for its folder. A copy in another folder or USB stick will ask for an administrator again; `ax firewall open` opens the port once for every copy."
   no_network: No connected network.
   ready: "Students can reach this computer (TCP ports {ports} are open)."
-  rule_partial: "The rule for TCP {ports} exists, but not for every connected network: a network marked as public stays closed. Ask for it to be marked private, or run `ax firewall setup --public`."
+  rule_partial: "The rule for TCP {ports} exists, but not for every connected network: a network marked as public stays closed. Ask for it to be marked private, or run `ax firewall open --public`."
   no_rule: "Windows will keep students out: there is no rule for TCP {ports}."
   options: |-
     What you can do:
-      1. Once per computer, with an administrator: `ax firewall setup` (Windows asks for the password; then it is never needed again, whatever folder ax is in).
+      1. Once per computer, with an administrator: `ax firewall open` (Windows asks for the password; then it is never needed again, whatever folder ax is in).
       2. Without waiting for anyone: hand your IT staff the files of `ax firewall script`, ideally to apply to every classroom computer.
       3. Meanwhile, run ax on a computer where you are the administrator (your own laptop): copy it with `ax portable init <folder> --copy-vault`.
     docs/classroom-network.md explains each one.
@@ -1988,7 +2034,7 @@ firewall:
   elevating: Windows will ask for an administrator's password in a window of its own…
   elevate_failed: "The rule was not created ({err}). Without an administrator, try `ax firewall script` for IT."
   done: "Done: TCP {ports} is open for students. It works for every copy of ax on this computer."
-  public_hint: A connected network is marked public and stays closed; `ax firewall setup --public` opens it too.
+  public_hint: A connected network is marked public and stays closed; `ax firewall open --public` opens it too.
   removed: The firewall rule is gone.
   not_applied: The firewall did not change (the administrator window may have been cancelled).
   readme_file: README-IT.txt

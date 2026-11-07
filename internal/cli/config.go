@@ -448,7 +448,7 @@ func newI18nCmd() *cobra.Command {
 		Use:     "new <language>",
 		Short:   T("cli.i18n.new_short"),
 		Long:    T("cli.i18n.new_long"),
-		Example: "  ax i18n new pt > ~/.config/assess/locales/pt.yaml",
+		Example: "  ax language new pt > ~/.config/assess/locales/pt.yaml",
 		Args:    cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if !i18n.ValidLang(args[0]) {

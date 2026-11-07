@@ -1,10 +1,10 @@
 # Exam format `assess/v1`
 
-Status: **v1**, enforced by `ax validate`.
+Status: **v1**, enforced by `ax exam check`.
 Reference example: [`examples/algebra-01`](../examples/algebra-01).
 Writing an exam as files (for example with an AI assistant)? Start with the
 [authoring guide](authoring.md): a complete valid example and a checklist.
-`ax format` prints the guide and this reference from the binary.
+`ax exam guide` prints the guide and this reference from the binary.
 
 Teachers can skip the files: `ax new` is a guided wizard, `ax edit <folder>`
 edits an existing exam, and `ax new <folder>` writes a template.
@@ -132,9 +132,9 @@ answers:
 ## Validation
 
 ```sh
-ax validate ./exams/algebra-01          # human-readable, exit status 1 on errors
-ax validate --strict exams/*            # warnings fail too (useful in CI)
-ax validate --json ./exams/algebra-01   # machine-readable report
+ax exam check ./exams/algebra-01          # human-readable, exit status 1 on errors
+ax exam check --strict exams/*            # warnings fail too (useful in CI)
+ax exam check --json ./exams/algebra-01   # machine-readable report
 ```
 
 Problems are reported as `file:line: severity: field: message`, for example:

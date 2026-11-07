@@ -14,7 +14,7 @@ func newFormatCmd() *cobra.Command {
 		Use:     "format",
 		Short:   T("cli.format.short"),
 		Long:    T("cli.format.long"),
-		Example: "  ax format > format.md\n  ax format --guide",
+		Example: "  ax exam guide > format.md\n  ax exam guide --guide",
 		Args:    cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			out := cmd.OutOrStdout()
