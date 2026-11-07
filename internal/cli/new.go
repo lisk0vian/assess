@@ -56,9 +56,9 @@ func shellQuote(s string) string {
 	return s
 }
 
-// newExamDefaults are the wizard's starting values, from the settings.
-func newExamDefaults() tui.WizardDefaults {
-	return tui.WizardDefaults{
+// newExamDefaults are a new exam's starting values, from the settings.
+func newExamDefaults() tui.ExamDefaults {
+	return tui.ExamDefaults{
 		Language:         cfg.StudentLanguage(),
 		Duration:         cfg.Dur("new_exam.duration"),
 		Visibility:       cfg.Str("new_exam.result_visibility"),
@@ -69,28 +69,28 @@ func newExamDefaults() tui.WizardDefaults {
 	}
 }
 
-// newExamWizard runs the new-exam wizard and what the teacher picks after.
+// newExamWizard runs the exam screen on an empty exam, and starts it if asked.
 func newExamWizard(cmd *cobra.Command) error {
-	w := tui.NewWizard(newExamDefaults())
-	if _, err := tea.NewProgram(w).Run(); err != nil {
+	m := tui.NewExam(newExamDefaults(), cfg.Str("editor"))
+	if _, err := tea.NewProgram(m).Run(); err != nil {
 		return err
 	}
-	if w.Dir == "" {
+	if m.Dir == "" {
 		return nil
 	}
 	if dir, err := dataDir(); err == nil {
 		if v, _, err := activeVault(dir); err == nil {
-			if _, err := storeExam(v, w.Dir, false); err == nil {
+			if _, err := storeExam(v, m.Dir, false); err == nil {
 				fmt.Fprintln(cmd.OutOrStdout(), T("vault.new.saved", "name", v.Meta.Name))
 			}
 		}
 	}
-	switch w.Next {
-	case tui.NextStart:
-		return startExam(cmd, defaultServeFlags(), w.Dir, 0, false)
-	case tui.NextEdit:
-		return editExam(cmd, defaultServeFlags(), w.Dir, 0)
+	if m.Start {
+		if dir, err := dataDir(); err == nil {
+			return prepareAndStart(cmd, dir, m.Dir, defaultServeFlags())
+		}
+		return startExam(cmd, defaultServeFlags(), m.Dir, 0, false)
 	}
-	fmt.Fprintln(cmd.OutOrStdout(), T("cli.new.wizard_done", "dir", w.Dir, "q", shellQuote(w.Dir)))
+	fmt.Fprintln(cmd.OutOrStdout(), T("cli.new.wizard_done", "dir", m.Dir, "q", shellQuote(m.Dir)))
 	return nil
 }

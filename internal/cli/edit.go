@@ -71,7 +71,10 @@ func editExam(cmd *cobra.Command, sf *serveFlags, ref string, duration time.Dura
 	if !m.Start {
 		return nil
 	}
-	return startExam(cmd, sf, dir, duration, false)
+	if duration != 0 {
+		return startExam(cmd, sf, dir, duration, false)
+	}
+	return prepareAndStart(cmd, dataDir, dir, sf)
 }
 
 // editVaultExam edits an exam of the vault from Explore.

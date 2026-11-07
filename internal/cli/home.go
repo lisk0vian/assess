@@ -26,8 +26,8 @@ const (
 	actResume   = "resume"
 	actReport   = "report"
 	actSettings = "settings"
-	actExplore  = "explore"
 	actQuit     = "quit"
+	actClass    = "class"
 )
 
 // homeState is what the menu needs to know about the data directory.
@@ -84,69 +84,55 @@ func homeOptions(st homeState) []huh.Option[string] {
 	if st.lastEnded != nil {
 		out = append(out, huh.NewOption(T("home.report", "title", st.lastTitles[st.lastEnded.ID], "code", st.lastEnded.Code), actReport))
 	}
-	out = append(out, huh.NewOption(T("home.explore"), actExplore))
 	return append(out, huh.NewOption(T("home.settings"), actSettings), huh.NewOption(T("home.quit"), actQuit))
 }
 
-// home is the menu of a bare `ax` when no exam is running.
+// home is the hub of a bare `ax` when no exam is running.
 func home(cmd *cobra.Command, dir string) error {
-	for {
-		st := readHomeState(cmd, dir)
-		note := T("home.idle")
-		switch {
-		case st.health == daemon.Crashed:
-			note = T("home.crashed")
-		case st.open != nil:
-			note = T("home.open")
-		}
-		choice := actQuit
-		if st.vault != "" {
-			note += "\n" + T("home.vault", "vault", st.vault)
-		}
-		err := runForm(huh.NewForm(huh.NewGroup(
-			huh.NewNote().Title("ASSESS").Description(note),
-			huh.NewSelect[string]().Title(T("home.question")).Options(homeOptions(st)...).Value(&choice),
-		)))
-		if errors.Is(err, huh.ErrUserAborted) || choice == actQuit {
-			return nil
-		}
-		if err != nil {
-			return err
-		}
-		switch choice {
-		case actResume:
-			return resumeSession(cmd, defaultServeFlags(), false)
-		case actReport:
-			if err := requirePassword(cmd, dir); err != nil {
-				return err
-			}
-			if err := showReport(cmd, dir, st.lastEnded.ID); err != nil {
-				return err
-			}
-		case actNew:
-			return newExamWizard(cmd)
-		case actSettings:
-			if err := editSettings(cmd); err != nil {
-				return err
-			}
-		case actExplore:
-			if err := explore(cmd, tui.ExploreState{Tab: tui.TabStudents}); err != nil {
-				return err
-			}
-		case actEdit, actStart:
-			folder, err := askExamFolder(choice == actStart, st.exams)
-			if errors.Is(err, huh.ErrUserAborted) {
-				continue
-			}
-			if err != nil {
-				return err
-			}
-			if choice == actStart {
-				return startExam(cmd, defaultServeFlags(), folder, 0, false)
-			}
-			return editExam(cmd, defaultServeFlags(), folder, 0)
-		}
+	if ok, err := firstRun(dir); err != nil || !ok {
+		return err
 	}
+	return explore(cmd, tui.ExploreState{Tab: tui.TabHome})
+}
+
+// homeAction runs an action of the first section; leave closes the hub.
+func homeAction(cmd *cobra.Command, dir, act string, st homeState) (leave bool, err error) {
+	switch act {
+	case actResume:
+		return recoverSession(cmd, dir)
+	case actReport:
+		if err := requirePassword(cmd, dir); err != nil {
+			return false, err
+		}
+		if err := showReport(cmd, dir, st.lastEnded.ID); err != nil {
+			return false, err
+		}
+	case actNew:
+		if err := newExamWizard(cmd); err != nil {
+			return false, err
+		}
+	case actSettings:
+		if err := editSettings(cmd); err != nil {
+			return false, err
+		}
+	case actEdit, actStart:
+		folder, err := askExamFolder(act == actStart, st.exams)
+		if err != nil {
+			return false, err
+		}
+		if act == actStart {
+			err := prepareAndStart(cmd, dir, folder, defaultServeFlags())
+			return !errors.Is(err, errBack), err
+		}
+		if err := editExam(cmd, defaultServeFlags(), folder, 0); err != nil {
+			return false, err
+		}
+	case actClass:
+		return false, exploreNew(cmd, tui.TabClasses)
+	case actQuit:
+		return true, nil
+	}
+	return false, errBack
 }
 
 func runForm(f *huh.Form) error { return tui.StyleForm(f).WithShowHelp(true).Run() }

@@ -316,21 +316,7 @@ func newStopCmd() *cobra.Command {
 					return errors.New(T("cli.stop.timeout"))
 				}
 			} else if !suspend {
-				err := withStore(ctx, dir, func(s *store) error {
-					open, err := s.svc.OpenSession(ctx)
-					if errors.Is(err, session.ErrNotFound) {
-						return nil
-					}
-					if err != nil {
-						return err
-					}
-					if err := s.svc.End(ctx, open.ID); err != nil {
-						return err
-					}
-					closeArchive(ctx, s, open.ID)
-					return nil
-				})
-				if err != nil {
+				if err := endOpenSession(ctx, dir); err != nil {
 					return err
 				}
 			}
