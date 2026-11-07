@@ -309,9 +309,9 @@ Design may go ahead of the code. This table keeps that honest.
 | Give time back on resume | Yes, `ExtendSession` before the server restarts | |
 | Student card and panels | Actions exist as keys | Layout, over `AttemptAction` and `RevertPenalties` |
 | Time back on readmit | Separate actions | Do both in one step |
-| Void a question for everyone | No; regrade exists per attempt | Exam-level correction, recorded and reversible |
-| Accept another answer later | No | Change the published key, then regrade |
-| Impact preview | No | Dry-run regrade |
+| Void a question for everyone | Yes: `Enter` on Preguntas in the report; out of the grade and the maximum | |
+| Accept another answer later | Yes, as a recorded correction; the published key stays as it was | |
+| Impact preview | Yes, `PreviewCorrection` | |
 | Report export | `--json`, text and results CSV | Web page and report Excel |
 | Compare groups | History of one exam | Per-question comparison |
 | All question types, pools, tolerance, partial | Yes | New layout |
@@ -407,7 +407,7 @@ The canvas source is written in Spanish and translated by `design/en.json`. To f
 5. Done: vault hub in `explore.go`, Settings in `settings.go`, help on those screens, duplicate and export. The commands behind the actions still ask through `huh` forms outside the hub. Import preview, questions to review, USB and question text in `/` come with the new capabilities.
 6. Done: first use, Preparar sesión and recovery in `setup_view.go`, wired in `internal/cli/setup.go`. The nobody-joined band, the network guide, the firewall script for IT, Probarlo yo and the reconnection count come later.
 
-**After that**, because they are new capabilities rather than screens: correcting grades, Pegar varias, Probarlo yo with the example exam, and comparing classes.
+**After that**, because they are new capabilities rather than screens: correcting grades (done, in `internal/session/correction.go`), Pegar varias, Probarlo yo with the example exam, and comparing classes.
 
 ## Adding a screen
 

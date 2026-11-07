@@ -1007,6 +1007,26 @@ severity:
   high: "serious"
 
 report:
+  fix:
+    title: "Correct {q} for everyone"
+    accept: Accept another answer
+    void: Void for everyone
+    also: ALSO RIGHT
+    void_hint: The question stops counting, in the grade and in the maximum. Nobody loses for it.
+    who:
+      one: "{n} STUDENT CHANGES"
+      other: "{n} STUDENTS CHANGE"
+    nobody: Nobody's grade changes.
+    note: Students see the new grade. The correction is recorded and can be undone.
+    voided: voided for everyone
+    accepted: "{value} also right"
+    done:
+      one: "Corrected: {n} grade changed."
+      other: "Corrected: {n} grades changed."
+    undone: The correction was undone.
+    key_correct: correct
+    key_apply: apply
+    key_undo: undo the last
   ui:
     submitted: submitted
     annulled: annulled

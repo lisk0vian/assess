@@ -19,6 +19,7 @@ import (
 
 const repBodyRows = 400
 
+// View draws the strip, the tabs, the current view and the keys.
 func (m *Report) View() tea.View {
 	w, h := max(1, m.width), max(1, m.height)
 	g := newGrid(w, h, rBg)
@@ -34,6 +35,9 @@ func (m *Report) View() tea.View {
 	switch m.view {
 	case repQuestions:
 		keys = append(keys, keyHint{"↑↓", T("report.ui.key_question")}, keyHint{"O", T("report.ui.key_sort")})
+		if m.Fix != nil {
+			keys = append(keys, keyHint{"Enter", T("report.fix.key_correct")})
+		}
 	case repEvidence:
 		keys = append(keys, keyHint{"↑↓", T("report.ui.key_pair")})
 	}
@@ -43,10 +47,21 @@ func (m *Report) View() tea.View {
 	if used > room && m.view != repQuestions && m.view != repEvidence {
 		keys = append(keys, keyHint{"↑↓", T("report.key.scroll", "from", m.scroll+1, "to", min(used, m.scroll+room), "total", used)})
 	}
-	keyBar(g, append(keys, keyHint{"Q", T("editor.key.quit")}))
+	keys = append(keys, keyHint{"Q", T("editor.key.quit")})
+	if m.fixing != nil {
+		keys = m.fixKeys()
+	}
+	keyBar(g, keys)
 	g.fill(0, y, w, room, rSurface)
 	for j := range room {
 		copy(g.c[(y+j)*w:(y+j+1)*w], body.c[(m.scroll+j)*w:(m.scroll+j+1)*w])
+	}
+	if m.notice != "" {
+		g.fill(0, y+room-1, w, 1, rSurface2)
+		g.text(1, y+room-1, fit("✓ "+m.notice, w-2), style{fg: rInk, bg: rSurface2, bold: true})
+	}
+	if m.fixing != nil {
+		m.drawFix(g)
 	}
 	v := tea.NewView(g.String())
 	v.AltScreen = true
@@ -453,6 +468,9 @@ func (m *Report) questionDetail(g *grid, x, y, w int, q report.QuestionStat) int
 	for _, l := range wrap(q.Prompt, w)[:min(2, len(wrap(q.Prompt, w)))] {
 		g.text(x, y, l, style{fg: rInk, bg: b})
 		y++
+	}
+	if fixed := m.correctedNote(q); fixed != "" {
+		y = para(g, x, y, w, "✓ "+fixed, style{fg: rInk, bg: b, bold: true})
 	}
 	notes := questionNotes(q)
 	if len(notes) == 0 {

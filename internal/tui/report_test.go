@@ -1,17 +1,18 @@
 package tui
 
 import (
-	"github.com/charmbracelet/x/ansi"
-
-	"github.com/lisk0vian/assess/internal/i18n"
 	"os"
 	"strings"
 	"testing"
 	"time"
 
 	tea "charm.land/bubbletea/v2"
+	"github.com/charmbracelet/x/ansi"
 
+	"github.com/lisk0vian/assess/internal/exam"
+	"github.com/lisk0vian/assess/internal/i18n"
 	"github.com/lisk0vian/assess/internal/report"
+	"github.com/lisk0vian/assess/internal/session"
 )
 
 func sampleReport() *report.Report {
@@ -182,5 +183,75 @@ func TestReportIncidentsListWhoHasStrikes(t *testing.T) {
 	m.view = repIncidents
 	if v := m.View().Content; !strings.Contains(v, "Bea Ruiz") {
 		t.Fatalf("a student with strikes and no signals must be listed:\n%s", v)
+	}
+}
+
+func stubFixer(applied *[]session.Correction) *Fixer {
+	var done []session.Correction
+	q := &exam.Question{ID: "q001", Type: exam.TypeSingle, Prompt: "¿Cuánto es 2 + 2?",
+		Options: []exam.Option{{ID: "a", Text: "3"}, {ID: "b", Text: "4"}, {ID: "c", Text: "5"}}}
+	return &Fixer{
+		Question:    func(id string) *exam.Question { return q },
+		Corrections: func() []session.Correction { return done },
+		Preview: func(c session.Correction) ([]session.ScoreChange, error) {
+			return []session.ScoreChange{{Name: "Luis Gómez", Before: 50, After: 62.5}}, nil
+		},
+		Apply: func(c session.Correction) (*report.Report, error) {
+			c.ID = int64(len(done) + 1)
+			done = append(done, c)
+			*applied = append(*applied, c)
+			return sampleReport(), nil
+		},
+		Undo: func(id int64) (*report.Report, error) {
+			done = done[:len(done)-1]
+			return sampleReport(), nil
+		},
+	}
+}
+
+func TestReportCorrectsAQuestion(t *testing.T) {
+	var applied []session.Correction
+	m := NewReport(sampleReport(), 0)
+	m.Fix = stubFixer(&applied)
+	m.Update(tea.KeyPressMsg{Code: '2', Text: "2"})
+	m.Update(tea.KeyPressMsg{Code: tea.KeyEnter})
+	if m.fixing == nil {
+		t.Fatal("Enter on a question opens the correction")
+	}
+	m.Update(tea.KeyPressMsg{Code: tea.KeyDown})
+	m.Update(tea.KeyPressMsg{Code: tea.KeyRight})
+	v := view(m)
+	for _, want := range []string{"Corregir", "TAMBIÉN VALE", "Luis Gómez", "50 % → 63 %"} {
+		if !strings.Contains(v, want) {
+			t.Fatalf("missing %q:\n%s", want, v)
+		}
+	}
+	m.Update(tea.KeyPressMsg{Code: tea.KeyEnter})
+	if len(applied) != 1 || applied[0].Kind != session.CorrectAccept || applied[0].Value != "b" || m.fixing != nil {
+		t.Fatalf("applied %+v", applied)
+	}
+	if v := view(m); !strings.Contains(v, "Corregido") || !strings.Contains(v, "también vale B") {
+		t.Fatalf("the report says what changed:\n%s", v)
+	}
+	// Void, then undo the last one.
+	m.Update(tea.KeyPressMsg{Code: tea.KeyEnter})
+	m.Update(tea.KeyPressMsg{Code: tea.KeyRight})
+	m.Update(tea.KeyPressMsg{Code: tea.KeyEnter})
+	if len(applied) != 2 || applied[1].Kind != session.CorrectVoid {
+		t.Fatalf("void %+v", applied)
+	}
+	m.Update(tea.KeyPressMsg{Code: tea.KeyEnter})
+	m.Update(tea.KeyPressMsg{Code: 'U', Text: "U"})
+	if len(m.Fix.Corrections()) != 1 {
+		t.Fatal("U undoes the last correction")
+	}
+	for _, size := range [][2]int{{120, 36}, {80, 24}, {72, 16}} {
+		m.Update(tea.WindowSizeMsg{Width: size[0], Height: size[1]})
+		lines := strings.Split(m.View().Content, "\n")
+		for i, l := range lines {
+			if w := ansi.StringWidth(l); w != size[0] || len(lines) != size[1] {
+				t.Fatalf("%v: row %d is %d cells, %d rows", size, i, w, len(lines))
+			}
+		}
 	}
 }

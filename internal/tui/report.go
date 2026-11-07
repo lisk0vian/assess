@@ -13,6 +13,7 @@ import (
 	"github.com/charmbracelet/x/ansi"
 
 	"github.com/lisk0vian/assess/internal/report"
+	"github.com/lisk0vian/assess/internal/session"
 )
 
 // Views of the report.
@@ -43,6 +44,11 @@ type Report struct {
 	lastInput     time.Time
 	// TimedOut reports that the panel closed itself after being idle.
 	TimedOut bool
+	// Fix, when set, lets Enter correct the selected question.
+	Fix    *Fixer
+	fixing *fixState
+	corr   []session.Correction // corrections in force, read on demand
+	notice string
 }
 
 type reportTick time.Time
@@ -76,8 +82,16 @@ func (m *Report) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m, m.tick()
 	case tea.KeyPressMsg:
 		m.lastInput = time.Now()
+		if m.fixing != nil {
+			return m, m.fixKey(msg)
+		}
+		m.notice = ""
 		page := max(1, m.height-6)
 		switch k := msg.String(); k {
+		case "enter":
+			if qs := m.orderedQuestions(); m.view == repQuestions && m.Fix != nil && len(qs) > 0 {
+				m.openFix(qs[min(m.sel, len(qs)-1)].ID)
+			}
 		case "q", "Q", "esc", "ctrl+c":
 			return m, tea.Quit
 		case "right", "l", "tab":

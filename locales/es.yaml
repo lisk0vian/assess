@@ -1010,6 +1010,26 @@ severity:
   high: "grave"
 
 report:
+  fix:
+    title: "Corregir {q} para todos"
+    accept: Aceptar otra respuesta
+    void: Anular para todos
+    also: TAMBIÉN VALE
+    void_hint: La pregunta deja de contar, en la nota y en el máximo. Nadie pierde por ella.
+    who:
+      one: "CAMBIA {n} ALUMNO"
+      other: "CAMBIAN {n} ALUMNOS"
+    nobody: No cambia la nota de nadie.
+    note: Los alumnos verán la nota nueva. La corrección queda registrada y se puede deshacer.
+    voided: anulada para todos
+    accepted: "también vale {value}"
+    done:
+      one: "Corregido: cambió {n} nota."
+      other: "Corregido: cambiaron {n} notas."
+    undone: Se deshizo la corrección.
+    key_correct: corregir
+    key_apply: aplicar
+    key_undo: deshacer la última
   ui:
     submitted: entregaron
     annulled: anulados
