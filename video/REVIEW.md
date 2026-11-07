@@ -2,7 +2,7 @@
 
 Read this before changing anything. `SPEC.md` describes revision 1. Where they disagree, this file wins.
 
-## Revision 3 (assess-demo-v3.mp4): redesign, all in English
+## Revision 3 (assess-demo.mp4): redesign, all in English
 
 - **Look:** the product's own system (`web/DESIGN.md`), pushed harder. Three worlds instead of one beige desk: paper table, dark room (`#111110`), magenta flood (`#ec2a8a`, the product's real accent, replacing the example's indigo).
 - **Layout:** full-bleed. No terminal rectangles on a desk, no small windows on an empty canvas. Display type fills the width.
@@ -21,4 +21,4 @@ Read this before changing anything. `SPEC.md` describes revision 1. Where they d
 
 ## Checked
 
-`hyperframes check`: no errors. Key frames looked at on contact sheets, not at full speed. Nobody has watched the motion in real time. `v2-backup` of revision 2 lives only in the session scratchpad; `assess-demo-v2.mp4` is kept.
+`hyperframes check`: no errors. Key frames looked at on contact sheets, not at full speed. Nobody has watched the motion in real time. Revision 2 was dropped; only the final cut, `assess-demo.mp4`, is kept.
