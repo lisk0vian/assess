@@ -1,0 +1,59 @@
+{
+  "brand": "Assess",
+  "tagline": "Exams on your classroom network. No cloud, no accounts.",
+  "brief": "A self-contained exam server in one binary for the classroom: no cloud, no installs. The logo had to be discreet — the exam and the institution are the protagonists — calm under the clock and recognisable at 16 px.",
+  "adjectives": [
+    "calm",
+    "precise",
+    "discreet",
+    "warm"
+  ],
+  "criteria": "Success: works at 16 px, in one ink, on light and dark, and never competes with the institution's logo.",
+  "industry": "education",
+  "nav": [
+    "Join",
+    "Rules",
+    "Exam"
+  ],
+  "brand_color": "#ec2a8a",
+  "tile_color": "#141414",
+  "greyscale": false,
+  "final": true,
+  "deck_title": "Registro",
+  "designer": "Aron",
+  "label": "Brand",
+  "mockups": [
+    "terminal",
+    "readme",
+    "website",
+    "app-icon",
+    "favicon-tab",
+    "badge"
+  ],
+  "concepts": [
+    {
+      "name": "Registro",
+      "symbol": "../logo/assess-mark.svg",
+      "lockup": "../logo/assess-wordmark.svg",
+      "avatar": "../logo/assess-tile.svg",
+      "stacked": "../logo/assess-stacked.svg",
+      "symbol_on_tile": "../logo/assess-tile.svg",
+      "symbol_on_dark": "../logo/assess-mark-dark.svg",
+      "lockup_on_dark": "../logo/assess-wordmark-dark.svg",
+      "stacked_on_dark": "../logo/assess-stacked-dark.svg",
+      "idea": "ASSESS sits on a record rule; the magenta block closes the row.",
+      "rationale": [
+        "Comes from the Mesa de luz system: sheet, rule, ink and one magenta.",
+        "Works from 16 px to a poster: tile, mark and wordmark are one system.",
+        "The name stays discreet; the exam and the institution remain the protagonists.",
+        "In one ink, the block merges with the rule into a heavier full stop."
+      ]
+    }
+  ],
+  "recommendation": "Registro: the name sits on a line and the magenta block is the student's mark. The identity is deliberately quiet: it does not compete with the exam or the institution's logo.",
+  "next_steps": [
+    "The kit includes the wordmark, mark, app icon, one-ink and reversed versions.",
+    "Keep the logo discreet: the exam and the institution remain the protagonists.",
+    "Before registering the mark, run a clearance search."
+  ]
+}

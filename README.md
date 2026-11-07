@@ -1,8 +1,23 @@
-# Assess (`ax`)
+<p align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="branding/logo/assess-wordmark-dark.svg" />
+    <img src="branding/logo/assess-wordmark.svg" alt="Assess" width="300" />
+  </picture>
+</p>
 
-**Run exams in your classroom from one laptop.** You prepare and supervise in
-the terminal. Students answer from any browser on the classroom network, with
-nothing to install, no accounts and no internet.
+<h1 align="center">Assess <code>ax</code></h1>
+
+<p align="center">
+  <b>Run exams in your classroom from one laptop.</b><br>
+  Students answer from any browser. No installation, no accounts, no internet.
+</p>
+
+<p align="center">
+  <img alt="Pre-alpha" src="https://img.shields.io/badge/status-pre--alpha-ec2a8a?style=flat-square">
+  <img alt="License: Apache-2.0" src="https://img.shields.io/badge/license-Apache--2.0-141414?style=flat-square">
+  <img alt="Go 1.26.8+" src="https://img.shields.io/badge/Go-1.26.8%2B-141414?style=flat-square">
+  <img alt="React 19" src="https://img.shields.io/badge/React-19-141414?style=flat-square">
+</p>
 
 ![A 40-second tour: the teacher starts an exam, students join and answer, and the report comes out](docs/images/demo.gif)
 
@@ -16,6 +31,7 @@ nothing to install, no accounts and no internet.
 - [The vault](#the-vault)
 - [Settings and language](#settings-and-language)
 - [Development](#development)
+- [Brand](#brand)
 
 ## Features
 
@@ -460,6 +476,33 @@ More: [architecture](docs/design.md), [exam format](docs/format.md),
 [writing exams with an AI](docs/authoring.md),
 [anti-cheat methods and limits](docs/anti-cheat.md),
 [classroom network](docs/classroom-network.md).
+
+## Brand
+
+The identity is **Registro**: the name sits on a record rule and the magenta block
+closes the row. It is deliberately quiet: the exam and the institution are the
+protagonists.
+
+| Asset | Light | Dark |
+|---|---|---|
+| Wordmark | [SVG](branding/logo/assess-wordmark.svg) | [SVG](branding/logo/assess-wordmark-dark.svg) |
+| Header wordmark | [SVG](branding/logo/assess-wordmark-plain.svg) | — |
+| Compact mark | [SVG](branding/logo/assess-mark.svg) | [SVG](branding/logo/assess-mark-dark.svg) |
+| Stacked lockup | [SVG](branding/logo/assess-stacked.svg) | [SVG](branding/logo/assess-stacked-dark.svg) |
+| App icon / favicon | [SVG](branding/logo/assess-tile.svg) | [SVG](branding/logo/assess-tile-dark.svg) |
+| Web icon set | [`branding/icons/`](branding/icons/) | — |
+
+| Ink | Sheet | Magenta | Dark ink | Dark magenta |
+|---|---|---|---|---|
+| `#141414` | `#f8f7f4` | `#ec2a8a` | `#ecebe6` | `#ff4fa3` |
+
+<p align="center">
+  <img src="branding/logo/assess-tile.svg" alt="Assess app icon" width="72" />
+</p>
+
+One-ink and avatar variants live in [`branding/variants/`](branding/variants/); the
+one-page guide is [`branding/GUIDE.md`](branding/GUIDE.md); the deck is
+[`branding/presentation/presentation.html`](branding/presentation/presentation.html).
 
 ## License
 

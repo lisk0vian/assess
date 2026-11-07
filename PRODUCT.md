@@ -66,9 +66,10 @@ penalties instead of invasive proctoring (no webcam, no lockdown browser).
   manifest.
 - Technical: React + TypeScript + Vite + Tailwind v4 + shadcn/ui (Radix);
   initial JS ≤ 150 KB gz (excluding KaTeX), CSS ≤ 30 KB; self-hosted fonts.
-- Languages: Spanish (default) and English.
+- Languages: English (default) and Spanish, changed in Settings.
 - The visual design system lives in `web/DESIGN.md` (not `docs/design.md`,
-  which is the architecture record).
+  which is the architecture record). The teacher's terminal has its own
+  system in `internal/tui/DESIGN.md`, which inherits that world.
 
 ## Visual Constraints (from the user)
 
@@ -85,7 +86,8 @@ penalties instead of invasive proctoring (no webcam, no lockdown browser).
   institution's branding are the protagonists.
 - Voice: Spanish uses **tú**; close, calm and plain. Rules are stated firmly
   and never hostile; penalties are explained, not threatened.
-- No logo exists yet; none must be invented as an official mark.
+- Identity: **Registro** (see `branding/`): the name on a record rule, closed by
+  the magenta block. It never competes with the exam or the institution's mark.
 
 ## Evidence on Hand
 
