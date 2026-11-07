@@ -7,6 +7,7 @@ import (
 	"embed"
 	"encoding/json"
 	"io/fs"
+	"mime"
 	"net/http"
 	"path"
 	"regexp"
@@ -17,6 +18,11 @@ import (
 
 //go:embed all:dist
 var dist embed.FS
+
+func init() {
+	// Go's mime table does not know .webmanifest; browsers need the JSON type.
+	_ = mime.AddExtensionType(".webmanifest", "application/manifest+json")
+}
 
 // Strings returns the student page's texts in lang, with English filling
 // the gaps (the web section of the catalogs).
