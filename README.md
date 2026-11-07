@@ -13,6 +13,7 @@
 </p>
 
 <p align="center">
+  <img alt="Build" src="https://github.com/lisk0vian/assess/actions/workflows/ci.yml/badge.svg">
   <img alt="Pre-alpha" src="https://img.shields.io/badge/status-pre--alpha-ec2a8a?style=flat-square">
   <img alt="License: Apache-2.0" src="https://img.shields.io/badge/license-Apache--2.0-141414?style=flat-square">
   <img alt="Go 1.26.8+" src="https://img.shields.io/badge/Go-1.26.8%2B-141414?style=flat-square">
