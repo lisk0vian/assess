@@ -177,6 +177,20 @@ func TestDraftEdits(t *testing.T) {
 	}
 }
 
+func TestDraftRename(t *testing.T) {
+	d, err := OpenDraft(copyExampleNamed(t, "quiz-rapido"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	before := len(d.Exam.Questions)
+	if err := d.Rename("copia-2", "Copia"); err != nil {
+		t.Fatal(err)
+	}
+	if d.Exam.Manifest.ID != "copia-2" || d.Exam.Manifest.Title != "Copia" || d.Exam.Key.Exam != "copia-2" || len(d.Exam.Questions) != before || d.Problems.HasErrors() {
+		t.Fatalf("renamed: %+v %v", d.Exam.Manifest, d.Problems)
+	}
+}
+
 func TestDraftRefusesBrokenFile(t *testing.T) {
 	dir := copyExampleNamed(t, "algebra-01")
 	d := openDraft(t, dir)

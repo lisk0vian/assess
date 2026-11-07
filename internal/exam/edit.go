@@ -144,6 +144,21 @@ func (d *Draft) DeleteQuestion(id string) error {
 	return d.Reload()
 }
 
+// Rename gives the exam a new id and title, in the manifest and the key.
+func (d *Draft) Rename(id, title string) error {
+	m := d.Exam.Manifest
+	m.ID, m.Title = id, title
+	if err := d.write(ManifestFile, manifestNode(&m)); err != nil {
+		return err
+	}
+	key := d.Exam.Key
+	key.Exam = id
+	if err := d.write(AnswerKeyFile, keyNode(&key, d.keyOrder())); err != nil {
+		return err
+	}
+	return d.Reload()
+}
+
 // MoveItem moves the item at index i by delta places (-1 up, +1 down).
 func (d *Draft) MoveItem(i, delta int) error {
 	items := slices.Clone(d.Exam.Manifest.Items)
