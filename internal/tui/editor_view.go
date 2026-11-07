@@ -25,6 +25,8 @@ func (m *Editor) keyTable() []keyGroup {
 			items = append(items, k("Space", T("editor.ui.key_mark"), true), k("Del", T("editor.key.delete"), false))
 		}
 		return []keyGroup{{T("wizard.step.questions"), append(items, k("Ctrl+E", T("editor.key.external"), true), k("Esc", T("editor.ui.key_done"), true))}}
+	case m.pasting != nil:
+		return []keyGroup{{T("editor.paste.title"), []keyItem{k("Enter", T("editor.paste.key_add"), true), k("Alt+Enter", T("editor.paste.key_line"), false), k("Esc", T("editor.paste.key_cancel"), true)}}}
 	case m.step == stepDetails:
 		return []keyGroup{{T("wizard.step.details"), []keyItem{k("↑↓", T("editor.ui.key_field"), true), k("←→", T("editor.ui.key_option"), true), step, quit}}}
 	case m.step == stepRules:
@@ -39,7 +41,7 @@ func (m *Editor) keyTable() []keyGroup {
 			k("⇧Tab", T("wizard.key.back"), true), k("?", T("monitor.ui.key_help"), false)}}}
 	}
 	return []keyGroup{
-		{T("wizard.step.questions"), []keyItem{k("↑↓", T("editor.ui.key_question"), true), k("Enter", T("editor.key.edit"), true), k("N", T("editor.key.new"), true),
+		{T("wizard.step.questions"), []keyItem{k("↑↓", T("editor.ui.key_question"), true), k("Enter", T("editor.key.edit"), true), k("N", T("editor.key.new"), true), k("V", T("editor.paste.key_open"), true),
 			k("D", T("editor.key.delete"), false), k("⇧↑↓", T("editor.key.move"), false), k("E", T("editor.key.external"), false), k("PgDn", T("editor.ui.key_read"), false)}},
 		{T("editor.name"), []keyItem{step, k("?", T("monitor.ui.key_help"), true), k("C", T("editor.key.answers"), false), k("R", T("editor.ui.key_reload"), false),
 			k("S", T("editor.key.start"), false), quit}},
@@ -293,6 +295,10 @@ func (m *Editor) drawQuestions(g *grid, y, H int) {
 	x, sw := rw+1, g.w-rw-2
 	if big {
 		sw = min(sw, 56)
+	}
+	if m.pasting != nil {
+		m.drawPaste(g, y, H)
+		return
 	}
 	if len(rows) == 0 && m.q == nil {
 		sheet(g, 2, y+1, g.w-5, max(3, H-3))

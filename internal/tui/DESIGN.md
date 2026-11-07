@@ -294,7 +294,7 @@ Design may go ahead of the code. This table keeps that honest.
 | Exam fields, validation, external editor | Yes, on the new screen | Fields and chips are drawn on the grid: `textField` replaces `huh` here |
 | Autosave of a new exam | Yes: the folder is created with the first title | Group in Datos: an exam has no group yet, so the screen shows language and instructions instead |
 | Live student view | Yes, on the sheet, from wide layouts up | |
-| Pegar varias preguntas | No | A parser for that text, with tests |
+| Pegar varias preguntas | Yes: `V` on Preguntas, parser in `paste.go` | Numbered or blank-line separated; `a)` or `-` options, `*` marks the right one, `R:` a short answer, `*V`/`*F` true or false. `Alt+Enter` types a new line, since `Enter` adds |
 | Exámenes, Grupos, Alumnos, Sesiones | Yes, on the hub | Question counts and durations in the exam table need reading each package |
 | Group mean, per-exam trend | Yes: group mean is the mean of its sessions | Questions to review per exam needs reports |
 | Libro de notas on screen | Yes | |
@@ -403,11 +403,11 @@ The canvas source is written in Spanish and translated by `design/en.json`. To f
 1. Done: foundations in `theme.go`, `grid.go` and `widgets.go`.
 2. Done: live session in `monitor_view.go`, with density, filters, card, help and prompts.
 3. Done: report in `report_view.go`, with the five views. Export comes with the new capabilities.
-4. Done: exam editor in `editor.go`, `question_edit.go`, `editor_view.go` and `textfield.go`, joining `Wizard` and `Editor`. Pegar and the student view in the browser come with the new capabilities.
+4. Done: exam editor in `editor.go`, `question_edit.go`, `editor_view.go` and `textfield.go`, joining `Wizard` and `Editor`. Pegar is done in `paste.go`; the student view in the browser comes with the new capabilities.
 5. Done: vault hub in `explore.go`, Settings in `settings.go`, help on those screens, duplicate and export. The commands behind the actions still ask through `huh` forms outside the hub. Import preview, questions to review, USB and question text in `/` come with the new capabilities.
 6. Done: first use, Preparar sesión and recovery in `setup_view.go`, wired in `internal/cli/setup.go`. The nobody-joined band, the network guide, the firewall script for IT, Probarlo yo and the reconnection count come later.
 
-**After that**, because they are new capabilities rather than screens: correcting grades (done, in `internal/session/correction.go`), Pegar varias, Probarlo yo with the example exam, and comparing classes.
+**After that**, because they are new capabilities rather than screens: correcting grades (done, in `internal/session/correction.go`), Pegar varias (done, in `paste.go`), Probarlo yo with the example exam, and comparing classes.
 
 ## Adding a screen
 

@@ -72,6 +72,7 @@ type Editor struct {
 	sel         int // the question rail, or the problem in Review
 	scroll      int // reading a long question
 	q           *questionEdit
+	pasting     *textField // Pegar: many questions at once
 
 	width, height int
 	notice        string
@@ -345,6 +346,8 @@ func (m *Editor) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 func (m *Editor) paste(s string) {
 	switch {
+	case m.pasting != nil:
+		m.pasting.insert(s)
 	case m.q != nil:
 		m.q.paste(s)
 	case m.step == stepDetails && m.field == detTitle:
@@ -377,6 +380,10 @@ func (m *Editor) key(k tea.KeyPressMsg) tea.Cmd {
 	}
 	if s == "ctrl+c" {
 		return m.finish()
+	}
+	if m.pasting != nil {
+		m.pasteKey(k)
+		return nil
 	}
 	if m.q != nil {
 		return m.writingKey(k)
@@ -569,6 +576,9 @@ func (m *Editor) questionsKey(s string) tea.Cmd {
 		m.scroll = max(0, m.scroll-5)
 	case "n", "N":
 		m.q = newQuestionEdit(newQuestionValues(m.d.NextQuestionID()), true)
+		m.notice = ""
+	case "v", "V":
+		m.pasting = &textField{}
 		m.notice = ""
 	case "enter":
 		if !ok {

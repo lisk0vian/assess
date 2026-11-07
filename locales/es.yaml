@@ -654,6 +654,26 @@ keys:
   toggle: "cambiar"
 
 editor:
+  paste:
+    title: Pegar preguntas
+    here: PEGA AQUÍ
+    hint: "marca la correcta con *"
+    understood: LO QUE HE ENTENDIDO
+    empty: "Pega preguntas de un documento o de una IA. Numéralas o deja una línea en blanco entre ellas. Las opciones van como a) b) c); marca la correcta con *. Una respuesta corta va como \"R: 8\", un verdadero o falso como \"*V\" o \"*F\"."
+    count:
+      one: "{n} pregunta"
+      other: "{n} preguntas"
+    to_finish: "{n} por completar"
+    missing: "Falta marcar la correcta. Puedes hacerlo luego."
+    nothing_yet: "Nada se añade hasta que pulses Enter."
+    added:
+      one: "Añadida {n} pregunta"
+      other: "Añadidas {n} preguntas"
+    failed: "Añadidas {n} preguntas, y luego: {err}"
+    key_open: pegar varias
+    key_add: añadirlas
+    key_line: nueva línea
+    key_cancel: cancelar
   ui:
     title_first: "Escribe primero un título: da nombre a la carpeta del examen."
     write_first: "Escribe algo primero y luego ábrelo en el editor."
@@ -688,7 +708,7 @@ editor:
     pool: "Banco: {pick} de {of} al azar"
     pool_hint: "A cada alumno le tocan algunas de estas preguntas al azar. Todas deben valer lo mismo, para que nadie gane por suerte. Enter abre el manifiesto."
     no_questions: "Aún no hay preguntas"
-    no_questions_hint: "N escribe la primera."
+    no_questions_hint: "N escribe la primera; V pega varias a la vez."
     question: pregunta
     type: tipo
     type_label: TIPO

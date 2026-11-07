@@ -651,6 +651,26 @@ keys:
   toggle: "switch"
 
 editor:
+  paste:
+    title: Paste questions
+    here: PASTE HERE
+    hint: "mark the right answer with *"
+    understood: WHAT I UNDERSTOOD
+    empty: "Paste questions from a document or an AI. Number them or leave a blank line between them. Options go as a) b) c); mark the right one with *. A short answer goes as \"A: 8\", a true or false as \"*T\" or \"*F\"."
+    count:
+      one: "{n} question"
+      other: "{n} questions"
+    to_finish: "{n} to finish"
+    missing: "The right answer is not marked. You can mark it later."
+    nothing_yet: "Nothing is added until you press Enter."
+    added:
+      one: "Added {n} question"
+      other: "Added {n} questions"
+    failed: "Added {n} questions, then: {err}"
+    key_open: paste many
+    key_add: add them
+    key_line: new line
+    key_cancel: cancel
   ui:
     title_first: "Write a title first: it names the exam's folder."
     write_first: "Write something first, then open it in the editor."
@@ -685,7 +705,7 @@ editor:
     pool: "Pool: {pick} of {of} at random"
     pool_hint: "Each student gets some of these questions at random. All must be worth the same, so nobody gains by chance. Enter opens the manifest."
     no_questions: "No questions yet"
-    no_questions_hint: "N writes the first one."
+    no_questions_hint: "N writes the first one; V pastes many at once."
     question: question
     type: type
     type_label: TYPE
