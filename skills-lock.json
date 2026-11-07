@@ -7,6 +7,12 @@
       "skillPath": "skills/productivity/grilling/SKILL.md",
       "computedHash": "ef1641a2047b71b60f1942cd35efb47d3afc9d584dff5a0b01f8c7db923aaa08"
     },
+    "hyperframes": {
+      "source": "heygen-com/hyperframes",
+      "sourceType": "github",
+      "skillPath": "skills/hyperframes/SKILL.md",
+      "computedHash": "f7e660666874ecb3ed553e871529cc2c5c1ce5386c254d5598bbc51286cc6018"
+    },
     "impeccable": {
       "source": "pbakaus/impeccable",
       "sourceType": "github",
