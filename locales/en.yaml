@@ -259,13 +259,10 @@ state:
   ended: ended
 
 home:
-  explore: "Explore exams, classes, students and sessions"
   in_vault: in the vault
-  vault: "Vault: {vault}"
   idle: No exam is running.
   crashed: "The server stopped before the exam ended: you can resume it and nobody loses their answers."
   open: There is an open session without a server.
-  question: What do you want to do?
   resume: "Resume «{title}» (session {code}, no server)"
   edit: Edit an exam
   new: Create a new exam, step by step
@@ -595,103 +592,33 @@ cli:
 
 form:
   err:
-    points: "write a number greater than 0 and up to {max}"
-    number: "write a number, for example 4 or 2.5"
-    optional_number: "write a positive number or leave it empty"
-    time_limit: "use a duration such as 90s or 2m (at least 5s), or leave it empty"
-    min_options: "write at least {n} options, one per line"
-    max_options: "{n} options at most"
     points_field: "points: write a number"
     time_limit_field: "time limit: use a duration such as 2m"
     answer_field: "answer: write a number"
     tolerance_field: "tolerance: write a number"
-    id: "only lowercase letters, digits, - and _"
-    id_taken: "there is already a question with that id"
-    prompt: "write the question"
-    mark_one: "mark at least one"
-    accept: "write at least one answer"
     duration_field: "duration: use for example 45m or 1h30m"
     strikes_field: "strikes: write a whole number"
-    title: "write a title"
-    duration: "use a duration between 1m and 24h, such as 45m"
-    strikes: "between 1 and 10, or empty"
-  type:
-    title: "Question type"
-    single: "One right option"
-    multiple: "Several right options"
-    truefalse: "True or false"
-    short: "Short answer (number or text)"
-  id:
-    title: "Identifier"
-    hint: "It is also the file name: questions/<id>.yaml"
-    fixed: "The type and the identifier are not changed here; press E to edit the file."
-  prompt:
-    title: "Question"
-    hint: "Markdown, and formulas between $…$. Alt+Enter or Ctrl+J for a new line."
-  points: "Points"
-  options:
-    title: "Options"
-    hint: "One per line, in the order you write them (they can be shuffled for students)."
-  correct_one: "Which one is right?"
-  correct_many: "Which ones are right?"
-  correct_many_hint: "Space marks or unmarks."
-  partial:
-    title: "Partial credit?"
-    hint: "Yes: each right option adds its share. No: all or nothing."
-  statement: "The statement is…"
-  true: "True"
-  false: "False"
   input:
-    title: "The student writes…"
     number: "A number"
     text: "A short text"
-  number: "Right answer"
-  tolerance:
-    title: "Tolerance"
-    hint: "Accepted difference, for example 0.01. Empty: exact."
-  accept:
-    title: "Accepted answers"
-    hint: "One per line. Case, accents and extra spaces are ignored."
-  time_limit:
-    title: "Time limit for the question"
-    hint: "Optional, for example 2m. The question closes when it runs out."
   reveal:
-    title: "Show the options"
     always: "Always"
     hover: "When pointed at"
   inherit: "As the exam says"
-  lens:
-    title: "Lens over the question"
-    hint: "It is read in ranges of words: a photo captures only one range."
   read_speed:
     slow: "Slow"
     normal: "Normal"
     fast: "Fast"
   manifest:
-    title: "Exam settings"
-    id: "Identifier: {id} (not changed here: it links the history of sessions)"
     exam_title: "Title"
     duration: "Duration"
-    duration_hint: "For example 45m or 1h30m."
-    language: "Language of the student page"
-    visibility: "After submitting, the student sees…"
-    instructions: "Instructions"
-    instructions_hint: "Shown in the lobby. Markdown."
     shuffle_q: "Shuffle the order of the questions?"
     shuffle_o: "Shuffle the order of the options?"
     proctoring: "Proctoring"
     strikes: "Strikes that annul"
-    strikes_hint: "Empty: the profile's."
-    photos: "Against photos of the screen"
-    photos_hint: "Each protection is switched on separately. With proctoring off, none applies."
     lens: "Lens over the question?"
-    lens_hint: "It is read in ranges of words; a photo captures only one range. Turn it off to show the whole question."
     auto_read: "Read the question automatically when it opens?"
-    auto_read_hint: "Only the first time, in ranges. After that the student taps the part they want or uses the controls."
     read_speed: "Reading speed"
-    read_speed_hint: "Pace of the auto-read and the guide."
-    frozen: "Warn when a student stays still and then answers?"
-    frozen_hint: "It only shows in Incidents; it is never a strike."
   visibility:
     none: "Nothing"
     score: "Their score"
@@ -724,6 +651,89 @@ keys:
   toggle: "switch"
 
 editor:
+  ui:
+    title_first: "Write a title first: it names the exam's folder."
+    write_first: "Write something first, then open it in the editor."
+    saves_itself: "Saves itself as you write"
+    saved: "saved {time}"
+    key_exit: exit
+    key_step: next step
+    key_field: field
+    key_option: option
+    key_choose: choose
+    key_activate: activate
+    key_mark: mark correct
+    key_done: done
+    key_problem: problem
+    key_go_problem: go to the problem
+    key_question: question
+    key_read: read further
+    key_reload: reload from disk
+    key_save_exit: save and exit
+    minutes: "{n} min"
+    at_end: AT THE END
+    instructions: INSTRUCTIONS
+    vis_none: Nothing
+    vis_score: Their grade
+    vis_review: Grade and corrections
+    student_view: WHAT THE STUDENT SEES
+    in_lobby: IN THE LOBBY
+    lobby:
+      none: "Wait for the exam to start. When you finish you will see that it was submitted."
+      score: "Wait for the exam to start. When you finish you will see your grade."
+      review: "Wait for the exam to start. When the session closes you will see your grade and the corrections."
+    pool: "Pool: {pick} of {of} at random"
+    pool_hint: "Each student gets some of these questions at random. All must be worth the same, so nobody gains by chance. Enter opens the manifest."
+    no_questions: "No questions yet"
+    no_questions_hint: "N writes the first one."
+    question: question
+    type: type
+    type_label: TYPE
+    points: points
+    time: time
+    status: STATUS
+    total: questions
+    ready: ready
+    to_fix: to fix
+    by_type: BY TYPE
+    types:
+      single: Single
+      multiple: Multiple
+      truefalse: T or F
+      short: Short
+    points_total: "{n} in total"
+    correct: correct
+    accept_exact: "Accepts exactly {v}"
+    accept_margin: "Accepts {v}, give or take {t}"
+    prompt: PROMPT
+    options: OPTIONS
+    mark_hint: "Space marks the correct one · Enter writes"
+    grading: GRADING
+    all_or_nothing: All or nothing
+    partial: Partial
+    right_answer: ANSWER
+    answer_is: ANSWER IS
+    margin: MARGIN
+    accepted: ACCEPTED
+    limit: LIMIT
+    reveal: OPTIONS SHOW
+    lens: LENS
+    how_proctored: HOW IS IT PROCTORED?
+    by_profile: as the profile says
+    you_see: WHAT YOU WILL SEE
+    you_see_1: Each warning appears in Incidents.
+    you_see_2: You can revert any penalty.
+    you_see_3: The report separates signals from verdicts.
+    other_duration: Other
+    todo_answer: Mark the correct answer.
+    to_fix_n: "{n} to fix"
+    before_start: BEFORE STARTING
+    start_block: START EXAM
+    fix_n:
+      one: "First fix {n} problem"
+      other: "First fix {n} problems"
+    save_exit_block: SAVE AND EXIT
+    save_exit_hint: "Q · you will find it in Exams"
   name: "editor"
   open_hint: "(E opens the file)"
   edited: "File edited; the exam has been validated again."
@@ -736,11 +746,8 @@ editor:
   saved: "Saved."
   esc_discards: "esc discards the changes"
   col:
-    question: "QUEST."
     type: "TYPE"
-    points: "POINTS"
     prompt: "QUESTION"
-  range: "… {from}-{to} of {total}"
   key:
     edit: "edit"
     new: "new"
@@ -759,14 +766,6 @@ editor:
     none: "no score shown"
     score: "score shown"
     review: "score and corrections"
-  settings_row: "⚙ Settings   {duration} · {lang} · {visibility} · proctoring {profile} · {shuffle}"
-  pool_row: "◇ pool {id} · each student gets {pick} of {of}"
-  missing_file: "{file} is missing"
-  not_in_items: "not in items"
-  no_problems: "No problems"
-  ready: ": ready to start (S, or `ax start {dir}`)."
-  fix_hint: "fixed by saving the form or with E"
-  more_problems: "… and {n} more (`ax validate {dir}`)"
 
 profile:
   standard: "standard"
@@ -800,6 +799,57 @@ astate:
   active: "not submitted"
 
 monitor:
+  ui:
+    code: code
+    code_caps: CODE
+    code_word: Code
+    address: ADDRESS
+    online: online
+    active: active
+    submitted: submitted
+    strikes: strikes
+    left: left
+    left_short: "{time} left"
+    in_room: in the lobby
+    offline: offline
+    line: "{code} · {online}/{joined} online · {submitted} submitted · {strikes} strikes"
+    questions_line: "{class} · {n} questions"
+    all: ALL
+    all_short: All
+    attention: ATTENTION
+    attention_short: Attn.
+    answering: ANSWERING
+    answering_short: Ans.
+    submitted_caps: SUBMITTED
+    submitted_caps_short: Sub.
+    not_joined: NOT JOINED
+    not_joined_short: Out
+    need_attention: "NEED ATTENTION {n}"
+    rest: "THE REST {n}"
+    more: "+{n} more · F to see them"
+    range: "{from}-{to} of {total} · ↑↓ scrolls"
+    pulse: where the class is
+    nobody: Nobody in this view.
+    other_addresses: "←→ {n} more addresses"
+    card_question: "question {q} of {n}"
+    card_answers: answers
+    card_signals: signals
+    card_what: WHAT HAPPENED
+    card_none: No incidents.
+    key_card: card
+    key_filter: filter
+    key_help: help
+    key_view: view
+    key_address: other address
+    key_quit: quit
+    key_unlock: unlock
+    help_title: Keys on this screen
+    help_close: "? or Esc closes"
+    help_selected: SELECTED
+    help_class: WHOLE CLASS
+    help_session: SESSION
+    no_names: No names are shown here.
+    too_small: Widen the window to see the panel. The exam goes on.
   other_address: "←→ another address (if students cannot open this one)"
   nobody_hint: "Nobody has joined yet. If their devices cannot open the page, run `ax firewall` in another terminal."
   enrolled: "Approved and added to {class}: {name} ({id})."
@@ -957,6 +1007,47 @@ severity:
   high: "serious"
 
 report:
+  ui:
+    submitted: submitted
+    annulled: annulled
+    withdrawn: withdrawn
+    mean: mean
+    median: median
+    range: range
+    sd: std dev
+    time: median time
+    reason: REASON
+    first: FIRST
+    first_hard: "{q}: {pct} % miss it"
+    first_up: "{n} points above the last session"
+    first_down: "{n} points below the last session"
+    unit_hint: a block per student · % of the maximum
+    each_block: "Each block is {n} students."
+    scatter_title: GRADE AND TIME
+    scatter_hint: a dot per student
+    quadrant_title: DIFFICULTY AND DISCRIMINATION
+    separates: separates
+    no_separation: no separation
+    hard: ← hard
+    easy: easy →
+    key_question: question
+    key_pair: pair
+    key_sort: sort
+    warnings: warnings
+    serious: serious
+    active_strikes: active strikes
+    reverted: reverted
+    time_lost: time removed
+    who_title: WHO
+    who_hint: most signals first
+    signals: SIGNALS
+    same_errors: same errors
+    expected: expected
+    why_title: WHY IT SHOWS
+    chance: Chance by luck
+    common: Questions in common
+    synced: Saved together
+    same_questions: Questions with the same error
   view:
     summary: "Summary"
     questions: "Questions"
@@ -1085,48 +1176,21 @@ report:
     one_in: "1 in {n}"
 
 wizard:
-  name: "new exam"
   step:
     details: "Details"
     questions: "Questions"
     proctoring: "Proctoring"
     review: "Review"
   key:
-    add: "add question"
-    up: "move up"
-    down: "move down"
-    next: "next step"
     back: "previous step"
-    create: "create the exam"
-    help: "more keys"
-  confirm_quit: "Quit without creating the exam? What you wrote will be lost."
-  checking: "Checking the exam…"
-  confirm_delete: "Delete question {n}?"
-  deleted: "Question deleted."
   err:
-    no_questions: "add at least one question (A)"
-    fix_first: "fix the errors before creating the exam"
-    no_folder: "write the title first, or a folder"
     folder_name: "the folder name needs letters or digits"
     folder_taken: "that folder exists and is not empty; choose another"
-  creating: "Creating the exam…"
-  other_duration: "Another duration…"
   intro:
     title: "New exam"
-    body: "I guide you step by step: details, questions, proctoring and review.\nNothing is saved until the end; Esc goes back."
   title_hint: "Students see it when they join."
   title_placeholder: "History — Unit 3"
-  folder: "Folder"
-  folder_hint: "Where it is saved. Empty: a folder here named after the title."
-  how_long: "How long is it?"
-  duration_hint: "For example 50m or 1h15m."
-  visibility:
-    score: "Their score"
-    review: "Their score and the corrections, when you close the session"
-    none: "Nothing: only that it was submitted"
-  instructions: "Instructions (optional)"
-  instructions_hint: "Shown in the lobby. Empty: «{default}…»"
-  how_proctored: "How is it proctored?"
+  duration_hint: "Minutes, or 1h15m"
   profile:
     standard: "Standard (recommended)"
     strict: "Strict"
@@ -1136,30 +1200,10 @@ wizard:
     standard: "Fullscreen, options revealed when pointed at, and a watermark with their name. The first time they leave or copy they are only warned; after that it counts as a strike, and 3 annul the exam. Leaving the tab takes 20 % of their remaining time. Everything can be reverted from the panel."
     strict: "The same as standard, with no margin: the first attempt to leave or copy is already a strike and the second annuls the exam. Leaving the tab takes half of the remaining time. Computers only."
     off: "No protection: they can leave the tab, copy or use their phone without consequences. Useful for revision or class exercises."
-  shuffle_q_hint: "Each student sees them in a different order."
-  shuffle_o_hint: "It makes copying «it's b» from a classmate harder."
-  photos: "Against phone photos"
-  photos_hint: "An AI can read a photo of the screen. Each protection is switched on separately."
   frozen: "Warn when they stay still and then answer?"
-  frozen_hint: "Only you see it, in Incidents."
-  added: "Question {n} added. A adds another; Tab moves on to proctoring."
-  discarded: "Question discarded."
-  saved: "Question {n} saved."
-  done:
-    title: "Exam created"
-    body: "It is in {dir}.\nYou can change it whenever you want with `ax edit` or by editing its files."
-    next: "What now?"
-    start: "Start it now: students wait in the lobby until you begin"
-    edit: "Keep editing it"
-  empty: "No questions yet.\n\nPress A to add the first one. There are four kinds:\n\n  · One right option\n  · Several right options\n  · True or false\n  · Short answer: a number or a text\n\nNext to it you will see how each one looks, with the right answer marked."
-  form_hint: "esc goes back · ctrl+c quits"
   n_questions:
     one: "{n} question"
     other: "{n} questions"
-  preview_title: "HOW THEY WILL SEE IT · with the right answer marked"
-  points:
-    one: "{v} point"
-    other: "{v} points"
   review:
     visibility:
       none: "nothing"
@@ -1171,25 +1215,13 @@ wizard:
       false_true: "options only"
       false_false: "nothing"
     language: "Language"
-    sees: "After submitting"
-    lens: "lens"
-    frozen: "stillness warning"
-    none: "none"
-    photos: "Against photos"
-    shuffles: "Shuffled"
     ok: "All correct."
-    ok_hint: "Enter creates the exam; 1, 2 or 3 go back to a step."
-    errors: "This must be fixed before creating it:"
-    warnings: "Warnings (they do not prevent creating it):"
   preview:
-    meta: "QUESTION {n} · {type} · {points}"
-    limit: "limit {d}"
     partial: "Partial credit: each right option adds its share."
     all_or_nothing: "All or nothing: every right option must be marked."
     true: "True"
     false: "False"
     write_number: "Write a number"
-    right: "Right: {v}"
     write_text: "Write your answer"
     accepted: "Accepted: {list}"
     lenient: "Case, accents and extra spaces do not matter."
@@ -1204,22 +1236,20 @@ wizard:
     hours_minutes: "{h} {m}"
 
 settings:
-  name: "settings"
+  col:
+    setting: SETTING
+    value: VALUE
   general: "General"
   will_reset: "back to default"
   changed: "changed"
   reset_notice: "{key} will go back to its default ({value})."
   changed_notice: "{key} = {value} (saved when you leave with S)"
   same_as_terminal: "The same as the terminal"
-  ask_save:
-    one: "Save {n} change?"
-    other: "Save {n} changes?"
-  keep_editing: "keep editing"
   key:
+    setting: setting
+    group: group
+    save_back: save and go back
     reset: "default"
-  pending:
-    one: "{n} change not saved"
-    other: "{n} changes not saved"
 
 welcome:
   title: "Welcome to Assess"
@@ -1282,36 +1312,177 @@ restore:
   done: "Restored into {dir} as the vault «{name}»."
   encrypted_note: It is encrypted; it opens with the password it had, or with its recovery key.
 
+setup:
+  first_time: First time on this computer
+  hello: Hello. Let's get your first exam ready.
+  what: Assess creates, hands out and proctors exams in your classroom from this computer. No internet, no accounts, and students install nothing.
+  one: "Create your vault: where exams, classes and results are kept"
+  two: "Create an exam, step by step"
+  three: Start it with your class
+  halfway: About two minutes, and you can leave it halfway.
+  step: "Step {n} of {of}"
+  vault_title: Create your vault
+  name: NAME
+  password: PASSWORD
+  repeat: REPEAT IT
+  pw_rule: "At least {n} characters"
+  pw_short: "The password needs at least {n} characters."
+  pw_differ: The two passwords are different.
+  pw_why: The password encrypts everything. Then you will see a recovery key, in case you forget it. Ctrl+U creates it without a password.
+  keeps: WHAT IT KEEPS
+  keeps_1: Exams and their correct answers
+  keeps_2: Class lists
+  keeps_3: Grades and incidents of each session
+  keeps_4: Backups
+  why_encrypt: WHY ENCRYPT IT
+  why_encrypt_text: It holds your students' data. If you lose the laptop or the USB stick, nobody can read it.
+  recovery_title: Recovery key
+  keep_key: Keep this key away from this computer.
+  key_opens: It opens the vault if you forget the password.
+  key_once: It is shown only now. Write it down or print it.
+  key_lost: Without the password or this key, the vault cannot be opened.
+  key:
+    begin: begin
+    language: language
+    create: create the vault
+    no_password: without password
+    saved_it: I have saved it
+
+prepare:
+  title: Prepare the session
+  group: group
+  who: who may enter
+  anyone: Anyone with the code
+  list_only: Only the list
+  who_needs_group: Choose a group to admit only its students.
+  exam_duration: "Its own: {d}"
+  clock_hint: Opening the room only lets students in. The clock starts when you press S on the panel.
+  checks: BEFORE STUDENTS WAIT
+  exam_ok: The exam has no errors
+  network_ok: "Students connect to {addr}"
+  no_network: "No network: connect this computer to the classroom's network."
+  fw_ok: "The firewall lets students in (port {ports})"
+  fw_closed: "The firewall may keep students out (port {ports}). A opens it; Enter carries on anyway."
+  opening_port: Asking Windows to open the port…
+  group_n:
+    one: "The group has {n} student"
+    other: "The group has {n} students"
+  key:
+    open_port: open the port
+    anyway: carry on anyway
+    open_room: open the room
+
+recover:
+  safe: Your exam is safe.
+  joined: joined
+  submitted: submitted
+  waiting: not submitted
+  down: stopped
+  answers_kept: Every saved answer is kept. Students go on where they were when the server is back.
+  lobby: The exam had not started, so nobody lost time.
+  clock: "The clock did not stop: the exam ends at {time} for everyone."
+  give_back: GIVE THE LOST TIME BACK TO EVERYONE
+  new_end: "It will end at {time}"
+  ran_out: The time ran out while the server was stopped. Give them time before going on; nothing is handed in without you saying so.
+  log: WHAT THE SERVER WROTE
+  confirm_end: End the exam for everyone? What was saved is handed in.
+  key:
+    resume: resume
+    minutes: minutes
+    end: end the exam
+    log: details
+
+hub:
+  first_class: Create a group (optional)
+  ready: Your vault is ready. Start here.
+  ready_hint: Here you will see your recent sessions.
+  home: Home
+  exams: Exams
+  classes: Classes
+  students: Students
+  sessions: Sessions
+  vault: Vault
+  needs_you: Needs you
+  filter: FILTER
+  n_shown: "{n} of {total}"
+  actions: ACTIONS
+  recent: RECENT
+  sessions_head: SESSIONS
+  mean_by_session: MEAN BY SESSION
+  strikes: strikes
+  note: NOTE
+  more_students: "+{n} more"
+  no_grades: no grades yet
+  no_classes: There are no classes yet.
+  no_classes_hint: A class is a list of students. It lets you control who joins and see their grades together. It is optional.
+  book: Gradebook
+  book_key: gradebook
+  book_hint: "% of the latest submission of each exam"
+  book_note: "In bold, below 50 %. — not submitted."
+  search_hint: Exams, classes, students and sessions.
+  backups: BACKUPS
+  vault_name: vault
+  vault_state: state
+  vault_counts: exams, classes, students
+  no_other_vault: There are no other vaults.
+  empty:
+    exams: "No exams yet. Ctrl+N creates one, Ctrl+O imports one."
+    classes: "No classes yet."
+    students: "No students yet. They appear when they join an exam; Ctrl+N adds one."
+    sessions: "No sessions yet."
+  col:
+    exam: EXAM
+    sessions: sessions
+    last: LAST
+    mean: MEAN
+    date: DATE
+    group: CLASS
+    code: CODE
+    submitted: SUBM.
+    student: STUDENT
+  key:
+    section: section
+    choose: choose
+    open: open
+    back: back
+    actions: Actions
+    search: search all
+    new_exam: new
+    new_class: new class
+    new_student: new student
+    import: import
+    import_list: import list
+    results: results CSV
+  vault_act:
+    backup: Back up now
+    passwd: Change the password
+    encrypt: Encrypt the vault
+    lock: Lock now
+    switch: Switch vault
+    settings: Settings
+
 explore:
-  short: Browse exams, classes, students and sessions
+  short: Browse exams, classes, students, sessions and the vault
   long: |-
-    Opens a browser of the vault with four tabs: exams, classes, students and
-    sessions. Type to filter; Enter shows what you can do with the selected
-    row (history, edit, import a class list, start an exam, open a report…)
-    and Ctrl+N adds a new one.
-  title: Explore
-  tab:
-    exams: "Exams {n}"
-    classes: "Classes {n}"
-    students: "Students {n}"
-    sessions: "Sessions {n}"
+    Opens the hub with six sections: home, exams, classes, students, sessions
+    and the vault. Type to filter; Enter shows what you can do with the
+    selected row (history, edit, import a class list, start an exam, open a
+    report…) and Ctrl+N adds a new one.
   empty:
     exams: "No exams in the vault yet. Ctrl+N adds an exam folder."
     classes: "No classes yet. Ctrl+N creates one, or imports a class list."
     students: "No students yet. They appear when they join an exam; Ctrl+N adds one."
     sessions: "No sessions yet."
-  matches:
-    one: "{n} match"
-    other: "{n} matches"
   key:
-    tabs: tabs
-    actions: actions
-    quit: leave
     new:
       exams: add exam
       classes: new class
       students: new student
   act:
+    duplicate: Duplicate
+    export_sealed: With a password
+    export_no_key: Without the answers
+    export_plain: With the answers, no password
     back: Back
     history: History
     edit: Edit name or note
@@ -1334,6 +1505,9 @@ explore:
     report: Report
     results: Results (CSV)
   ask:
+    import_exam: Exam package (.examx) or folder
+    export_how: The file carries the correct answers. How do you want it?
+    copy_title: Title of the copy
     id: Identifier
     name: Name and surnames
     note: Note
@@ -1343,7 +1517,6 @@ explore:
     merge_into: Identifier of the student to keep
     csv: Class list file (CSV)
     csv_optional: Class list file (CSV), optional
-    exam_folder: Exam folder
     export_exam: Package file
     export_file: CSV file
     results_file: CSV file
@@ -1351,6 +1524,8 @@ explore:
     gradebook_hint: Ending in .xlsx writes an Excel workbook; .csv writes a CSV file.
     start_class: Which class takes it?
     roster_only: Only the students on the list?
+  copy_of: "{title} (copy)"
+  copied: "Created «{title}». Its sessions stay with the original."
   no_class: No class
   required: This cannot be empty.
   no_file: There is no such file or folder.

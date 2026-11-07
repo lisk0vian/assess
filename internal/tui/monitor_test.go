@@ -1,13 +1,18 @@
 package tui
 
 import (
+	"slices"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
 
 	tea "charm.land/bubbletea/v2"
 
+	"github.com/charmbracelet/x/ansi"
+
 	"github.com/lisk0vian/assess/internal/daemon"
+	"github.com/lisk0vian/assess/internal/i18n"
 	"github.com/lisk0vian/assess/internal/report"
 	"github.com/lisk0vian/assess/internal/server/student"
 	"github.com/lisk0vian/assess/internal/session"
@@ -68,7 +73,7 @@ func TestMonitorStudentsAndActions(t *testing.T) {
 	m := NewMonitor(&daemon.Client{}, &daemon.State{StudentURL: "http://x/", Code: "K7Q2XM"}, Options{})
 	m.Update(boardMsg{board: board(session.StateRunning)})
 	v := m.View().Content
-	for _, want := range []string{"ALUMNO", "Ana Pérez", "4/6", "3/6", "● sí", "Luis Gómez", "entregado", "9/9", "sin entrar", "En curso", "32:1"} {
+	for _, want := range []string{"Ana Pérez", "P4  3/6", "●", "Luis Gómez", "entregado 9/9", "sin entrar", "ALUMNOS", "ENTREGADOS 1"} {
 		if !strings.Contains(v, want) {
 			t.Fatalf("students view missing %q:\n%s", want, v)
 		}
@@ -148,7 +153,7 @@ func TestMonitorIncidentsAndRevert(t *testing.T) {
 			Penalties: []*session.Penalty{{ID: 4, Kind: session.PenaltyStrike, RevertedAt: time.Now()}}},
 	}
 	m.Update(boardMsg{board: b})
-	if v := m.View().Content; !strings.Contains(v, "2/3 ·4") || !strings.Contains(v, "2 avisos (anula con 3)") {
+	if v := m.View().Content; !strings.Contains(v, "■■□") || !strings.Contains(v, "avisos") {
 		t.Fatalf("students view lacks strikes:\n%s", v)
 	}
 	press(m, "tab", "tab")
@@ -172,6 +177,7 @@ func TestMonitorKeysFollowState(t *testing.T) {
 	m := NewMonitor(&daemon.Client{}, &daemon.State{}, Options{})
 	b := board(session.StateRunning)
 	m.Update(boardMsg{board: b})
+	press(m, "?")
 	v := m.View().Content
 	for _, want := range []string{"pausar", "pausar a todos", "mensaje a todos"} {
 		if !strings.Contains(v, want) {
@@ -181,6 +187,7 @@ func TestMonitorKeysFollowState(t *testing.T) {
 	b.Students[0].Paused, b.AllPaused = true, true
 	m.Update(boardMsg{board: b})
 	v = m.View().Content
+	press(m, "esc")
 	if !strings.Contains(v, "reanudar") || !strings.Contains(v, "reanudar a todos") {
 		t.Fatalf("pause labels must turn into resume:\n%s", v)
 	}
@@ -224,9 +231,11 @@ func TestMonitorShowsAwayHits(t *testing.T) {
 	b.AwayHits = []report.AwayHit{{Who: report.Who{Name: "Ana Pérez", StudentID: "A-1"}, QuestionID: "q004", Signal: "hidden",
 		AwayMs: 40_000, AfterMs: 8_000, Difficulty: 0.75, Strong: true}}
 	m.Update(boardMsg{board: b})
-	if v := m.View().Content; !strings.Contains(v, "1/3 ·2 ↩1") {
-		t.Fatalf("the students view should flag the hit:\n%s", v)
+	press(m, "enter")
+	if v := m.View().Content; !strings.Contains(v, "■□□") || !strings.Contains(v, "salió y acertó 1 vez") {
+		t.Fatalf("the card should flag the hit:\n%s", v)
 	}
+	press(m, "esc")
 	m.view = viewIncidents
 	v := m.View().Content
 	for _, want := range []string{"SALIÓ Y ACERTÓ", "Ana Pérez", "q004", "fuera de la pestaña 40s → acertó a los 8s", "la falla el 75 % del resto"} {
@@ -245,12 +254,172 @@ func TestMonitorLensAccommodation(t *testing.T) {
 	}
 	b.Lens = true
 	m.Update(boardMsg{board: b})
+	press(m, "?")
 	if v := m.View().Content; !strings.Contains(v, "sin lupa") {
 		t.Fatalf("V offers reading without the lens:\n%s", v)
 	}
+	press(m, "esc")
 	b.Students[0].NoLens = true
 	m.Update(boardMsg{board: b})
-	if v := m.View().Content; !strings.Contains(v, "con lupa") || !strings.Contains(v, "· sin lupa") {
-		t.Fatalf("the row shows the accommodation and V gives the lens back:\n%s", v)
+	press(m, "enter", "?")
+	if v := m.View().Content; !strings.Contains(v, "con lupa") {
+		t.Fatalf("V gives the lens back:\n%s", v)
+	}
+	press(m, "esc")
+	if v := m.View().Content; !strings.Contains(v, "sin lupa") {
+		t.Fatalf("the card shows the accommodation:\n%s", v)
+	}
+}
+
+func bigClass(n int) *daemon.Board {
+	b := board(session.StateRunning)
+	b.StrikeLimit, b.Requests = 3, nil
+	b.Students = nil
+	for i := range n {
+		r := daemon.StudentRow{AttemptID: "a" + strconv.Itoa(i), ParticipantID: "p" + strconv.Itoa(i), StudentID: "A-" + strconv.Itoa(i),
+			Name: "Alumna María " + strconv.Itoa(i), State: session.AttemptActive, Online: true, Question: 3, Answered: i % 7, Total: 6}
+		switch i % 11 {
+		case 3:
+			r.Strikes = 1
+		case 7:
+			r.State, r.Answered = session.AttemptSubmitted, 6
+		}
+		b.Students = append(b.Students, r)
+	}
+	return b
+}
+
+// Every row must fill the window exactly, in both languages and at any size.
+func TestMonitorFitsTheWindow(t *testing.T) {
+	defer func() {
+		if err := i18n.SetLanguage("es"); err != nil {
+			t.Fatal(err)
+		}
+	}()
+	for _, lang := range []string{"es", "en"} {
+		if err := i18n.SetLanguage(lang); err != nil {
+			t.Fatal(err)
+		}
+		for _, size := range [][2]int{{120, 36}, {80, 24}, {72, 16}, {160, 50}} {
+			for _, n := range []int{0, 3, 25, 26, 60, 100, 140} {
+				for _, state := range []session.State{session.StateLobby, session.StateRunning, session.StateEnded} {
+					m := NewMonitor(&daemon.Client{}, &daemon.State{StudentURL: "http://192.168.1.20:27337/", Code: "K7Q2XM"}, Options{})
+					m.Update(tea.WindowSizeMsg{Width: size[0], Height: size[1]})
+					b := bigClass(n)
+					b.Status.State = state
+					m.Update(boardMsg{board: b})
+					for view := range viewCount {
+						m.view = view
+						for _, overlay := range []string{"", "?", "enter"} {
+							if overlay != "" {
+								press(m, overlay)
+							}
+							lines := strings.Split(m.View().Content, "\n")
+							if len(lines) != size[1] {
+								t.Fatalf("%v, %d students: %d rows", size, n, len(lines))
+							}
+							for i, l := range lines {
+								if w := ansi.StringWidth(l); w != size[0] {
+									t.Fatalf("%s %v, %d students, view %d: row %d is %d cells", lang, size, n, view, i, w)
+								}
+							}
+							press(m, "esc")
+						}
+					}
+				}
+			}
+		}
+	}
+}
+
+func TestMonitorFiltersAndLargeClasses(t *testing.T) {
+	m := NewMonitor(&daemon.Client{}, &daemon.State{StudentURL: "http://x/", Code: "K7Q2XM"}, Options{})
+	m.Update(boardMsg{board: bigClass(100)})
+	v := m.View().Content
+	if !strings.Contains(v, "NECESITAN ATENCIÓN 9") || !strings.Contains(v, "EL RESTO 91") {
+		t.Fatalf("a large class puts problems first:\n%s", v)
+	}
+	if got := m.selected(); got == nil || got.Strikes == 0 {
+		t.Fatal("the cursor starts on what needs attention")
+	}
+	press(m, "f")
+	if m.filter != filterAttention || len(m.rows()) != 9 {
+		t.Fatalf("F shows who needs attention: %d rows", len(m.rows()))
+	}
+	press(m, "4")
+	for _, r := range m.rows() {
+		if r.State != session.AttemptSubmitted {
+			t.Fatal("4 shows who submitted")
+		}
+	}
+
+	// A small class never moves: the teacher learns where each tile is.
+	s := NewMonitor(&daemon.Client{}, &daemon.State{StudentURL: "http://x/", Code: "K7Q2XM"}, Options{})
+	s.Update(boardMsg{board: bigClass(25)})
+	if s.rows()[0].Strikes != 0 || s.rows()[3].Strikes != 1 {
+		t.Fatal("tiles must keep their place up to 25 students")
+	}
+	s.View()
+	press(s, "down")
+	if s.sel != 5 {
+		t.Fatalf("↓ moves a row of tiles, not one: %d", s.sel)
+	}
+}
+
+func TestMonitorCardAndHelp(t *testing.T) {
+	m := NewMonitor(&daemon.Client{}, &daemon.State{StudentURL: "http://x/", Code: "K7Q2XM"}, Options{})
+	b := board(session.StateRunning)
+	b.StrikeLimit = 3
+	m.Update(boardMsg{board: b})
+	press(m, "enter")
+	if v := m.View().Content; !m.showCard || !strings.Contains(v, "LO QUE HA PASADO") || !strings.Contains(v, "Sin incidencias") {
+		t.Fatalf("Enter opens the card:\n%s", v)
+	}
+	press(m, "t")
+	if m.mode != modePrompt {
+		t.Fatal("the card keeps the keys working")
+	}
+	press(m, "esc", "esc")
+	if m.showCard {
+		t.Fatal("Esc closes the card")
+	}
+	press(m, "?")
+	if v := m.View().Content; !strings.Contains(v, "Teclas de esta pantalla") {
+		t.Fatalf("? opens the help:\n%s", v)
+	}
+	if press(m, "q"); !m.showHelp {
+		t.Fatal("keys do nothing behind the help")
+	}
+	press(m, "?")
+	if m.showHelp {
+		t.Fatal("? closes the help")
+	}
+	// The bar comes from the same table as the help.
+	bar := map[string]bool{}
+	for _, k := range m.barKeys() {
+		bar[k.key] = true
+	}
+	var all []string
+	for _, g := range m.keyTable() {
+		for _, it := range g.items {
+			all = append(all, it.key)
+		}
+	}
+	for k := range bar {
+		if !slices.Contains(all, k) {
+			t.Fatalf("%s is on the bar but not in the help", k)
+		}
+	}
+}
+
+func TestMonitorLockedShowsNoNames(t *testing.T) {
+	m := NewMonitor(&daemon.Client{}, &daemon.State{StudentURL: "http://x/", Code: "K7Q2XM"}, Options{CheckPassword: func(string) bool { return false }})
+	m.Update(boardMsg{board: board(session.StateRunning)})
+	press(m, "enter", "l", "a", "b")
+	v := ansi.Strip(m.View().Content)
+	for _, secret := range []string{"Ana Pérez", "Luis", "K7Q2XM", "ab"} {
+		if strings.Contains(v, secret) {
+			t.Fatalf("the locked panel shows %q:\n%s", secret, v)
+		}
 	}
 }

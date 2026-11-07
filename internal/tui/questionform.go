@@ -9,6 +9,7 @@ import (
 
 	"charm.land/bubbles/v2/key"
 	"charm.land/huh/v2"
+	"charm.land/lipgloss/v2"
 
 	"github.com/lisk0vian/assess/internal/exam"
 )
@@ -21,10 +22,10 @@ type questionValues struct {
 	Prompt    string
 	Points    string
 	Options   string // one option per line
-	Correct   int    // single: line index of the right option
+	Correct   int    // single: line index of the right option, -1 when not marked
 	CorrectM  []int  // multiple: line indexes of the right options
 	Partial   bool
-	Value     bool // truefalse
+	Value     *bool // truefalse: nil until the teacher says
 	Input     string
 	Number    string
 	Tolerance string
@@ -35,22 +36,18 @@ type questionValues struct {
 
 	old    *exam.Question // nil for a new question
 	oldKey exam.Answer
-	// marked are the right options when the form opened. Huh clears the
-	// bound value while it loads dynamic options, so they are marked from
-	// this copy.
-	marked []int
 }
 
 // defaultNormalize is what new text answers ignore: spacing, case, accents.
 var defaultNormalize = []string{"trim", "casefold", "collapse_spaces", "strip_accents"}
 
 func newQuestionValues(id string) *questionValues {
-	return &questionValues{ID: id, Type: exam.TypeSingle, Points: "1", Input: "number", Options: "\n"}
+	return &questionValues{ID: id, Type: exam.TypeSingle, Points: "1", Input: "number", Correct: -1}
 }
 
 func questionValuesOf(q *exam.Question, a exam.Answer) *questionValues {
 	v := &questionValues{ID: q.ID, Type: q.Type, Prompt: strings.TrimRight(q.Prompt, "\n"), Points: fmtNum(a.Points),
-		Partial: a.Partial, Input: q.Input, Reveal: q.Reveal, Lens: onOff(q.Lens), old: q, oldKey: a}
+		Partial: a.Partial, Input: q.Input, Reveal: q.Reveal, Lens: onOff(q.Lens), Correct: -1, old: q, oldKey: a}
 	if v.Input == "" {
 		v.Input = "number"
 	}
@@ -62,13 +59,10 @@ func questionValuesOf(q *exam.Question, a exam.Answer) *questionValues {
 		}
 		if slices.Contains(a.Options, o.ID) {
 			v.CorrectM = append(v.CorrectM, i)
-			v.marked = append(v.marked, i)
 		}
 	}
 	v.Options = strings.Join(lines, "\n")
-	if a.Value != nil {
-		v.Value = *a.Value
-	}
+	v.Value = a.Value
 	if a.Number != nil {
 		v.Number = fmtNum(*a.Number)
 	}
@@ -98,52 +92,6 @@ func lines(s string) []string {
 // parseNum accepts a decimal comma too.
 func parseNum(s string) (float64, error) {
 	return strconv.ParseFloat(strings.Replace(strings.TrimSpace(s), ",", ".", 1), 64)
-}
-
-func checkPoints(s string) error {
-	v, err := parseNum(s)
-	if err != nil || v <= 0 || v > exam.MaxPoints {
-		return errors.New(T("form.err.points", "max", exam.MaxPoints))
-	}
-	return nil
-}
-
-func checkNumber(s string) error {
-	if _, err := parseNum(s); err != nil {
-		return errors.New(T("form.err.number"))
-	}
-	return nil
-}
-
-func checkOptionalNumber(s string) error {
-	if strings.TrimSpace(s) == "" {
-		return nil
-	}
-	if v, err := parseNum(s); err != nil || v < 0 {
-		return errors.New(T("form.err.optional_number"))
-	}
-	return nil
-}
-
-func checkTimeLimit(s string) error {
-	if strings.TrimSpace(s) == "" {
-		return nil
-	}
-	d, err := time.ParseDuration(strings.TrimSpace(s))
-	if err != nil || d < exam.MinTimeLimit {
-		return errors.New(T("form.err.time_limit"))
-	}
-	return nil
-}
-
-func checkOptions(s string) error {
-	switch n := len(lines(s)); {
-	case n < exam.MinOptions:
-		return errors.New(T("form.err.min_options", "n", exam.MinOptions))
-	case n > exam.MaxOptions:
-		return errors.New(T("form.err.max_options", "n", exam.MaxOptions))
-	}
-	return nil
 }
 
 // optionIDs gives each option line an id: the old option at that position
@@ -176,7 +124,9 @@ func (v *questionValues) optionIDs(n int) []exam.Option {
 func (v *questionValues) build() (*exam.Question, exam.Answer, error) {
 	q := &exam.Question{ID: strings.TrimSpace(v.ID), Type: v.Type, Prompt: strings.TrimSpace(v.Prompt)}
 	if v.old != nil {
-		q.Placeholder = v.old.Placeholder
+		if v.old.Type == v.Type {
+			q.Placeholder = v.old.Placeholder
+		}
 		if strings.TrimSpace(v.old.Prompt) == q.Prompt {
 			q.Prompt = v.old.Prompt // unchanged: keep it as written, block style included
 		}
@@ -217,16 +167,17 @@ func (v *questionValues) build() (*exam.Question, exam.Answer, error) {
 			a.Partial = v.Partial
 		}
 	case exam.TypeTrueFalse:
-		val := v.Value
-		a.Value = &val
+		a.Value = v.Value
 	case exam.TypeShort:
 		q.Input = v.Input
 		if q.Input == "number" {
-			n, err := parseNum(v.Number)
-			if err != nil {
-				return nil, a, errors.New(T("form.err.answer_field"))
+			if strings.TrimSpace(v.Number) != "" { // empty is allowed: Review asks for it
+				n, err := parseNum(v.Number)
+				if err != nil {
+					return nil, a, errors.New(T("form.err.answer_field"))
+				}
+				a.Number = &n
 			}
-			a.Number = &n
 			if strings.TrimSpace(v.Tolerance) != "" {
 				t, err := parseNum(v.Tolerance)
 				if err != nil {
@@ -241,138 +192,8 @@ func (v *questionValues) build() (*exam.Question, exam.Answer, error) {
 				a.Normalize = defaultNormalize
 			}
 		}
-		q.Placeholder = ""
-		if v.old != nil && v.old.Type == exam.TypeShort {
-			q.Placeholder = v.old.Placeholder
-		}
 	}
 	return q, a, nil
-}
-
-func typeOptions() []huh.Option[string] {
-	return []huh.Option[string]{
-		huh.NewOption(T("form.type.single"), exam.TypeSingle),
-		huh.NewOption(T("form.type.multiple"), exam.TypeMultiple),
-		huh.NewOption(T("form.type.truefalse"), exam.TypeTrueFalse),
-		huh.NewOption(T("form.type.short"), exam.TypeShort),
-	}
-}
-
-// optionChoices lists the option lines for picking the right ones, with
-// the current right ones already marked.
-func (v *questionValues) optionChoices() []huh.Option[int] {
-	var out []huh.Option[int]
-	for i, t := range lines(v.Options) {
-		out = append(out, huh.NewOption(t, i).Selected(slices.Contains(v.marked, i)))
-	}
-	return out
-}
-
-// form builds the question form. taken reports ids already in use; nil
-// means the id is assigned by the caller and not asked.
-func (v *questionValues) form(taken func(string) bool) *huh.Form {
-	isNew := v.old == nil
-	is := func(types ...string) func() bool {
-		return func() bool { return !slices.Contains(types, v.Type) }
-	}
-	var head []huh.Field
-	if isNew {
-		head = append(head, huh.NewSelect[string]().Title(T("form.type.title")).Options(typeOptions()...).Value(&v.Type))
-	}
-	if isNew && taken != nil {
-		head = append(head,
-			huh.NewInput().Title(T("form.id.title")).Description(T("form.id.hint")).Value(&v.ID).
-				Validate(func(s string) error {
-					s = strings.TrimSpace(s)
-					switch {
-					case !exam.ValidID(s):
-						return errors.New(T("form.err.id"))
-					case taken(s):
-						return errors.New(T("form.err.id_taken"))
-					}
-					return nil
-				}))
-	}
-	if !isNew {
-		head = append(head, huh.NewNote().Title(v.ID+" · "+typeName(v.Type)).Description(T("form.id.fixed")))
-	}
-	head = append(head,
-		huh.NewText().Title(T("form.prompt.title")).Description(T("form.prompt.hint")).
-			Lines(6).CharLimit(exam.MaxMarkdownBytes).Value(&v.Prompt).
-			Validate(func(s string) error {
-				if strings.TrimSpace(s) == "" {
-					return errors.New(T("form.err.prompt"))
-				}
-				return nil
-			}),
-		huh.NewInput().Title(T("form.points")).Value(&v.Points).Validate(checkPoints),
-	)
-
-	return huh.NewForm(
-		huh.NewGroup(head...),
-		huh.NewGroup(
-			huh.NewText().Title(T("form.options.title")).Description(T("form.options.hint")).
-				Lines(6).Value(&v.Options).Validate(checkOptions),
-		).WithHideFunc(is(exam.TypeSingle, exam.TypeMultiple)),
-		huh.NewGroup(
-			huh.NewSelect[int]().Title(T("form.correct_one")).OptionsFunc(v.optionChoices, &v.Options).Value(&v.Correct),
-		).WithHideFunc(is(exam.TypeSingle)),
-		huh.NewGroup(
-			huh.NewMultiSelect[int]().Title(T("form.correct_many")).Description(T("form.correct_many_hint")).
-				OptionsFunc(v.optionChoices, &v.Options).Value(&v.CorrectM).
-				Validate(func(s []int) error {
-					if len(s) == 0 {
-						return errors.New(T("form.err.mark_one"))
-					}
-					return nil
-				}),
-			huh.NewConfirm().Title(T("form.partial.title")).Description(T("form.partial.hint")).
-				Affirmative(T("common.yes")).Negative(T("common.no")).Value(&v.Partial),
-		).WithHideFunc(is(exam.TypeMultiple)),
-		huh.NewGroup(
-			huh.NewConfirm().Title(T("form.statement")).Affirmative(T("form.true")).Negative(T("form.false")).Value(&v.Value),
-		).WithHideFunc(is(exam.TypeTrueFalse)),
-		huh.NewGroup(
-			huh.NewSelect[string]().Title(T("form.input.title")).Options(
-				huh.NewOption(T("form.input.number"), "number"), huh.NewOption(T("form.input.text"), "text")).Value(&v.Input),
-		).WithHideFunc(is(exam.TypeShort)),
-		huh.NewGroup(
-			huh.NewInput().Title(T("form.number")).Value(&v.Number).Validate(checkNumber),
-			huh.NewInput().Title(T("form.tolerance.title")).Description(T("form.tolerance.hint")).
-				Value(&v.Tolerance).Validate(checkOptionalNumber),
-		).WithHideFunc(func() bool { return v.Type != exam.TypeShort || v.Input != "number" }),
-		huh.NewGroup(
-			huh.NewText().Title(T("form.accept.title")).Description(T("form.accept.hint")).
-				Lines(4).Value(&v.Accept).Validate(func(s string) error {
-				if len(lines(s)) == 0 {
-					return errors.New(T("form.err.accept"))
-				}
-				return nil
-			}),
-		).WithHideFunc(func() bool { return v.Type != exam.TypeShort || v.Input != "text" }),
-		huh.NewGroup(
-			huh.NewInput().Title(T("form.time_limit.title")).Description(T("form.time_limit.hint")).
-				Value(&v.TimeLimit).Validate(checkTimeLimit),
-			huh.NewSelect[string]().Title(T("form.reveal.title")).Options(
-				huh.NewOption(T("form.inherit"), ""), huh.NewOption(T("form.reveal.always"), "always"),
-				huh.NewOption(T("form.reveal.hover"), "hover")).Value(&v.Reveal),
-			lensSelect(v),
-		).WithHideFunc(is(exam.TypeSingle, exam.TypeMultiple)),
-		huh.NewGroup(
-			huh.NewInput().Title(T("form.time_limit.title")).Description(T("form.time_limit.hint")).
-				Value(&v.TimeLimit).Validate(checkTimeLimit),
-			lensSelect(v),
-		).WithHideFunc(is(exam.TypeTrueFalse, exam.TypeShort)),
-	)
-}
-
-func lensSelect(v *questionValues) *huh.Select[string] {
-	return huh.NewSelect[string]().Title(T("form.lens.title")).
-		Description(T("form.lens.hint")).Options(inheritOptions()...).Value(&v.Lens)
-}
-
-func inheritOptions() []huh.Option[string] {
-	return []huh.Option[string]{huh.NewOption(T("form.inherit"), ""), huh.NewOption(T("common.yes"), "on"), huh.NewOption(T("common.no"), "off")}
 }
 
 // onOff and fromOnOff convert an optional bool to the "", "on", "off" of a select.
@@ -467,58 +288,6 @@ func (v *manifestValues) build() (exam.Manifest, error) {
 	return m, nil
 }
 
-func (v *manifestValues) form() *huh.Form {
-	return huh.NewForm(
-		huh.NewGroup(
-			huh.NewNote().Title(T("form.manifest.title")).Description(T("form.manifest.id", "id", v.m.ID)),
-			huh.NewInput().Title(T("form.manifest.exam_title")).Value(&v.Title).Validate(func(s string) error {
-				if strings.TrimSpace(s) == "" {
-					return errors.New(T("form.err.title"))
-				}
-				return nil
-			}),
-			huh.NewInput().Title(T("form.manifest.duration")).Description(T("form.manifest.duration_hint")).Value(&v.Duration).Validate(func(s string) error {
-				d, err := time.ParseDuration(strings.TrimSpace(s))
-				if err != nil || d < time.Minute || d > exam.MaxDuration {
-					return errors.New(T("form.err.duration"))
-				}
-				return nil
-			}),
-			huh.NewSelect[string]().Title(T("form.manifest.language")).Options(languageOptions(v.Language)...).Value(&v.Language),
-			huh.NewSelect[string]().Title(T("form.manifest.visibility")).Options(visibilityOptions()...).Value(&v.Visibility),
-		),
-		huh.NewGroup(
-			huh.NewText().Title(T("form.manifest.instructions")).Description(T("form.manifest.instructions_hint")).Lines(6).Value(&v.Instructions),
-			huh.NewConfirm().Title(T("form.manifest.shuffle_q")).Affirmative(T("common.yes")).Negative(T("common.no")).Value(&v.ShuffleQ),
-			huh.NewConfirm().Title(T("form.manifest.shuffle_o")).Affirmative(T("common.yes")).Negative(T("common.no")).Value(&v.ShuffleO),
-		),
-		huh.NewGroup(
-			huh.NewSelect[string]().Title(T("form.manifest.proctoring")).Options(profileOptions()...).Value(&v.Profile),
-			huh.NewInput().Title(T("form.manifest.strikes")).Description(T("form.manifest.strikes_hint")).Value(&v.StrikeLimit).
-				Validate(func(s string) error {
-					if strings.TrimSpace(s) == "" {
-						return nil
-					}
-					if n, err := strconv.Atoi(strings.TrimSpace(s)); err != nil || n < 1 || n > 10 {
-						return errors.New(T("form.err.strikes"))
-					}
-					return nil
-				}),
-		),
-		huh.NewGroup(
-			huh.NewNote().Title(T("form.manifest.photos")).Description(T("form.manifest.photos_hint")),
-			huh.NewConfirm().Title(T("form.manifest.lens")).Description(T("form.manifest.lens_hint")).
-				Affirmative(T("common.yes")).Negative(T("common.no")).Value(&v.Lens),
-			huh.NewConfirm().Title(T("form.manifest.auto_read")).Description(T("form.manifest.auto_read_hint")).
-				Affirmative(T("common.yes")).Negative(T("common.no")).Value(&v.AutoRead),
-			huh.NewSelect[string]().Title(T("form.manifest.read_speed")).Description(T("form.manifest.read_speed_hint")).
-				Options(readSpeedOptions()...).Value(&v.ReadSpeed),
-			huh.NewConfirm().Title(T("form.manifest.frozen")).Description(T("form.manifest.frozen_hint")).
-				Affirmative(T("common.yes")).Negative(T("common.no")).Value(&v.FrozenPointer),
-		).WithHideFunc(func() bool { return v.Profile == "off" }),
-	)
-}
-
 // formKeys is huh's key map with translated help, and the first letter of
 // the translated "yes" accepting confirmations.
 func formKeys() *huh.KeyMap {
@@ -570,4 +339,25 @@ func formKeys() *huh.KeyMap {
 // StyleForm gives a form the panel's colours and translated key help.
 func StyleForm(f *huh.Form) *huh.Form {
 	return f.WithTheme(huh.ThemeFunc(formTheme)).WithKeyMap(formKeys())
+}
+
+// formTheme is huh's base theme in the panel's colours.
+func formTheme(isDark bool) *huh.Styles {
+	t := huh.ThemeCharm(isDark)
+	t.Focused.Title = t.Focused.Title.Foreground(accent)
+	t.Focused.NoteTitle = t.Focused.NoteTitle.Foreground(accent)
+	t.Focused.SelectSelector = t.Focused.SelectSelector.Foreground(accent)
+	t.Focused.MultiSelectSelector = t.Focused.MultiSelectSelector.Foreground(accent)
+	t.Focused.NextIndicator = t.Focused.NextIndicator.Foreground(accent)
+	t.Focused.PrevIndicator = t.Focused.PrevIndicator.Foreground(accent)
+	t.Focused.FocusedButton = t.Focused.FocusedButton.Background(accent)
+	t.Focused.Next = t.Focused.FocusedButton
+	t.Focused.TextInput.Prompt = t.Focused.TextInput.Prompt.Foreground(accent)
+	t.Blurred = t.Focused
+	t.Blurred.Base = t.Focused.Base.BorderStyle(lipgloss.HiddenBorder())
+	t.Blurred.Card = t.Blurred.Base
+	t.Blurred.NextIndicator = lipgloss.NewStyle()
+	t.Blurred.PrevIndicator = lipgloss.NewStyle()
+	t.Group.Title = t.Focused.Title
+	return t
 }

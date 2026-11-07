@@ -1,12 +1,10 @@
 package tui
 
 import (
-	"fmt"
 	"strings"
 
 	tea "charm.land/bubbletea/v2"
 	"charm.land/huh/v2"
-	"github.com/charmbracelet/x/ansi"
 
 	"github.com/lisk0vian/assess/internal/config"
 	"github.com/lisk0vian/assess/internal/i18n"
@@ -18,35 +16,46 @@ type SettingChange struct {
 	Reset      bool // back to the default (the line is commented out again)
 }
 
-// Settings edits the settings file: every key, grouped as in the file,
-// with a form suited to its kind. Nothing is written here; the caller saves
-// Changes when the screen closes.
+// Settings edits the settings file: every key, grouped as in the file. Nothing
+// is written here; the caller saves Changes when the screen closes.
 type Settings struct {
 	cfg           *config.Config
-	sel           int
+	groups        []string
+	group, sel    int
 	width, height int
 	pending       map[string]SettingChange
 	order         []string // keys in the order they were changed
 
-	form    *huh.Form
-	editing string
-	value   string
-	choice  string
+	editing *config.Key
+	options []huh.Option[string] // nil for a typed value
+	choice  int
+	field   textField
+	problem string
 
-	asking bool // "save the changes?" on the way out
-	notice string
+	notice   string
+	showHelp bool
 
-	// Changes are the confirmed changes, in order, once the screen closes.
+	// Changes are the changes, in order, once the screen closes.
 	Changes []SettingChange
 }
 
 // NewSettings opens the Settings screen on the loaded settings.
 func NewSettings(cfg *config.Config) *Settings {
-	return &Settings{cfg: cfg, width: 100, height: 40, pending: map[string]SettingChange{}}
+	return &Settings{cfg: cfg, groups: config.Groups(), width: 120, height: 36, pending: map[string]SettingChange{}}
 }
 
-// Init does nothing; the settings are already loaded.
-func (m *Settings) Init() tea.Cmd { return nil }
+// Init asks for the terminal's background, which picks the theme.
+func (m *Settings) Init() tea.Cmd { return tea.RequestBackgroundColor }
+
+func (m *Settings) keys() []config.Key {
+	var out []config.Key
+	for _, k := range config.Keys {
+		if k.Group() == m.groups[m.group] {
+			out = append(out, k)
+		}
+	}
+	return out
+}
 
 // current is the value shown for k: pending, or the effective one.
 func (m *Settings) current(k config.Key) (string, string) {
@@ -57,8 +66,7 @@ func (m *Settings) current(k config.Key) (string, string) {
 		return ch.Value, T("settings.changed")
 	}
 	v := m.cfg.Get(k.Name)
-	switch v.Source {
-	case config.FromFile:
+	if v.Source == config.FromFile {
 		return v.Raw, T("cli.config.from_file", "line", v.Line)
 	}
 	return v.Raw, T("cli.config.from_default")
@@ -71,135 +79,125 @@ func (m *Settings) change(ch SettingChange) {
 	m.pending[ch.Key] = ch
 }
 
-// Update handles the list keys, the open form and the closing question.
+// Update handles the list keys and the open editor.
 func (m *Settings) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
-	if ws, ok := msg.(tea.WindowSizeMsg); ok {
-		m.width, m.height = ws.Width, ws.Height
-	}
-	if m.form != nil {
-		return m, m.updateForm(msg)
-	}
-	key, ok := msg.(tea.KeyPressMsg)
-	if !ok {
-		return m, nil
-	}
-	k := key.String()
-	if m.asking {
-		switch {
-		case isYes(k):
-			m.save()
-			return m, tea.Quit
-		case k == "esc":
-			m.asking = false
-			return m, nil
+	switch msg := msg.(type) {
+	case tea.WindowSizeMsg:
+		m.width, m.height = msg.Width, msg.Height
+	case tea.BackgroundColorMsg:
+		setDark(msg.IsDark())
+	case tea.PasteMsg:
+		if m.editing != nil && m.options == nil {
+			m.field.insert(strings.ReplaceAll(msg.Content, "\n", " "))
 		}
-		return m, tea.Quit // no: leave without saving
-	}
-	keys := config.Keys
-	switch k {
-	case "q", "Q", "esc", "ctrl+c":
-		if len(m.pending) == 0 {
-			return m, tea.Quit
+	case tea.KeyPressMsg:
+		switch k := msg.String(); {
+		case m.showHelp:
+			if k == "?" || k == "esc" {
+				m.showHelp = false
+			}
+		case m.editing != nil:
+			m.editKey(msg)
+		default:
+			return m, m.listKey(k)
 		}
-		m.asking = true
-	case "up", "k":
-		m.sel = max(0, m.sel-1)
-	case "down", "j":
-		m.sel = min(len(keys)-1, m.sel+1)
-	case "home", "g":
-		m.sel = 0
-	case "end", "G":
-		m.sel = len(keys) - 1
-	case "enter":
-		return m, m.edit(keys[m.sel])
-	case "r", "R":
-		kk := keys[m.sel]
-		m.change(SettingChange{Key: kk.Name, Reset: true})
-		m.notice = T("settings.reset_notice", "key", kk.Name, "value", display(kk.Default))
-	case "s", "S":
-		m.save()
-		return m, tea.Quit
 	}
 	return m, nil
 }
 
-func (m *Settings) save() {
-	m.Changes = nil
-	for _, k := range m.order {
-		m.Changes = append(m.Changes, m.pending[k])
-	}
-}
-
-func (m *Settings) updateForm(msg tea.Msg) tea.Cmd {
-	if key, ok := msg.(tea.KeyPressMsg); ok && key.String() == "esc" {
-		m.form, m.notice = nil, T("editor.discarded")
-		return nil
-	}
-	f, cmd := m.form.Update(msg)
-	m.form = f.(*huh.Form)
-	switch m.form.State {
-	case huh.StateCompleted:
-		k, _ := config.Lookup(m.editing)
-		v := m.value
-		if k.Kind == config.Choice || k.Kind == config.Bool || isLangKey(k) {
-			v = m.choice
+func (m *Settings) listKey(k string) tea.Cmd {
+	keys := m.keys()
+	switch k {
+	case "q", "Q", "esc", "ctrl+c", "s", "S":
+		m.Changes = nil
+		for _, name := range m.order {
+			m.Changes = append(m.Changes, m.pending[name])
 		}
-		v = strings.TrimSpace(v)
-		m.form = nil
-		if old, _ := m.current(k); old == v {
-			m.notice = ""
-			return nil
-		}
-		m.change(SettingChange{Key: k.Name, Value: v})
-		m.notice = T("settings.changed_notice", "key", k.Name, "value", display(v))
-		return nil
-	case huh.StateAborted:
-		m.form, m.notice = nil, T("editor.discarded")
+		return tea.Quit
+	case "up", "k":
+		m.sel = max(0, m.sel-1)
+	case "down", "j":
+		m.sel = min(len(keys)-1, m.sel+1)
+	case "left":
+		m.group, m.sel = max(0, m.group-1), 0
+	case "right":
+		m.group, m.sel = min(len(m.groups)-1, m.group+1), 0
+	case "?":
+		m.showHelp = true
+	case "enter":
+		m.edit(keys[m.sel])
+	case "r", "R":
+		kk := keys[m.sel]
+		m.change(SettingChange{Key: kk.Name, Reset: true})
+		m.notice = T("settings.reset_notice", "key", kk.Name, "value", display(kk.Default))
 	}
-	return cmd
+	return nil
 }
 
 func isLangKey(k config.Key) bool { return k.Name == "language" || k.Name == "student_language" }
 
-// edit opens the form for one key.
-func (m *Settings) edit(k config.Key) tea.Cmd {
+func (m *Settings) edit(k config.Key) {
 	cur, _ := m.current(k)
-	m.editing, m.value, m.choice = k.Name, cur, cur
-	title := k.Name
-	desc := config.Help(i18n.Language(), k)
-	var field huh.Field
+	m.editing, m.options, m.choice, m.problem, m.notice = &k, nil, 0, "", ""
 	switch {
 	case isLangKey(k):
-		opts := languageOptions(cur)
+		m.options = languageOptions(cur)
 		if k.Name == "student_language" {
-			opts = append([]huh.Option[string]{huh.NewOption(T("settings.same_as_terminal"), "")}, opts...)
+			m.options = append([]huh.Option[string]{huh.NewOption(T("settings.same_as_terminal"), "")}, m.options...)
 		}
-		field = huh.NewSelect[string]().Title(title).Description(desc).Options(opts...).Value(&m.choice)
 	case k.Kind == config.Choice:
-		var opts []huh.Option[string]
 		for _, c := range k.Choices {
-			opts = append(opts, huh.NewOption(choiceLabel(k, c), c))
+			m.options = append(m.options, huh.NewOption(choiceLabel(k, c), c))
 		}
-		field = huh.NewSelect[string]().Title(title).Description(desc).Options(opts...).Value(&m.choice)
 	case k.Kind == config.Bool:
-		field = huh.NewSelect[string]().Title(title).Description(desc).Options(
-			huh.NewOption(T("common.yes"), "true"), huh.NewOption(T("common.no"), "false")).Value(&m.choice)
+		m.options = []huh.Option[string]{huh.NewOption(T("common.yes"), "true"), huh.NewOption(T("common.no"), "false")}
 	default:
-		in := huh.NewInput().Title(title).Description(desc).Value(&m.value).Validate(func(s string) error {
-			s = strings.TrimSpace(s)
-			if s == "" && k.Kind == config.String {
-				return nil
-			}
-			return k.Validate(s)
-		})
-		if k.Default != "" {
-			in = in.Placeholder(k.Default)
-		}
-		field = in
+		m.field = newField(cur)
 	}
-	m.form = StyleForm(huh.NewForm(huh.NewGroup(field))).WithShowHelp(true).WithWidth(min(m.w()-4, 100))
-	m.notice = ""
-	return m.form.Init()
+	for i, o := range m.options {
+		if o.Value == cur {
+			m.choice = i
+		}
+	}
+}
+
+func (m *Settings) editKey(msg tea.KeyPressMsg) {
+	k := *m.editing
+	s := msg.String()
+	switch {
+	case s == "esc" || s == "ctrl+c":
+		m.editing = nil
+	case s == "enter":
+		m.confirm(k)
+	case m.options == nil:
+		m.field.key(msg, false)
+		m.problem = ""
+	case s == "left":
+		m.choice = max(0, m.choice-1)
+	case s == "right":
+		m.choice = min(len(m.options)-1, m.choice+1)
+	}
+}
+
+func (m *Settings) confirm(k config.Key) {
+	var v string
+	if m.options != nil {
+		v = m.options[m.choice].Value
+	} else {
+		v = strings.TrimSpace(m.field.value())
+		if v != "" || k.Kind != config.String {
+			if err := k.Validate(v); err != nil {
+				m.problem = err.Error()
+				return
+			}
+		}
+	}
+	m.editing = nil
+	if old, _ := m.current(k); old == v {
+		return
+	}
+	m.change(SettingChange{Key: k.Name, Value: v})
+	m.notice = T("settings.changed_notice", "key", k.Name, "value", display(v))
 }
 
 // choiceLabel explains a choice when the catalog has words for it.
@@ -220,96 +218,149 @@ func display(v string) string {
 	return v
 }
 
-func (m *Settings) w() int { return max(72, min(m.width, 140)) }
+func (m *Settings) groupName(g string) string {
+	if g == "" {
+		return T("settings.general")
+	}
+	return T("config.group." + g)
+}
 
-// View draws the settings grouped as in the file, and the help of the
-// selected one.
+func (m *Settings) keyTable() []keyGroup {
+	k := func(key, label string, bar bool) keyItem { return keyItem{keyHint{key, label}, bar} }
+	if m.editing != nil {
+		items := []keyItem{k("Enter", T("keys.save"), true), k("Esc", T("hub.key.back"), true)}
+		if m.options != nil {
+			items = append([]keyItem{k("←→", T("editor.ui.key_option"), true)}, items...)
+		}
+		return []keyGroup{{m.editing.Name, items}}
+	}
+	return []keyGroup{{T("hub.vault_act.settings"), []keyItem{k("↑↓", T("settings.key.setting"), true), k("←→", T("settings.key.group"), true), k("Enter", T("editor.key.edit"), true),
+		k("R", T("settings.key.reset"), true), k("?", T("monitor.ui.key_help"), false), k("Esc", T("settings.key.save_back"), true)}}}
+}
+
+// View draws the groups, their settings and the help of the selected one.
 func (m *Settings) View() tea.View {
-	w := m.w()
-	var b strings.Builder
-	b.WriteString(brandStyle.Render("ASSESS") + mutedStyle.Render("  ·  "+T("settings.name")+"  ·  "+m.cfg.Path) + "\n")
-	b.WriteString(mutedStyle.Render(strings.Repeat("─", w)) + "\n")
-	if m.form != nil {
-		b.WriteString(m.form.View() + "\n\n" + mutedStyle.Render(T("editor.esc_discards")) + "\n")
-		return m.finish(&b)
-	}
-
-	type line struct {
-		text string
-		key  int // index in config.Keys, -1 for a heading
-	}
-	var lines []line
-	group := "-"
-	for i, k := range config.Keys {
-		if g := k.Group(); g != group {
-			group = g
-			title := T("settings.general")
-			if g != "" {
-				title = T("config.group." + g)
-			}
-			if len(lines) > 0 {
-				lines = append(lines, line{"", -1})
-			}
-			lines = append(lines, line{headStyle.Render("  " + strings.ToUpper(title)), -1})
+	w, h := max(1, m.width), max(1, m.height)
+	g := newGrid(w, h, rBg)
+	if w < 72 || h < 16 {
+		for i, l := range wrap(T("monitor.ui.too_small"), max(10, w-2)) {
+			g.text(1, 1+i, l, style{fg: rInk, bg: rBg})
 		}
-		v, src := m.current(k)
-		val := display(v)
-		if _, ok := m.pending[k.Name]; ok {
-			val = accentStyle.Render(val)
-		}
-		lines = append(lines, line{fmt.Sprintf("%-28s %s  %s", k.Name, padRight(val, 22), mutedStyle.Render(src)), i})
+	} else {
+		m.screen(g)
 	}
-	selLine := 0
-	for i, l := range lines {
-		if l.key == m.sel {
-			selLine = i
-		}
-	}
-	room := max(6, m.height-12)
-	start := min(max(0, selLine-room/2), max(0, len(lines)-room))
-	end := min(len(lines), start+room)
-	for _, l := range lines[start:end] {
-		switch {
-		case l.key == m.sel:
-			b.WriteString(selStyle.Render("▸ "+l.text) + "\n")
-		case l.key >= 0:
-			b.WriteString("  " + l.text + "\n")
-		default:
-			b.WriteString(l.text + "\n")
-		}
-	}
-	b.WriteString(mutedStyle.Render(strings.Repeat("─", w)) + "\n")
-	k := config.Keys[m.sel]
-	b.WriteString(boldStyle.Render(k.Name) + mutedStyle.Render("  ·  "+T("cli.config.info_default")+" "+display(k.Default)) + "\n")
-	b.WriteString(config.Help(i18n.Language(), k) + "\n")
-	return m.finish(&b)
-}
-
-func padRight(s string, n int) string {
-	return s + strings.Repeat(" ", max(0, n-ansi.StringWidth(s)))
-}
-
-func (m *Settings) finish(b *strings.Builder) tea.View {
-	b.WriteString(mutedStyle.Render(strings.Repeat("─", m.w())) + "\n")
-	switch {
-	case m.asking:
-		yes, no := yesNoKeys()
-		b.WriteString(accentStyle.Render(T("settings.ask_save", "n", len(m.pending))) + "  " + keyStyle.Render(strings.ToUpper(yes[0])) + " " +
-			T("common.yes_short") + "  " + keyStyle.Render(strings.ToUpper(no[0])) + " " + T("common.no_short") + "  " + keyStyle.Render("Esc") + " " + T("settings.keep_editing") + "\n")
-	case m.notice != "":
-		b.WriteString(m.notice + "\n")
-	default:
-		b.WriteString("\n")
-	}
-	if m.form == nil && !m.asking {
-		k := func(key, label string) string { return keyStyle.Render(key) + " " + label }
-		keys := []string{k("Enter", T("editor.key.edit")), k("R", T("settings.key.reset")), k("S", T("keys.save")), k("Q", T("editor.key.quit"))}
-		if n := len(m.pending); n > 0 {
-			keys = append(keys, mutedStyle.Render(T("settings.pending", "n", n)))
-		}
-		b.WriteString(strings.Join(keys, "  "))
-	}
-	v := tea.NewView(b.String())
+	v := tea.NewView(g.String())
 	v.AltScreen = true
+	v.WindowTitle = "Assess"
 	return v
+}
+
+func (m *Settings) screen(g *grid) {
+	big := g.w >= wideCols
+	b := rSurface
+	g.fill(0, 0, g.w, 2, b)
+	g.text(1, 0, T("hub.vault_act.settings"), style{fg: rInk, bg: b, bold: true})
+	g.text(1, 1, fit(m.cfg.Path, g.w-2), style{fg: rInk2, bg: b})
+	g.hline(0, 2, g.w, rRuleStrong, rBg)
+	var bar []keyHint
+	for _, it := range m.keyTable()[0].items {
+		if it.bar {
+			bar = append(bar, it.keyHint)
+		}
+	}
+	bottom := g.h - keyBar(g, bar)
+	y, H := 3, bottom-3
+	rw := 18
+	if big {
+		rw = 22
+	}
+	g.fill(rw, y, g.w-rw, H, b)
+	for i, name := range m.groups {
+		if y+1+i < bottom {
+			on := i == m.group
+			rowBg := selRow(g, 0, y+1+i, rw, on, rBg)
+			g.text(2, y+1+i, fit(m.groupName(name), rw-3), nameStyle(on, rowBg))
+		}
+	}
+	g.vline(rw, y, H, rRuleStrong, b)
+	X, W := rw+1, g.w-rw-1
+	if big {
+		W = min(W, 66)
+	}
+	keys := m.keys()
+	m.sel = min(m.sel, len(keys)-1)
+	vx := W * 5 / 9
+	label(g, X+2, y+1, pad(T("settings.col.setting"), vx-2)+T("settings.col.value"), b)
+	g.hline(X, y+2, W, rRuleStrong, b)
+	room := H - 3
+	if !big {
+		room -= 5
+	}
+	top := window(m.sel, len(keys), room)
+	for i := range min(room, len(keys)-top) {
+		k := keys[top+i]
+		on, Y := top+i == m.sel, y+3+i
+		rowBg := selRow(g, X, Y, W, on, b)
+		g.text(X+2, Y, fit(k.Name, vx-3), nameStyle(on, rowBg))
+		v, _ := m.current(k)
+		g.text(X+vx, Y, fit(display(v), W-vx-3), style{fg: rInk, bg: rowBg, bold: true})
+		if _, changed := m.pending[k.Name]; changed {
+			g.right(X+W-1, Y, "●", style{fg: rInk, bg: rowBg})
+		}
+	}
+	k := keys[m.sel]
+	_, src := m.current(k)
+	if big {
+		P, c := X+W+2, g.w-X-W-4
+		g.vline(P-2, y+1, H-2, rRule, b)
+		Y := para(g, P, y+1, c, k.Name, style{fg: rInk, bg: b, bold: true})
+		Y = para(g, P, Y+1, c, config.Help(i18n.Language(), k), style{fg: rInk, bg: b}) + 1
+		Y = para(g, P, Y, c, T("cli.config.info_default")+" "+display(k.Default), style{fg: rInk2, bg: b})
+		para(g, P, Y, c, src, style{fg: rInk2, bg: b})
+	} else {
+		para(g, X+2, bottom-5, W-4, config.Help(i18n.Language(), k), style{fg: rInk2, bg: b})
+	}
+	if m.notice != "" {
+		g.text(X+2, bottom-1, fit(m.notice, g.w-X-4), style{fg: rInk, bg: b, bold: true})
+	}
+	if m.editing != nil {
+		m.drawEdit(g)
+	}
+	if m.showHelp {
+		helpPanel(g, m.keyTable())
+	}
+}
+
+func (m *Settings) drawEdit(g *grid) {
+	k := *m.editing
+	w := min(70, g.w-4)
+	help := wrap(config.Help(i18n.Language(), k), w-4)
+	rows := len(help)
+	h := min(rows+8, g.h-6)
+	x, y := (g.w-w)/2, max(3, (g.h-h)/2-1)
+	panel(g, x, y, w, h, fit(k.Name, w-4))
+	b := rSurface
+	Y := y + 3
+	for _, l := range help[:min(rows, h-7)] {
+		g.text(x+2, Y, l, style{fg: rInk2, bg: b})
+		Y++
+	}
+	Y++
+	if m.options != nil {
+		names := make([]string, len(m.options))
+		for i, o := range m.options {
+			names[i] = o.Key
+		}
+		sub := newGrid(w-4, 3, b)
+		chips(sub, 1, 0, names, m.choice, true, b)
+		for j := range min(2, y+h-Y) {
+			copy(g.c[(Y+j)*g.w+x+2:(Y+j)*g.w+x+w-2], sub.c[j*(w-4):(j+1)*(w-4)])
+		}
+		return
+	}
+	m.field.draw(g, x+2, Y, w-4, 1, true, style{fg: rInk, bg: rSurface2, bold: true})
+	if m.problem != "" {
+		g.fill(x, Y+1, w, 1, rInverse)
+		g.text(x+2, Y+1, fit(m.problem, w-4), style{fg: rOnInverse, bg: rInverse, bold: true})
+	}
 }

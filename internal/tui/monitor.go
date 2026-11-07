@@ -11,26 +11,10 @@ import (
 
 	"charm.land/bubbles/v2/textinput"
 	tea "charm.land/bubbletea/v2"
-	"charm.land/lipgloss/v2"
 	"github.com/mdp/qrterminal/v3"
 
 	"github.com/lisk0vian/assess/internal/daemon"
 	"github.com/lisk0vian/assess/internal/session"
-)
-
-// Mesa de luz palette, terminal edition.
-var (
-	accent = lipgloss.Color("#ec2a8a")
-	muted  = lipgloss.Color("#8f8d88")
-
-	brandStyle  = lipgloss.NewStyle().Bold(true)
-	boldStyle   = lipgloss.NewStyle().Bold(true)
-	accentStyle = lipgloss.NewStyle().Foreground(accent).Bold(true)
-	mutedStyle  = lipgloss.NewStyle().Foreground(muted)
-	keyStyle    = lipgloss.NewStyle().Bold(true).Reverse(true).Padding(0, 1)
-	selStyle    = lipgloss.NewStyle().Bold(true).Reverse(true)
-	headStyle   = lipgloss.NewStyle().Foreground(muted).Bold(true)
-	bannerStyle = lipgloss.NewStyle().Bold(true).Reverse(true).Padding(0, 1)
 )
 
 // Views of the panel.
@@ -85,6 +69,13 @@ type Monitor struct {
 	notice string
 	qr     string
 	width  int
+	height int
+	bottom int // rows the key bar and the notice line take
+	cols   int // tiles per row in the students view
+	filter int // which students the view shows
+
+	showCard bool
+	showHelp bool
 
 	view, sel int
 	viewSet   bool
@@ -112,7 +103,7 @@ func NewMonitor(c *daemon.Client, st *daemon.State, opts Options) *Monitor {
 	in := textinput.New()
 	in.CharLimit = 300
 	in.SetWidth(50)
-	m := &Monitor{client: c, opts: opts, width: 100, input: in, lastInput: time.Now(),
+	m := &Monitor{client: c, opts: opts, width: 120, height: 36, cols: 1, input: in, lastInput: time.Now(),
 		urls: append([]string{st.StudentURL}, st.OtherURLs...), code: st.Code}
 	m.makeQR()
 	return m
@@ -162,13 +153,15 @@ func (m *Monitor) call(notice string, fn func(context.Context) (*daemon.Board, e
 func (m *Monitor) refresh() tea.Cmd { return m.call("", m.client.Board) }
 
 // Init implements tea.Model.
-func (m *Monitor) Init() tea.Cmd { return tea.Batch(m.refresh(), tick()) }
+func (m *Monitor) Init() tea.Cmd { return tea.Batch(m.refresh(), tick(), tea.RequestBackgroundColor) }
 
 // Update implements tea.Model.
 func (m *Monitor) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
 	case tea.WindowSizeMsg:
-		m.width = msg.Width
+		m.width, m.height = msg.Width, msg.Height
+	case tea.BackgroundColorMsg:
+		setDark(msg.IsDark())
 	case tickMsg:
 		if m.opts.CheckPassword != nil && m.opts.LockAfter > 0 && m.mode != modeLocked && time.Since(m.lastInput) > m.opts.LockAfter {
 			m.lock()
@@ -244,6 +237,9 @@ func (m *Monitor) key(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 	k := msg.String()
 	switch m.mode {
 	case modeLocked:
+		if k == "ctrl+c" {
+			return m, tea.Quit
+		}
 		if k == "enter" {
 			if m.opts.CheckPassword == nil || m.opts.CheckPassword(m.input.Value()) {
 				m.mode, m.notice = modeNormal, T("monitor.unlocked")
@@ -371,6 +367,12 @@ func (m *Monitor) selectedIncident() *daemon.Incident {
 }
 
 func (m *Monitor) normalKey(k string) (tea.Model, tea.Cmd) {
+	if m.showHelp {
+		if k == "?" || k == "esc" {
+			m.showHelp = false
+		}
+		return m, nil
+	}
 	st := m.status()
 	row := m.selected()
 	attempt := func(action, notice string, body map[string]any) tea.Cmd {
@@ -381,13 +383,37 @@ func (m *Monitor) normalKey(k string) (tea.Model, tea.Cmd) {
 	switch k {
 	case "q", "ctrl+c":
 		return m, tea.Quit
+	case "?":
+		m.showHelp = true
+	case "esc":
+		m.showCard = false
+	case "enter":
+		if m.view == viewStudents && row != nil {
+			m.showCard = true
+		}
+	case "f", "F":
+		if m.view == viewStudents {
+			m.filter, m.sel = (m.filter+1)%filterCount, 0
+		}
+	case "1", "2", "3", "4", "5":
+		if m.view == viewStudents {
+			m.filter, m.sel = int(k[0]-'1'), 0
+		}
 	case "tab":
 		m.view = (m.view + 1) % viewCount
-		m.sel = 0
+		m.sel, m.showCard = 0, false
 	case "shift+tab":
 		m.view = (m.view + viewCount - 1) % viewCount
-		m.sel = 0
+		m.sel, m.showCard = 0, false
 	case "left", "right":
+		if m.view == viewStudents {
+			if k == "left" {
+				m.sel = max(0, m.sel-1)
+			} else {
+				m.sel++
+				m.clampSel()
+			}
+		}
 		if m.view == viewLink && len(m.urls) > 1 {
 			step := 1
 			if k == "left" {
@@ -397,11 +423,9 @@ func (m *Monitor) normalKey(k string) (tea.Model, tea.Cmd) {
 			m.makeQR()
 		}
 	case "up", "k":
-		if m.sel > 0 {
-			m.sel--
-		}
+		m.sel = max(0, m.sel-m.step())
 	case "down", "j":
-		m.sel++
+		m.sel += m.step()
 		m.clampSel()
 	case "l", "L":
 		if m.opts.CheckPassword == nil {
@@ -562,6 +586,9 @@ func (m *Monitor) rows() []daemon.StudentRow {
 	if m.board == nil {
 		return nil
 	}
+	if m.view == viewStudents {
+		return m.classRows()
+	}
 	if m.view != viewRanking {
 		return m.board.Students
 	}
@@ -589,6 +616,14 @@ func (m *Monitor) selected() *daemon.StudentRow {
 	return &r
 }
 
+// step is how far ↑↓ move: a row of tiles, or a line of a list.
+func (m *Monitor) step() int {
+	if m.view == viewStudents {
+		return max(1, m.cols)
+	}
+	return 1
+}
+
 func (m *Monitor) clampSel() {
 	n := len(m.rows())
 	if m.view == viewIncidents && m.board != nil {
@@ -599,197 +634,7 @@ func (m *Monitor) clampSel() {
 	}
 }
 
-// ---------------- view ----------------
-
-// View implements tea.Model.
-func (m *Monitor) View() tea.View {
-	var b strings.Builder
-	w := max(72, min(m.width, 140))
-	st := m.status()
-	b.WriteString(brandStyle.Render("ASSESS"))
-	if st != nil {
-		b.WriteString(mutedStyle.Render("  ·  ") + st.ExamTitle + "   " + m.stateLine())
-	}
-	b.WriteString("\n" + mutedStyle.Render(strings.Repeat("─", w)) + "\n")
-
-	if st == nil {
-		if m.err != nil {
-			b.WriteString(accentStyle.Render(T("monitor.no_connection")+" ") + m.err.Error() + "\n")
-		} else {
-			b.WriteString(T("monitor.connecting") + "\n")
-		}
-		return m.finish(&b)
-	}
-
-	if m.mode == modeLocked {
-		b.WriteString("\n" + boldStyle.Render(T("monitor.locked")) + "\n")
-		b.WriteString(mutedStyle.Render(T("monitor.locked_counts", "online", st.Online, "submitted", st.Submitted)) + "\n\n")
-		b.WriteString(T("monitor.unlock_prompt") + "  " + m.input.View() + "\n")
-		return m.finish(&b)
-	}
-
-	fmt.Fprintf(&b, "%s  %s   %s\n", mutedStyle.Render(T("cli.start.code")), accentStyle.Render(st.Code), boldStyle.Render(m.url()))
-	b.WriteString(mutedStyle.Render(T("monitor.counts", "online", st.Online, "active", st.Active, "submitted", st.Submitted, "joined", st.Joined)))
-	if m.board.StrikeLimit > 0 {
-		strikes := 0
-		for _, r := range m.board.Students {
-			strikes += r.Strikes
-		}
-		b.WriteString(mutedStyle.Render(" · " + T("monitor.strikes_total", "n", strikes, "limit", m.board.StrikeLimit)))
-	}
-	b.WriteString("\n")
-	if st.LastError != "" {
-		b.WriteString(accentStyle.Render(T("monitor.server_error")+" ") + st.LastError + "\n")
-	}
-	if n := len(m.board.Requests); n > 0 {
-		r := m.firstRequest()
-		what := T("monitor.request.device")
-		switch r.Kind {
-		case "late":
-			what = T("monitor.request.late")
-		case "unlisted":
-			what = T("monitor.request.unlisted", "class", m.board.Status.Class)
-		}
-		enroll := ""
-		if m.board.Status.Class != "" {
-			enroll = "  " + keyStyle.Render("G") + " " + T("monitor.key.enroll", "class", m.board.Status.Class)
-		}
-		more := ""
-		if n > 1 {
-			more = " " + T("monitor.request.more", "n", n-1)
-		}
-		b.WriteString("\n" + bannerStyle.Render(fmt.Sprintf("%s (%s) %s%s", r.Name, r.StudentID, what, more)) + "  " +
-			keyStyle.Render("A") + " " + T("monitor.key.approve") + enroll + "  " + keyStyle.Render("R") + " " + T("monitor.key.reject") + "\n")
-	}
-
-	tabs := make([]string, viewCount)
-	for i, key := range viewKeys {
-		name := T(key)
-		if i == m.view {
-			tabs[i] = selStyle.Render(" " + name + " ")
-		} else {
-			tabs[i] = mutedStyle.Render(" " + name + " ")
-		}
-	}
-	b.WriteString("\n" + strings.Join(tabs, " ") + mutedStyle.Render("   "+T("monitor.tab_hint")) + "\n\n")
-
-	switch m.view {
-	case viewLink:
-		b.WriteString(m.qr + "\n")
-		if len(m.urls) > 1 {
-			for i, u := range m.urls {
-				if i == m.urlIdx {
-					b.WriteString(accentStyle.Render("› ") + boldStyle.Render(u) + "\n")
-				} else {
-					b.WriteString(mutedStyle.Render("  "+u) + "\n")
-				}
-			}
-			b.WriteString(mutedStyle.Render(T("monitor.other_address")) + "\n")
-		}
-		if m.noOneYet(st) {
-			b.WriteString("\n" + accentStyle.Render(T("monitor.nobody_hint")) + "\n")
-		}
-	case viewIncidents:
-		if len(m.board.AwayHits) > 0 {
-			b.WriteString(headStyle.Render("  "+T("monitor.away.title")) + mutedStyle.Render(" · "+T("monitor.away.hint")) + "\n")
-			for _, h := range m.board.AwayHits {
-				hard := T("monitor.away.difficulty", "pct", int(h.Difficulty*100+0.5))
-				if h.Strong {
-					hard = accentStyle.Render(hard)
-				}
-				fmt.Fprintf(&b, "  ↩ %-22s %-8s %s\n", cut(h.Name, 22), h.QuestionID,
-					T("monitor.away.line", "signal", signalName(h.Signal), "away", h.AwayMs/1000, "after", h.AfterMs/1000, "difficulty", hard))
-			}
-			b.WriteString("\n")
-		}
-		if len(m.board.Incidents) == 0 {
-			b.WriteString(mutedStyle.Render("  "+T("monitor.no_incidents")) + "\n")
-			if m.board.StrikeLimit == 0 {
-				b.WriteString(mutedStyle.Render("  "+T("monitor.proctoring_off")) + "\n")
-			}
-		} else {
-			b.WriteString(headStyle.Render(fmt.Sprintf("  %-8s %-22s %-28s %-6s %s", T("monitor.col.time"), T("monitor.col.student"), T("monitor.col.signal"), T("monitor.col.question"), T("monitor.col.effect"))) + "\n")
-		}
-		for i, in := range m.board.Incidents {
-			b.WriteString(m.line(i, incidentLine(in)) + "\n")
-		}
-	case viewRanking:
-		rows := m.rows()
-		if len(rows) == 0 {
-			b.WriteString(mutedStyle.Render(T("monitor.nobody_submitted")) + "\n")
-		}
-		for i, r := range rows {
-			line := fmt.Sprintf("%2d. %-28s %8s   %s", i+1, cut(r.Name, 28), score(r), clock(time.Duration(r.UsedMs)*time.Millisecond))
-			b.WriteString(m.line(i, line) + "\n")
-		}
-	default:
-		b.WriteString(headStyle.Render(fmt.Sprintf("  %-24s %-9s %-13s %-6s %-9s %-7s %-11s %-8s %s", T("monitor.col.student"), "ID", T("monitor.col.state"),
-			T("monitor.col.question"), T("monitor.col.answered"), T("monitor.col.online"), T("monitor.col.strikes"), T("monitor.col.score"), T("monitor.col.used"))) + "\n")
-		rows := m.rows()
-		if len(rows) == 0 {
-			b.WriteString(mutedStyle.Render("  "+T("monitor.nobody_joined")) + "\n")
-		}
-		for i, r := range rows {
-			b.WriteString(m.line(i, m.studentLine(r)) + "\n")
-		}
-	}
-	return m.finish(&b)
-}
-
-func (m *Monitor) line(i int, s string) string {
-	if i == m.sel {
-		return selStyle.Render("▸ " + s)
-	}
-	return "  " + s
-}
-
-func (m *Monitor) studentLine(r daemon.StudentRow) string {
-	state := T("monitor.state." + string(r.State))
-	switch {
-	case r.AttemptID == "":
-		state = T("monitor.state.not_joined")
-	case r.State == session.AttemptActive && m.board.Status.State == session.StateLobby:
-		state = T("monitor.state.lobby")
-	case r.Paused:
-		state = T("monitor.state.paused")
-	}
-	q := "—"
-	if r.Question > 0 && r.State == session.AttemptActive {
-		q = fmt.Sprintf("%d/%d", r.Question, r.Total)
-	}
-	resp := "—"
-	if r.AttemptID != "" {
-		resp = fmt.Sprintf("%d/%d", r.Answered, r.Total)
-	}
-	conn := "○"
-	if r.Online {
-		conn = "● " + T("common.yes_short")
-	}
-	used := ""
-	if r.UsedMs > 0 {
-		used = clock(time.Duration(r.UsedMs) * time.Millisecond)
-	}
-	if r.ExtraMs > 0 {
-		used += fmt.Sprintf(" +%dm", r.ExtraMs/60000)
-	}
-	if r.NoLens {
-		used += " · " + T("monitor.no_lens")
-	}
-	strikes := "—"
-	if m.board.StrikeLimit > 0 && r.AttemptID != "" {
-		strikes = fmt.Sprintf("%d/%d", r.Strikes, m.board.StrikeLimit)
-		if r.Signals > 0 {
-			strikes += fmt.Sprintf(" ·%d", r.Signals)
-		}
-		if r.AwayHits > 0 {
-			strikes += fmt.Sprintf(" ↩%d", r.AwayHits)
-		}
-	}
-	return fmt.Sprintf("%-24s %-9s %-13s %-6s %-9s %-7s %-11s %-8s %s", cut(r.Name, 24), cut(r.StudentID, 9), state, q, resp, conn, strikes, score(r), used)
-}
-
 func incidentLine(in daemon.Incident) string {
-	at := time.UnixMilli(in.At).Format("15:04:05")
 	what := signalName(in.Kind)
 	if in.DurationMs > 0 {
 		what += fmt.Sprintf(" %ds", in.DurationMs/1000)
@@ -798,21 +643,7 @@ func incidentLine(in daemon.Incident) string {
 	if in.Question > 0 {
 		q = strconv.Itoa(in.Question)
 	}
-	var fx []string
-	for _, p := range in.Penalties {
-		s := penaltyName(string(p.Kind))
-		if p.Kind == session.PenaltyTime {
-			s = fmt.Sprintf("−%d min", int(p.Amount)/60000)
-		}
-		if !p.Active() {
-			s += " " + T("monitor.reverted_mark")
-		}
-		fx = append(fx, s)
-	}
-	if len(fx) == 0 {
-		fx = []string{T("severity." + string(in.Severity))}
-	}
-	return fmt.Sprintf("%-8s %-22s %-28s %-6s %s", at, cut(in.Name, 22), cut(what, 28), q, strings.Join(fx, ", "))
+	return pad(time.UnixMilli(in.At).Format("15:04:05"), 8) + " " + pad(in.Name, 22) + " " + pad(what, 28) + " " + pad(q, 6) + " " + penaltyLine(in)
 }
 
 func score(r daemon.StudentRow) string {
@@ -829,111 +660,6 @@ func cut(s string, n int) string {
 		return s
 	}
 	return string(rs[:n-1]) + "…"
-}
-
-func (m *Monitor) finish(b *strings.Builder) tea.View {
-	b.WriteString("\n")
-	if m.err != nil && m.board != nil {
-		b.WriteString(accentStyle.Render(T("monitor.warning")+" ") + m.err.Error() + "\n")
-	}
-	if m.notice != "" {
-		b.WriteString(m.notice + "\n")
-	}
-	b.WriteString("\n")
-	switch m.mode {
-	case modeConfirm:
-		yes, no := yesNoKeys()
-		b.WriteString(accentStyle.Render(m.question) + "  " + keyStyle.Render(strings.ToUpper(yes[0])) + " " + T("common.yes_short") + "  ")
-		if m.onAlt != nil {
-			b.WriteString(keyStyle.Render("A") + " " + m.altLabel + "  ")
-		}
-		b.WriteString(keyStyle.Render(strings.ToUpper(no[0])) + " " + T("common.no_short") + "\n")
-	case modePrompt:
-		b.WriteString(boldStyle.Render(m.question) + "  " + m.input.View() + "\n" + mutedStyle.Render(T("monitor.prompt_hint")) + "\n")
-	case modeLocked:
-		b.WriteString(mutedStyle.Render("Q "+T("monitor.key.quit")) + "\n")
-	default:
-		b.WriteString(m.keys() + "\n")
-	}
-	v := tea.NewView(b.String())
-	v.AltScreen = true
-	v.WindowTitle = "Assess"
-	return v
-}
-
-func (m *Monitor) keys() string {
-	k := func(key, label string) string { return keyStyle.Render(key) + " " + label }
-	var top, bottom []string
-	st := m.status()
-	if m.view == viewStudents {
-		if r := m.selected(); r != nil {
-			if r.AttemptID != "" {
-				pause := T("monitor.key.pause")
-				if r.Paused {
-					pause = T("monitor.key.resume")
-				}
-				top = append(top, k("T", T("monitor.key.time")), k("M", T("monitor.key.message")), k("P", pause))
-				switch r.State {
-				case session.AttemptActive:
-					if m.board.Lens {
-						lens := T("monitor.key.lens_off")
-						if r.NoLens {
-							lens = T("monitor.key.lens_on")
-						}
-						top = append(top, k("V", lens))
-					}
-					top = append(top, k("X", T("monitor.key.annul")))
-				case session.AttemptWithdrawn, session.AttemptAnnulled:
-					top = append(top, k("U", T("monitor.key.readmit")))
-				}
-			}
-			top = append(top, k("D", T("monitor.key.withdraw")))
-		}
-		top = append(top, k("N", T("monitor.key.add")))
-		if r := m.selected(); r != nil && r.Strikes > 0 {
-			top = append(top, k("Z", T("monitor.key.revert_last")))
-		}
-	}
-	if m.view == viewIncidents {
-		if in := m.selectedIncident(); in != nil && len(activePenalties(in)) > 0 {
-			top = append(top, k("Z", T("monitor.key.revert")))
-		}
-		top = append(top, k("↑↓", T("keys.choose")))
-	}
-	if st != nil && st.State == session.StateLobby {
-		bottom = append(bottom, k("S", T("monitor.key.start")))
-	}
-	if st != nil && st.State == session.StateRunning {
-		pauseAll := T("monitor.key.pause_all")
-		if m.board.AllPaused {
-			pauseAll = T("monitor.key.resume_all")
-		}
-		bottom = append(bottom, k("+", T("monitor.key.extend_all")), k("⇧P", pauseAll))
-	}
-	if st != nil && st.State != session.StateEnded {
-		bottom = append(bottom, k("⇧M", T("monitor.key.message_all")), k("E", T("monitor.key.end")))
-	} else if st != nil {
-		bottom = append(bottom, k("I", T("monitor.key.report")), k("E", T("monitor.key.stop")))
-	}
-	bottom = append(bottom, k("L", T("monitor.key.lock")), k("Q", T("monitor.key.quit")))
-	if len(top) == 0 {
-		return strings.Join(bottom, "  ")
-	}
-	return strings.Join(top, "  ") + "\n" + strings.Join(bottom, "  ")
-}
-
-func (m *Monitor) stateLine() string {
-	s := m.status()
-	switch s.State {
-	case session.StateLobby:
-		return accentStyle.Render(T("monitor.lobby"))
-	case session.StateRunning:
-		now := time.Now().Add(m.offset).UnixMilli()
-		left := max(time.Duration(s.EndsAt-now)*time.Millisecond, 0)
-		return boldStyle.Render(T("monitor.running")+" ") + accentStyle.Render(clock(left))
-	default:
-		return boldStyle.Render(T("monitor.ended_state"))
-	}
 }
 
 func clock(d time.Duration) string {

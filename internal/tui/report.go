@@ -36,6 +36,8 @@ var (
 type Report struct {
 	r             *report.Report
 	view, scroll  int
+	sel           int  // cursor in the Questions and Evidence views
+	byRate        bool // questions sorted by difficulty
 	width, height int
 	idle          time.Duration // closes after this long without input; zero means never
 	lastInput     time.Time
@@ -48,7 +50,7 @@ type reportTick time.Time
 // NewReport builds the report panel. With idle > 0 it closes itself after
 // that long without input, so personal data does not stay on screen.
 func NewReport(r *report.Report, idle time.Duration) *Report {
-	return &Report{r: r, idle: idle, lastInput: time.Now(), width: 100, height: 40}
+	return &Report{r: r, idle: idle, lastInput: time.Now(), width: 120, height: 36}
 }
 
 func (m *Report) tick() tea.Cmd {
@@ -79,13 +81,25 @@ func (m *Report) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		case "q", "Q", "esc", "ctrl+c":
 			return m, tea.Quit
 		case "right", "l", "tab":
-			m.view, m.scroll = (m.view+1)%repCount, 0
+			m.view, m.scroll, m.sel = (m.view+1)%repCount, 0, 0
 		case "left", "h", "shift+tab":
-			m.view, m.scroll = (m.view+repCount-1)%repCount, 0
+			m.view, m.scroll, m.sel = (m.view+repCount-1)%repCount, 0, 0
 		case "down", "j":
-			m.scroll++
+			if m.listView() {
+				m.sel++
+			} else {
+				m.scroll++
+			}
 		case "up", "k":
-			m.scroll--
+			if m.listView() {
+				m.sel = max(0, m.sel-1)
+			} else {
+				m.scroll--
+			}
+		case "o", "O":
+			if m.view == repQuestions {
+				m.byRate = !m.byRate
+			}
 		case "pgdown", "space":
 			m.scroll += page
 		case "pgup":
@@ -96,63 +110,22 @@ func (m *Report) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.scroll = math.MaxInt32
 		default:
 			if n, err := strconv.Atoi(k); err == nil && n >= 1 && n <= repCount {
-				m.view, m.scroll = n-1, 0
+				m.view, m.scroll, m.sel = n-1, 0, 0
 			}
 		}
 	}
 	return m, nil
 }
 
+// listView: ↑↓ move a cursor here instead of scrolling.
+func (m *Report) listView() bool { return m.view == repQuestions || m.view == repEvidence }
+
 func (m *Report) w() int { return max(72, min(m.width, 140)) }
-
-// View draws the header, the current view scrolled to fit, and the keys.
-func (m *Report) View() tea.View {
-	w := m.w()
-	head := []string{m.header(), m.tabs(), mutedStyle.Render(strings.Repeat("─", w))}
-	body := m.body(m.view, w)
-	room := max(3, m.height-len(head)-2)
-	m.scroll = min(max(0, m.scroll), max(0, len(body)-room))
-	end := min(len(body), m.scroll+room)
-
-	var b strings.Builder
-	for _, l := range head {
-		b.WriteString(l + "\n")
-	}
-	for _, l := range body[m.scroll:end] {
-		b.WriteString(l + "\n")
-	}
-	for range room - (end - m.scroll) {
-		b.WriteString("\n")
-	}
-	k := func(key, label string) string { return keyStyle.Render(key) + " " + label }
-	keys := []string{k("←→", T("report.key.view")), k("1-5", T("report.key.goto"))}
-	if len(body) > room {
-		keys = append(keys, k("↑↓", T("report.key.scroll", "from", m.scroll+1, "to", end, "total", len(body))))
-	}
-	keys = append(keys, k("Q", T("editor.key.quit")))
-	b.WriteString(mutedStyle.Render(strings.Repeat("─", w)) + "\n" + strings.Join(keys, "   "))
-	v := tea.NewView(b.String())
-	v.AltScreen = true
-	return v
-}
 
 func (m *Report) header() string {
 	s := m.r.Session
 	return brandStyle.Render("ASSESS") + mutedStyle.Render("  ·  "+T("report.name")+"  ·  ") + s.ExamTitle +
 		mutedStyle.Render("  ·  "+T("report.session", "code", s.Code)+"  ·  "+span(s.StartedAt, s.EndedAt))
-}
-
-func (m *Report) tabs() string {
-	parts := make([]string, repCount)
-	for i, key := range repKeys {
-		label := fmt.Sprintf("%d %s", i+1, T(key))
-		if i == m.view {
-			parts[i] = selStyle.Render(" " + label + " ")
-		} else {
-			parts[i] = mutedStyle.Render(" " + label + " ")
-		}
-	}
-	return strings.Join(parts, " ")
 }
 
 func (m *Report) body(view, w int) []string {

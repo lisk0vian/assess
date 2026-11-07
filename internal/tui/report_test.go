@@ -1,6 +1,9 @@
 package tui
 
 import (
+	"github.com/charmbracelet/x/ansi"
+
+	"github.com/lisk0vian/assess/internal/i18n"
 	"os"
 	"strings"
 	"testing"
@@ -111,5 +114,73 @@ func TestReportKeys(t *testing.T) {
 	m.lastInput = time.Now().Add(-2 * time.Minute)
 	if _, cmd := m.Update(reportTick(time.Now())); cmd == nil || !m.TimedOut {
 		t.Fatal("an idle report should close")
+	}
+}
+
+func TestReportCursorAndSort(t *testing.T) {
+	m := NewReport(sampleReport(), 0)
+	m.Update(tea.KeyPressMsg{Code: '2', Text: "2"})
+	m.Update(tea.KeyPressMsg{Code: tea.KeyDown})
+	if m.sel != 1 {
+		t.Fatalf("↓ moves through the questions: %d", m.sel)
+	}
+	if v := m.View().Content; !strings.Contains(v, "Valor de x") {
+		t.Fatalf("the selected question shows its prompt:\n%s", v)
+	}
+	m.Update(tea.KeyPressMsg{Code: 'o', Text: "o"})
+	if m.orderedQuestions()[0].ID != "q002" {
+		t.Fatal("O sorts the hardest first")
+	}
+}
+
+// Every row fills the window, in both languages, at any size.
+func TestReportFitsTheWindow(t *testing.T) {
+	defer func() {
+		if err := i18n.SetLanguage("es"); err != nil {
+			t.Fatal(err)
+		}
+	}()
+	for _, lang := range []string{"es", "en"} {
+		if err := i18n.SetLanguage(lang); err != nil {
+			t.Fatal(err)
+		}
+		for _, size := range [][2]int{{120, 36}, {80, 24}, {72, 16}, {160, 50}} {
+			for view := range repCount {
+				m := NewReport(sampleReport(), 0)
+				m.Update(tea.WindowSizeMsg{Width: size[0], Height: size[1]})
+				m.view = view
+				lines := strings.Split(m.View().Content, "\n")
+				if len(lines) != size[1] {
+					t.Fatalf("%s %v view %d: %d rows", lang, size, view, len(lines))
+				}
+				for i, l := range lines {
+					if w := ansi.StringWidth(l); w != size[0] {
+						t.Fatalf("%s %v view %d: row %d is %d cells", lang, size, view, i, w)
+					}
+				}
+			}
+		}
+	}
+}
+
+func TestReportFindingsOnlyStateWhatTheDataBacks(t *testing.T) {
+	r := sampleReport()
+	r.Pairs, r.History = nil, nil
+	for i := range r.Questions {
+		r.Questions[i].Rate = 0.9
+	}
+	if f := NewReport(r, 0).findings(); len(f) != 0 {
+		t.Fatalf("nothing to flag, got %v", f)
+	}
+	if f := NewReport(sampleReport(), 0).findings(); len(f) == 0 {
+		t.Fatal("a similar pair and a higher mean should be flagged")
+	}
+}
+
+func TestReportIncidentsListWhoHasStrikes(t *testing.T) {
+	m := NewReport(sampleReport(), 0)
+	m.view = repIncidents
+	if v := m.View().Content; !strings.Contains(v, "Bea Ruiz") {
+		t.Fatalf("a student with strikes and no signals must be listed:\n%s", v)
 	}
 }

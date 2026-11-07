@@ -9,9 +9,13 @@ import (
 	"time"
 
 	tea "charm.land/bubbletea/v2"
+	"github.com/charmbracelet/x/ansi"
 
 	"github.com/lisk0vian/assess/internal/exam"
+	"github.com/lisk0vian/assess/internal/i18n"
 )
+
+func view(m tea.Model) string { return ansi.Strip(m.View().Content) }
 
 // Every example question goes through the form unchanged.
 func TestQuestionFormRoundTrip(t *testing.T) {
@@ -188,81 +192,214 @@ func copyExam(t *testing.T, name string) string {
 	return dst
 }
 
-func TestEditorAddsAQuestion(t *testing.T) {
-	dir := copyExam(t, "quiz-rapido")
-	d, err := exam.OpenDraft(dir)
-	if err != nil {
-		t.Fatal(err)
-	}
-	m := NewEditor(d, "")
-	drive(m, tea.WindowSizeMsg{Width: 110, Height: 40})
-	before := len(d.Exam.Questions)
-	next := d.NextQuestionID()
+var testDefaults = ExamDefaults{Language: "es", Visibility: "score", Profile: "standard", ShuffleOptions: true}
 
-	// N, keep "single" and the proposed id, write the prompt and the points,
-	// two options, pick the second one, keep the defaults after that.
-	drive(m, keys("n")...)
-	if m.form == nil || !strings.Contains(m.View().Content, "Tipo de pregunta") {
-		t.Fatalf("N should open the question form:\n%s", m.View().Content)
+func newTestExam(t *testing.T) *Editor {
+	t.Helper()
+	m := NewExam(testDefaults, "")
+	m.base = t.TempDir()
+	drive(m, tea.WindowSizeMsg{Width: 120, Height: 36})
+	return m
+}
+
+func snapshot(dir string) map[string]string {
+	out := map[string]string{}
+	_ = filepath.WalkDir(dir, func(p string, e os.DirEntry, err error) error {
+		if err == nil && !e.IsDir() {
+			b, _ := os.ReadFile(p)
+			out[p] = string(b)
+		}
+		return nil
+	})
+	return out
+}
+
+// A teacher creates and starts an exam from nothing, only with the keyboard.
+func TestExamFromNothing(t *testing.T) {
+	m := newTestExam(t)
+	if v := view(m); !strings.Contains(v, "Nuevo examen") || !strings.Contains(v, "1 DATOS") || !strings.Contains(v, "ASÍ LO VE EL ALUMNO") {
+		t.Fatalf("opens on the details:\n%s", v)
 	}
-	drive(m, keys("enter", "enter", "¿Capital de Francia?", "enter", "enter", "Roma", "ctrl+j", "París", "enter", "down", "enter", "enter", "enter", "enter")...)
-	if m.form != nil {
-		t.Fatalf("the form should be done:\n%s", m.View().Content)
+	drive(m, keys("tab")...)
+	if m.step != stepDetails || m.d != nil || !strings.Contains(view(m), "título") {
+		t.Fatal("without a title there is no folder to save in")
 	}
-	if m.isErr || len(d.Exam.Questions) != before+1 {
-		t.Fatalf("question not saved: %q, %d questions", m.notice, len(d.Exam.Questions))
+	drive(m, keys("Historia — Tema 3", "tab")...)
+	if m.step != stepQuestions || m.Dir == "" || filepath.Base(m.Dir) != "historia-tema-3" {
+		t.Fatalf("the first save creates the folder: step %d, dir %q, %q", m.step, m.Dir, m.notice)
 	}
-	q := d.Exam.Questions[next]
-	a := d.Exam.Key.Answers[next]
-	if q == nil || q.Prompt != "¿Capital de Francia?" || len(q.Options) != 2 || q.Options[1].Text != "París" || a.Option != q.Options[1].ID || a.Points != 1 {
-		t.Fatalf("saved question %+v answer %+v", q, a)
-	}
-	if d.Problems.HasErrors() {
-		t.Fatalf("problems: %v", d.Problems)
-	}
-	if !strings.Contains(m.View().Content, "¿Capital de Francia?") || m.selected().id != next {
-		t.Fatal("the new question should be listed and selected")
+	if !strings.Contains(view(m), "Aún no hay preguntas") {
+		t.Fatalf("an empty list says what to do:\n%s", view(m))
 	}
 
-	// Esc in a form discards it.
+	// One right option, marked with Space.
+	drive(m, keys("n", "¿En qué año patentó Watt la máquina?", "tab", "1712", "enter", "1769", "enter", "1825", "up", "space", "esc")...)
+	id := m.d.Exam.Manifest.Items[0].Question
+	q, a := m.d.Exam.Questions[id], m.d.Exam.Key.Answers[id]
+	if m.q != nil || len(q.Options) != 3 || q.Options[1].Text != "1769" || a.Option != q.Options[1].ID || a.Points != 1 {
+		t.Fatalf("saved %+v %+v: %q", q, a, m.notice)
+	}
+	if v := view(m); !strings.Contains(v, "1769") || !strings.Contains(v, "correcta") || !strings.Contains(v, "✓ guardado") {
+		t.Fatalf("the sheet shows the question as written:\n%s", v)
+	}
+
+	// True or false: the type is a chip, and the answer two halves.
+	drive(m, keys("n", "La máquina impulsó el ferrocarril.", "up", "right", "right")...)
+	if m.q.v.Type != exam.TypeTrueFalse {
+		t.Fatalf("type %s", m.q.v.Type)
+	}
+	drive(m, keys("down", "down", "right", "esc")...)
+	id = m.d.Exam.Manifest.Items[1].Question
+	if a := m.d.Exam.Key.Answers[id]; a.Value == nil || !*a.Value {
+		t.Fatalf("true or false: %+v, %q", a, m.notice)
+	}
+
+	// Shift+↓ moves the first one down.
+	first := m.d.Exam.Manifest.Items[0].Question
+	drive(m, keys("up", "shift+down")...)
+	if m.d.Exam.Manifest.Items[1].Question != first {
+		t.Fatal("shift+down should move the question")
+	}
+
+	// Rules, then review, and Enter starts it.
+	drive(m, keys("tab", "down", "space", "tab")...)
+	if m.d.Exam.Manifest.Profile() != "strict" || len(m.d.Exam.Manifest.Items) != 2 {
+		t.Fatalf("rules saved over the questions: %+v", m.d.Exam.Manifest)
+	}
+	if v := view(m); m.step != stepReview || !strings.Contains(v, "INICIAR EXAMEN") || !strings.Contains(v, "Todo correcto") {
+		t.Fatalf("review:\n%s", v)
+	}
 	drive(m, keys("enter")...)
-	drive(m, keys("esc")...)
-	if m.form != nil || !strings.Contains(m.notice, "descartados") {
-		t.Fatal("Esc should discard the form")
+	if !m.Start {
+		t.Fatal("Enter starts a finished exam")
 	}
-
-	// D asks, Y deletes.
-	drive(m, keys("d")...)
-	if !strings.Contains(m.View().Content, "¿Borrar la pregunta "+next) {
-		t.Fatal("delete should ask first")
-	}
-	drive(m, keys("y")...)
-	if d.Exam.Questions[next] != nil {
-		t.Fatal("the question should be gone")
+	if d, err := exam.OpenDraft(m.Dir); err != nil || d.Problems.HasErrors() {
+		t.Fatalf("exam on disk: %v %v", err, d.Problems)
 	}
 }
 
-func TestEditorSettingsAndMove(t *testing.T) {
+func TestExamEmptyWritesNothing(t *testing.T) {
+	m := newTestExam(t)
+	drive(m, keys("esc")...)
+	if entries, _ := os.ReadDir(m.base); m.Dir != "" || len(entries) != 0 {
+		t.Fatal("leaving an empty exam leaves nothing behind")
+	}
+}
+
+func TestExamTitleIsSavedOnExit(t *testing.T) {
+	m := newTestExam(t)
+	drive(m, keys("Algo", "esc")...)
+	if d, err := exam.OpenDraft(m.Dir); err != nil || d.Exam.Manifest.Title != "Algo" {
+		t.Fatalf("nothing is lost: %q %v", m.Dir, err)
+	}
+	again := newTestExam(t)
+	again.base = m.base
+	drive(again, keys("Algo", "esc")...)
+	if again.Dir == m.Dir {
+		t.Fatal("a second exam with the same title gets its own folder")
+	}
+}
+
+// Incomplete questions are allowed; they only stop the exam from starting.
+func TestExamIncompleteQuestion(t *testing.T) {
+	m := newTestExam(t)
+	drive(m, keys("Examen", "tab", "n", "Sin respuesta", "tab", "Una", "enter", "Otra", "esc")...)
+	if m.q != nil || m.isErr {
+		t.Fatalf("Esc is done, never discard: %q", m.notice)
+	}
+	id := m.d.Exam.Manifest.Items[0].Question
+	if !m.incomplete(id) {
+		t.Fatalf("no right answer yet: %v", m.d.Problems)
+	}
+	if v := view(m); !strings.Contains(v, "··") || !strings.Contains(v, "!") {
+		t.Fatalf("the rail marks it:\n%s", v)
+	}
+	drive(m, keys("tab", "tab")...)
+	if v := view(m); !strings.Contains(v, "Primero resuelve") {
+		t.Fatalf("the start block gives the reason:\n%s", v)
+	}
+	for range len(m.d.Problems) {
+		if m.problemQuestion(m.d.Problems[m.sel]) == id {
+			break
+		}
+		drive(m, keys("down")...)
+	}
+	drive(m, keys("enter")...)
+	if m.Start || m.step != stepQuestions {
+		t.Fatalf("Enter goes to the problem: step %d", m.step)
+	}
+}
+
+// The free duration shows its field, takes bare minutes and survives a reload.
+func TestExamOtherDuration(t *testing.T) {
+	m := newTestExam(t)
+	drive(m, keys("Examen", "down", "right", "right", "right")...)
+	if m.durChoice != len(durationPresets) || !strings.Contains(view(m), "Minutos, o 1h15m") {
+		t.Fatalf("Other shows where to type:\n%s", view(m))
+	}
+	drive(m, keys("50")...)
+	if v := view(m); !strings.Contains(v, "50▌") || !strings.Contains(v, "50 minutos") {
+		t.Fatalf("what is typed shows, in the field and in the student view:\n%s", v)
+	}
+	drive(m, keys("tab")...)
+	if m.isErr || m.d.Exam.Manifest.Duration.D().Minutes() != 50 {
+		t.Fatalf("duration %v: %q", m.d.Exam.Manifest.Duration, m.notice)
+	}
+	d, _ := exam.OpenDraft(m.Dir)
+	again := NewEditor(d, "")
+	again.step = stepDetails
+	if again.durChoice != len(durationPresets) || again.other.value() != "50m" {
+		t.Fatalf("reopened: %d %q", again.durChoice, again.other.value())
+	}
+}
+
+// Review lists each problem whole, in the teacher's words.
+func TestExamReviewTodo(t *testing.T) {
+	m := newTestExam(t)
+	drive(m, tea.WindowSizeMsg{Width: 150, Height: 36})
+	drive(m, keys("Examen", "tab", "n", "Una pregunta larga sin respuesta marcada", "tab", "Sí", "enter", "No", "esc", "tab", "tab")...)
+	v := view(m)
+	for _, want := range []string{"Una pregunta larga sin respuesta marcada", "Marca la respuesta correcta.", "1 por resolver"} {
+		if !strings.Contains(v, want) {
+			t.Fatalf("review misses %q:\n%s", want, v)
+		}
+	}
+	if strings.Contains(v, "answer-key.yaml") {
+		t.Fatalf("no file paths for a missing answer:\n%s", v)
+	}
+}
+
+func TestExamEditing(t *testing.T) {
 	dir := copyExam(t, "quiz-rapido")
 	d, _ := exam.OpenDraft(dir)
 	m := NewEditor(d, "")
 	drive(m, tea.WindowSizeMsg{Width: 110, Height: 40})
-	first := d.Exam.Manifest.Items[0].Question
-
-	// Settings: change the title, keep everything else.
-	drive(m, keys("enter")...)
-	if !strings.Contains(m.View().Content, "Ajustes del examen") {
-		t.Fatalf("enter on the first row edits the settings:\n%s", m.View().Content)
+	if m.step != stepQuestions {
+		t.Fatal("an existing exam opens on its questions")
 	}
-	drive(m, keys(" (v2)", "enter", "enter", "enter", "enter", "enter", "enter", "enter", "enter", "enter")...)
-	if m.form != nil || !strings.HasSuffix(d.Exam.Manifest.Title, "(v2)") || m.isErr {
-		t.Fatalf("title not saved: %q %q\n%s", d.Exam.Manifest.Title, m.notice, m.View().Content)
+	before := len(d.Exam.Questions)
+
+	// Details: change the title, the questions stay.
+	drive(m, keys("shift+tab", " (v2)", "tab")...)
+	if !strings.HasSuffix(d.Exam.Manifest.Title, "(v2)") || len(d.Exam.Questions) != before || m.isErr {
+		t.Fatalf("title %q, %d questions: %q", d.Exam.Manifest.Title, len(d.Exam.Questions), m.notice)
 	}
 
-	// Shift+↓ on the first question moves it down.
-	drive(m, keys("down", "shift+down")...)
-	if d.Exam.Manifest.Items[1].Question != first || m.selected().id != first {
-		t.Fatalf("move: items %+v, selected %+v", d.Exam.Manifest.Items, m.selected())
+	// N then Esc without writing adds nothing.
+	drive(m, keys("n", "esc")...)
+	if len(d.Exam.Questions) != before {
+		t.Fatal("an untouched new question is not saved")
+	}
+
+	// D asks, Y deletes.
+	row, _ := m.selected()
+	drive(m, keys("d")...)
+	if !strings.Contains(view(m), "¿Borrar la pregunta "+row.id) {
+		t.Fatal("delete should ask first")
+	}
+	drive(m, keys("y")...)
+	if d.Exam.Questions[row.id] != nil {
+		t.Fatal("the question should be gone")
 	}
 
 	// S refuses to start an exam with errors.
@@ -270,48 +407,196 @@ func TestEditorSettingsAndMove(t *testing.T) {
 		t.Fatal(err)
 	}
 	drive(m, keys("r", "s")...)
-	if m.Start || !strings.Contains(m.View().Content, "corrige los errores") {
+	if m.Start || !strings.Contains(view(m), "corrige los errores") {
 		t.Fatal("S must not start an exam with errors")
 	}
 }
 
-// Opening each question and confirming every field leaves the files as
-// they were: nothing is lost on the way through the form.
-func TestEditorConfirmWithoutChanges(t *testing.T) {
+func TestExamTypeChangeLeavesNoStaleFields(t *testing.T) {
+	dir := copyExam(t, "quiz-rapido")
+	d, _ := exam.OpenDraft(dir)
+	var id string
+	for _, q := range d.Exam.Questions {
+		if q.Type == exam.TypeSingle {
+			id = q.ID
+		}
+	}
+	m := NewEditor(d, "")
+	m.selectQuestion(id)
+	drive(m, keys("enter", "up", "right", "right")...) // single → true or false
+	drive(m, keys("down", "down", "right", "esc")...)
+	got, probs, _ := exam.Load(dir)
+	if q := got.Questions[id]; q.Type != exam.TypeTrueFalse || len(q.Options) != 0 {
+		t.Fatalf("question %+v", q)
+	}
+	if probs.HasErrors() {
+		t.Fatalf("problems: %v", probs)
+	}
+}
+
+// Walking through every question and step leaves the files as they were.
+func TestExamWalkingThroughChangesNothing(t *testing.T) {
 	for _, name := range []string{"algebra-01", "programacion-go"} {
 		dir := copyExam(t, name)
 		d, _ := exam.OpenDraft(dir)
 		m := NewEditor(d, "")
 		drive(m, tea.WindowSizeMsg{Width: 110, Height: 40})
-		snapshot := func() map[string]string {
-			out := map[string]string{}
-			_ = filepath.WalkDir(dir, func(p string, e os.DirEntry, err error) error {
-				if err == nil && !e.IsDir() {
-					b, _ := os.ReadFile(p)
-					out[p] = string(b)
-				}
-				return nil
-			})
-			return out
-		}
-		before := snapshot()
+		before := snapshot(dir)
 		for i, r := range m.rows() {
 			if r.kind == rowPool { // opens the manifest in $EDITOR
 				continue
 			}
 			m.sel = i
 			drive(m, keys("enter")...)
-			for n := 0; m.form != nil && n < 20; n++ {
-				drive(m, keys("enter")...)
+			for range m.q.fields() {
+				drive(m, keys("tab")...)
 			}
-			if m.form != nil || m.isErr {
-				t.Fatalf("%s/%s: form stuck or failed: %q\n%s", name, r.id, m.notice, m.View().Content)
+			drive(m, keys("esc")...)
+			if m.q != nil || m.isErr {
+				t.Fatalf("%s/%s: %q", name, r.id, m.notice)
 			}
 		}
-		for p, want := range snapshot() {
+		drive(m, keys("shift+tab", "tab", "tab", "tab")...)
+		for p, want := range snapshot(dir) {
 			if before[p] != want {
 				t.Errorf("%s changed:\n--- before\n%s\n--- after\n%s", p, before[p], want)
 			}
 		}
+	}
+}
+
+// Every row fills the window, in both languages, at any size and step.
+func TestExamFitsTheWindow(t *testing.T) {
+	defer func() {
+		if err := i18n.SetLanguage("es"); err != nil {
+			t.Fatal(err)
+		}
+	}()
+	for _, lang := range []string{"es", "en"} {
+		if err := i18n.SetLanguage(lang); err != nil {
+			t.Fatal(err)
+		}
+		for _, size := range [][2]int{{120, 36}, {80, 24}, {72, 16}, {160, 50}, {100, 30}} {
+			d, _ := exam.OpenDraft(copyExam(t, "programacion-go"))
+			m := NewEditor(d, "")
+			check := func(what string) {
+				t.Helper()
+				lines := strings.Split(m.View().Content, "\n")
+				if len(lines) != size[1] {
+					t.Fatalf("%s %v %s: %d rows", lang, size, what, len(lines))
+				}
+				for i, l := range lines {
+					if w := ansi.StringWidth(l); w != size[0] {
+						t.Fatalf("%s %v %s: row %d is %d cells", lang, size, what, i, w)
+					}
+				}
+			}
+			m.Update(tea.WindowSizeMsg{Width: size[0], Height: size[1]})
+			for step := range stepCount {
+				m.step = step
+				check("step")
+				for f := range detCount {
+					m.field = f
+					check("field")
+				}
+				m.durChoice, m.field = len(durationPresets), detDuration
+				check("other duration")
+				m.durChoice, m.field = 0, 0
+			}
+			m.step = stepQuestions
+			for i := range m.rows() {
+				m.sel = i
+				check("reading")
+				drive(m, keys("enter")...)
+				if m.q != nil {
+					for range m.q.fields() {
+						check("writing")
+						m.q.move(1)
+					}
+					m.q = nil
+				}
+			}
+			drive(m, keys("?")...)
+			check("help")
+			drive(m, keys("esc", "d")...)
+			check("confirm")
+			m.confirm = ""
+			m.notice, m.isErr = strings.Repeat("error ", 40), true
+			check("notice")
+		}
+	}
+}
+
+// Hints and labels are for reading: they wrap, and nothing but the rail is cut.
+func TestExamTextIsNeverCut(t *testing.T) {
+	defer func() {
+		if err := i18n.SetLanguage("es"); err != nil {
+			t.Fatal(err)
+		}
+	}()
+	for _, lang := range []string{"es", "en"} {
+		if err := i18n.SetLanguage(lang); err != nil {
+			t.Fatal(err)
+		}
+		for _, size := range [][2]int{{150, 40}, {120, 36}, {100, 30}, {80, 24}, {72, 16}} {
+			d, _ := exam.OpenDraft(copyExam(t, "quiz-rapido"))
+			m := NewEditor(d, "")
+			m.Update(tea.WindowSizeMsg{Width: size[0], Height: size[1]})
+			check := func(what string) {
+				t.Helper()
+				for _, l := range strings.Split(view(m), "\n") {
+					if _, rest, rail := strings.Cut(l, "│"); rail {
+						l = rest
+					}
+					if strings.Contains(l, "…") {
+						t.Fatalf("%s %v %s cuts text:\n%s", lang, size, what, view(m))
+					}
+				}
+			}
+			m.step = stepDetails
+			for f := range detCount {
+				m.field = f
+				check("details")
+			}
+			m.step = stepRules
+			for _, f := range m.ruleRows() {
+				m.field = f
+				check("rules")
+			}
+			m.step = stepReview
+			check("review")
+			m.step, m.field = stepQuestions, 0
+			for _, typ := range questionTypes {
+				for _, input := range []string{"number", "text"} {
+					m.q = newQuestionEdit(newQuestionValues("q900"), true)
+					m.q.v.Type, m.q.v.Input = typ, input
+					for _, f := range m.q.fields() {
+						m.q.field = f
+						check("writing " + typ)
+					}
+				}
+			}
+			m.q = nil
+		}
+	}
+}
+
+func TestTextField(t *testing.T) {
+	f := newField("hola\nmundo")
+	if f.vertical(1) || !f.vertical(-1) || f.pos != 4 {
+		t.Fatalf("up keeps the column: %d", f.pos)
+	}
+	f.key(tea.KeyPressMsg{Code: tea.KeyBackspace}, true)
+	f.insert("ñ")
+	if f.value() != "holñ\nmundo" {
+		t.Fatalf("%q", f.value())
+	}
+	if f.key(tea.KeyPressMsg{Code: tea.KeyEnter}, false) {
+		t.Fatal("Enter leaves a one-line field")
+	}
+	wide := newField("ab日本")
+	rows, row, col := wide.rows(4)
+	if strings.Join(rows, "|") != "ab日|本" || row != 1 || col != 2 {
+		t.Fatalf("wide glyphs: %v %d %d", rows, row, col)
 	}
 }

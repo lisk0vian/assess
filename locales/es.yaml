@@ -257,13 +257,10 @@ state:
   ended: terminada
 
 home:
-  explore: "Explorar exámenes, grupos, alumnos y sesiones"
   in_vault: en la bóveda
-  vault: "Bóveda: {vault}"
   idle: No hay ningún examen en marcha.
   crashed: "El servidor se detuvo sin terminar el examen: puedes reanudarlo y nadie pierde sus respuestas."
   open: Hay una sesión abierta sin servidor.
-  question: ¿Qué quieres hacer?
   resume: "Reanudar «{title}» (sesión {code}, sin servidor)"
   edit: Editar un examen
   new: Crear un examen nuevo, paso a paso
@@ -598,103 +595,33 @@ cli:
 
 form:
   err:
-    points: "escribe un número mayor que 0 y hasta {max}"
-    number: "escribe un número, por ejemplo 4 o 2,5"
-    optional_number: "escribe un número positivo o déjalo vacío"
-    time_limit: "usa una duración como 90s o 2m (mínimo 5s), o déjalo vacío"
-    min_options: "escribe al menos {n} opciones, una por línea"
-    max_options: "como mucho {n} opciones"
     points_field: "puntos: escribe un número"
     time_limit_field: "tiempo límite: usa una duración como 2m"
     answer_field: "respuesta: escribe un número"
     tolerance_field: "tolerancia: escribe un número"
-    id: "solo minúsculas, números, - y _"
-    id_taken: "ya existe una pregunta con ese identificador"
-    prompt: "escribe el enunciado"
-    mark_one: "marca al menos una"
-    accept: "escribe al menos una respuesta"
     duration_field: "duración: usa por ejemplo 45m o 1h30m"
     strikes_field: "strikes: escribe un número entero"
-    title: "escribe un título"
-    duration: "usa una duración entre 1m y 24h, como 45m"
-    strikes: "entre 1 y 10, o vacío"
-  type:
-    title: "Tipo de pregunta"
-    single: "Una opción correcta"
-    multiple: "Varias opciones correctas"
-    truefalse: "Verdadero o falso"
-    short: "Respuesta corta (número o texto)"
-  id:
-    title: "Identificador"
-    hint: "También es el nombre del archivo: questions/<id>.yaml"
-    fixed: "El tipo y el identificador no se cambian aquí; usa E para editar el archivo."
-  prompt:
-    title: "Enunciado"
-    hint: "Markdown y fórmulas entre $…$. Alt+Enter o Ctrl+J para saltar de línea."
-  points: "Puntos"
-  options:
-    title: "Opciones"
-    hint: "Una por línea, en el orden en que se escriben (se pueden barajar al alumno)."
-  correct_one: "¿Cuál es la correcta?"
-  correct_many: "¿Cuáles son correctas?"
-  correct_many_hint: "Espacio marca o desmarca."
-  partial:
-    title: "¿Puntuación parcial?"
-    hint: "Sí: cada acierto suma su parte. No: todo o nada."
-  statement: "La afirmación es…"
-  true: "Verdadera"
-  false: "Falsa"
   input:
-    title: "El alumno escribe…"
     number: "Un número"
     text: "Un texto corto"
-  number: "Respuesta correcta"
-  tolerance:
-    title: "Tolerancia"
-    hint: "Diferencia aceptada, por ejemplo 0,01. Vacío: exacta."
-  accept:
-    title: "Respuestas aceptadas"
-    hint: "Una por línea. Se ignoran mayúsculas, tildes y espacios de más."
-  time_limit:
-    title: "Tiempo límite de la pregunta"
-    hint: "Opcional, por ejemplo 2m. Al agotarse se cierra."
   reveal:
-    title: "Mostrar las opciones"
     always: "Siempre"
     hover: "Al pasar el ratón"
   inherit: "Como diga el examen"
-  lens:
-    title: "Lupa sobre el enunciado"
-    hint: "Se lee por partes de palabras: una foto capta solo una parte."
   read_speed:
     slow: "Lenta"
     normal: "Normal"
     fast: "Rápida"
   manifest:
-    title: "Ajustes del examen"
-    id: "Identificador: {id} (no se cambia: enlaza el historial de sesiones)"
     exam_title: "Título"
     duration: "Duración"
-    duration_hint: "Por ejemplo 45m o 1h30m."
-    language: "Idioma de la página del alumno"
-    visibility: "Al entregar, el alumno ve…"
-    instructions: "Instrucciones"
-    instructions_hint: "Se muestran en la sala de espera. Markdown."
     shuffle_q: "¿Barajar el orden de las preguntas?"
     shuffle_o: "¿Barajar el orden de las opciones?"
     proctoring: "Vigilancia"
     strikes: "Strikes para anular"
-    strikes_hint: "Vacío: los del perfil."
-    photos: "Contra fotos de la pantalla"
-    photos_hint: "Cada protección se activa por separado. Con la vigilancia desactivada no se aplica ninguna."
     lens: "¿Lupa sobre el enunciado?"
-    lens_hint: "Se lee por partes de palabras; una foto capta solo una parte. Desactívala para mostrar el enunciado completo."
     auto_read: "¿Leer el enunciado automáticamente al abrirlo?"
-    auto_read_hint: "Solo la primera vez, por partes. Después el alumno toca la zona que quiera leer o usa los controles."
     read_speed: "Velocidad de lectura"
-    read_speed_hint: "Ritmo del auto-read y de la guía."
-    frozen: "¿Avisar si el alumno se queda quieto y luego responde?"
-    frozen_hint: "Solo aparece en Incidencias; nunca es un strike."
   visibility:
     none: "Nada"
     score: "Su nota"
@@ -727,6 +654,89 @@ keys:
   toggle: "cambiar"
 
 editor:
+  ui:
+    title_first: "Escribe primero un título: da nombre a la carpeta del examen."
+    write_first: "Escribe algo primero y luego ábrelo en el editor."
+    saves_itself: "Se guarda solo mientras escribes"
+    saved: "guardado {time}"
+    key_exit: salir
+    key_step: siguiente paso
+    key_field: campo
+    key_option: opción
+    key_choose: elegir
+    key_activate: activar
+    key_mark: marcar correcta
+    key_done: listo
+    key_problem: problema
+    key_go_problem: ir al problema
+    key_question: pregunta
+    key_read: seguir leyendo
+    key_reload: recargar del disco
+    key_save_exit: guardar y salir
+    minutes: "{n} min"
+    at_end: AL ENTREGAR
+    instructions: INSTRUCCIONES
+    vis_none: Nada
+    vis_score: Su nota
+    vis_review: Nota y corrección
+    student_view: ASÍ LO VE EL ALUMNO
+    in_lobby: EN LA SALA
+    lobby:
+      none: "Espera a que empiece el examen. Al terminar verás que se ha entregado."
+      score: "Espera a que empiece el examen. Al terminar verás tu nota."
+      review: "Espera a que empiece el examen. Al cerrar la sesión verás tu nota y la corrección."
+    pool: "Banco: {pick} de {of} al azar"
+    pool_hint: "A cada alumno le tocan algunas de estas preguntas al azar. Todas deben valer lo mismo, para que nadie gane por suerte. Enter abre el manifiesto."
+    no_questions: "Aún no hay preguntas"
+    no_questions_hint: "N escribe la primera."
+    question: pregunta
+    type: tipo
+    type_label: TIPO
+    points: puntos
+    time: tiempo
+    status: ESTADO
+    total: preguntas
+    ready: listas
+    to_fix: por resolver
+    by_type: POR TIPO
+    types:
+      single: Única
+      multiple: Múltiple
+      truefalse: V o F
+      short: Corta
+    points_total: "{n} en total"
+    correct: correcta
+    accept_exact: "Se acepta exactamente {v}"
+    accept_margin: "Se acepta {v}, con margen de {t}"
+    prompt: ENUNCIADO
+    options: OPCIONES
+    mark_hint: "Space marca la correcta · Enter escribe"
+    grading: PUNTUACIÓN
+    all_or_nothing: Todo o nada
+    partial: Parcial
+    right_answer: RESPUESTA
+    answer_is: LA RESPUESTA
+    margin: MARGEN
+    accepted: ACEPTADAS
+    limit: LÍMITE
+    reveal: OPCIONES
+    lens: LUPA
+    how_proctored: ¿CÓMO SE VIGILA?
+    by_profile: lo que diga el perfil
+    you_see: QUÉ VERÁS TÚ
+    you_see_1: Cada aviso aparece en Incidencias.
+    you_see_2: Puedes revertir cualquier penalización.
+    you_see_3: El informe separa indicios de veredictos.
+    other_duration: Otra
+    todo_answer: Marca la respuesta correcta.
+    to_fix_n: "{n} por resolver"
+    before_start: ANTES DE INICIAR
+    start_block: INICIAR EXAMEN
+    fix_n:
+      one: "Primero resuelve {n} problema"
+      other: "Primero resuelve {n} problemas"
+    save_exit_block: GUARDAR Y SALIR
+    save_exit_hint: "Q · lo tendrás en Exámenes"
   name: "editor"
   open_hint: "(E abre el archivo)"
   edited: "Archivo editado; el examen se ha vuelto a validar."
@@ -739,11 +749,8 @@ editor:
   saved: "Guardado."
   esc_discards: "esc descarta los cambios"
   col:
-    question: "PREG."
     type: "TIPO"
-    points: "PUNTOS"
     prompt: "ENUNCIADO"
-  range: "… {from}-{to} de {total}"
   key:
     edit: "editar"
     new: "nueva"
@@ -762,14 +769,6 @@ editor:
     none: "sin nota visible"
     score: "nota visible"
     review: "nota y corrección"
-  settings_row: "⚙ Ajustes   {duration} · {lang} · {visibility} · vigilancia {profile} · {shuffle}"
-  pool_row: "◇ pool {id} · cada alumno recibe {pick} de {of}"
-  missing_file: "falta {file}"
-  not_in_items: "no está en items"
-  no_problems: "Sin problemas"
-  ready: ": listo para iniciar (S, o `ax start {dir}`)."
-  fix_hint: "se corrige al guardar el formulario o con E"
-  more_problems: "… y {n} más (`ax validate {dir}`)"
 
 profile:
   standard: "estándar"
@@ -803,6 +802,57 @@ astate:
   active: "sin entregar"
 
 monitor:
+  ui:
+    code: código
+    code_caps: CÓDIGO
+    code_word: Código
+    address: DIRECCIÓN
+    online: en línea
+    active: activos
+    submitted: entregados
+    strikes: avisos
+    left: quedan
+    left_short: "quedan {time}"
+    in_room: en la sala
+    offline: sin conexión
+    line: "{code} · {online}/{joined} en línea · {submitted} entregados · {strikes} avisos"
+    questions_line: "{class} · {n} preguntas"
+    all: TODOS
+    all_short: Todos
+    attention: ATENCIÓN
+    attention_short: Aten.
+    answering: RESPONDIENDO
+    answering_short: Resp.
+    submitted_caps: ENTREGADOS
+    submitted_caps_short: Entr.
+    not_joined: SIN ENTRAR
+    not_joined_short: Fuera
+    need_attention: "NECESITAN ATENCIÓN {n}"
+    rest: "EL RESTO {n}"
+    more: "+{n} más · F para verlas"
+    range: "{from}-{to} de {total} · ↑↓ desplaza"
+    pulse: dónde va la clase
+    nobody: Nadie en esta vista.
+    other_addresses: "←→ {n} direcciones más"
+    card_question: "pregunta {q} de {n}"
+    card_answers: respuestas
+    card_signals: señales
+    card_what: LO QUE HA PASADO
+    card_none: Sin incidencias.
+    key_card: ficha
+    key_filter: filtrar
+    key_help: ayuda
+    key_view: vista
+    key_address: otra dirección
+    key_quit: salir
+    key_unlock: desbloquear
+    help_title: Teclas de esta pantalla
+    help_close: "? o Esc cierra"
+    help_selected: ELEGIDO
+    help_class: TODA LA CLASE
+    help_session: SESIÓN
+    no_names: Aquí no se ve ningún nombre.
+    too_small: Amplía la ventana para ver el panel. El examen sigue.
   other_address: "←→ otra dirección (si los alumnos no pueden abrir esta)"
   nobody_hint: "Todavía no ha entrado nadie. Si sus dispositivos no abren la página, ejecuta `ax firewall` en otra terminal."
   enrolled: "Aprobado y añadido a {class}: {name} ({id})."
@@ -960,6 +1010,47 @@ severity:
   high: "grave"
 
 report:
+  ui:
+    submitted: entregaron
+    annulled: anulados
+    withdrawn: retirados
+    mean: media
+    median: mediana
+    range: rango
+    sd: desviación
+    time: tiempo mediano
+    reason: MOTIVO
+    first: LO PRIMERO
+    first_hard: "{q}: la falla el {pct} %"
+    first_up: "{n} puntos sobre la sesión anterior"
+    first_down: "{n} puntos bajo la sesión anterior"
+    unit_hint: un bloque por alumno · % del máximo
+    each_block: "Cada bloque son {n} alumnos."
+    scatter_title: NOTA Y TIEMPO
+    scatter_hint: un punto por alumno
+    quadrant_title: DIFICULTAD Y DISTINCIÓN
+    separates: distingue
+    no_separation: no distingue
+    hard: ← difícil
+    easy: fácil →
+    key_question: pregunta
+    key_pair: pareja
+    key_sort: ordenar
+    warnings: avisos
+    serious: graves
+    active_strikes: strikes activos
+    reverted: revertidas
+    time_lost: tiempo quitado
+    who_title: QUIÉN
+    who_hint: más señales primero
+    signals: SEÑALES
+    same_errors: errores iguales
+    expected: esperables
+    why_title: POR QUÉ SALE
+    chance: Probabilidad por azar
+    common: Preguntas en común
+    synced: Guardadas a la vez
+    same_questions: Preguntas con el mismo error
   view:
     summary: "Resumen"
     questions: "Preguntas"
@@ -1088,48 +1179,21 @@ report:
     one_in: "1 entre {n}"
 
 wizard:
-  name: "nuevo examen"
   step:
     details: "Datos"
     questions: "Preguntas"
     proctoring: "Vigilancia"
     review: "Revisar"
   key:
-    add: "añadir pregunta"
-    up: "subir"
-    down: "bajar"
-    next: "siguiente paso"
     back: "paso anterior"
-    create: "crear el examen"
-    help: "más teclas"
-  confirm_quit: "¿Salir sin crear el examen? Se perderá lo que has escrito."
-  checking: "Comprobando el examen…"
-  confirm_delete: "¿Borrar la pregunta {n}?"
-  deleted: "Pregunta borrada."
   err:
-    no_questions: "añade al menos una pregunta (A)"
-    fix_first: "corrige los errores antes de crear el examen"
-    no_folder: "escribe primero el título, o una carpeta"
     folder_name: "el nombre de la carpeta necesita letras o números"
     folder_taken: "esa carpeta ya existe y no está vacía; elige otra"
-  creating: "Creando el examen…"
-  other_duration: "Otra duración…"
   intro:
     title: "Nuevo examen"
-    body: "Te guío paso a paso: datos, preguntas, vigilancia y revisión.\nNada se guarda hasta el final; Esc vuelve atrás."
   title_hint: "Lo verán los alumnos al entrar."
   title_placeholder: "Historia — Tema 3"
-  folder: "Carpeta"
-  folder_hint: "Dónde se guardará. Vacío: una carpeta aquí con el nombre del título."
-  how_long: "¿Cuánto dura?"
-  duration_hint: "Por ejemplo 50m o 1h15m."
-  visibility:
-    score: "Su nota"
-    review: "Su nota y la corrección, cuando cierres la sesión"
-    none: "Nada: solo que se ha entregado"
-  instructions: "Instrucciones (opcional)"
-  instructions_hint: "Se muestran en la sala de espera. Vacío: «{default}…»"
-  how_proctored: "¿Cómo se vigila?"
+  duration_hint: "Minutos, o 1h15m"
   profile:
     standard: "Estándar (recomendado)"
     strict: "Estricta"
@@ -1139,30 +1203,10 @@ wizard:
     standard: "Pantalla completa, opciones que se descubren al pasar el ratón y marca de agua con su nombre. La primera vez que salen o copian solo se les avisa; luego son avisos, y 3 anulan el examen. Salir de la pestaña quita el 20 % del tiempo que les quede. Todo se puede revertir desde el panel."
     strict: "Lo mismo que la estándar, sin margen: el primer intento de salir o copiar ya es un aviso y el segundo anula el examen. Salir de la pestaña quita la mitad del tiempo que le quede. Solo desde ordenador."
     off: "Ninguna protección: pueden salir de la pestaña, copiar o usar el móvil sin consecuencias. Útil para repasos o ejercicios en clase."
-  shuffle_q_hint: "Cada alumno las ve en un orden distinto."
-  shuffle_o_hint: "Dificulta copiar «la b» al compañero."
-  photos: "Contra fotos con el móvil"
-  photos_hint: "Una IA puede leer una foto de la pantalla. Cada protección se activa por separado."
   frozen: "¿Avisar si se queda quieto y luego responde?"
-  frozen_hint: "Solo lo ves tú, en Incidencias."
-  added: "Pregunta {n} añadida. A añade otra; Tab pasa a la vigilancia."
-  discarded: "Pregunta descartada."
-  saved: "Pregunta {n} guardada."
-  done:
-    title: "Examen creado"
-    body: "Está en {dir}.\nPuedes cambiarlo cuando quieras con `ax edit` o editando sus archivos."
-    next: "¿Y ahora?"
-    start: "Iniciarlo ya: los alumnos esperan en la sala hasta que empieces"
-    edit: "Seguir editándolo"
-  empty: "Aún no hay preguntas.\n\nPulsa A para añadir la primera. Hay cuatro tipos:\n\n  · Una opción correcta\n  · Varias opciones correctas\n  · Verdadero o falso\n  · Respuesta corta: un número o un texto\n\nAl lado verás cómo queda cada una, con la respuesta correcta marcada."
-  form_hint: "esc vuelve atrás · ctrl+c sale"
   n_questions:
     one: "{n} pregunta"
     other: "{n} preguntas"
-  preview_title: "ASÍ LO VERÁN · con la respuesta correcta marcada"
-  points:
-    one: "{v} punto"
-    other: "{v} puntos"
   review:
     visibility:
       none: "nada"
@@ -1174,25 +1218,13 @@ wizard:
       false_true: "solo opciones"
       false_false: "nada"
     language: "Idioma"
-    sees: "Al entregar ve"
-    lens: "lupa"
-    frozen: "aviso de quietud"
-    none: "ninguna"
-    photos: "Contra fotos"
-    shuffles: "Se baraja"
     ok: "Todo correcto."
-    ok_hint: "Enter crea el examen; 1, 2 o 3 vuelven a un paso."
-    errors: "Hay que corregir esto antes de crearlo:"
-    warnings: "Avisos (no impiden crearlo):"
   preview:
-    meta: "PREGUNTA {n} · {type} · {points}"
-    limit: "límite {d}"
     partial: "Puntuación parcial: cada acierto suma su parte."
     all_or_nothing: "Todo o nada: hay que marcar todas las correctas."
     true: "Verdadero"
     false: "Falso"
     write_number: "Escribe un número"
-    right: "Correcta: {v}"
     write_text: "Escribe tu respuesta"
     accepted: "Se acepta: {list}"
     lenient: "Da igual mayúsculas, tildes o espacios de más."
@@ -1207,22 +1239,20 @@ wizard:
     hours_minutes: "{h} y {m}"
 
 settings:
-  name: "ajustes"
+  col:
+    setting: AJUSTE
+    value: VALOR
   general: "General"
   will_reset: "vuelve al defecto"
   changed: "cambiado"
   reset_notice: "{key} volverá a su valor por defecto ({value})."
   changed_notice: "{key} = {value} (se guarda al salir con S)"
   same_as_terminal: "El mismo que la terminal"
-  ask_save:
-    one: "¿Guardar {n} cambio?"
-    other: "¿Guardar {n} cambios?"
-  keep_editing: "seguir editando"
   key:
+    setting: ajuste
+    group: grupo
+    save_back: guardar y volver
     reset: "por defecto"
-  pending:
-    one: "{n} cambio sin guardar"
-    other: "{n} cambios sin guardar"
 
 welcome:
   title: "Te damos la bienvenida a Assess"
@@ -1286,36 +1316,177 @@ restore:
   done: "Restaurada en {dir} como la bóveda «{name}»."
   encrypted_note: Está cifrada; se abre con la contraseña que tenía o con su clave de recuperación.
 
+setup:
+  first_time: Primera vez en este equipo
+  hello: Hola. Vamos a preparar tu primer examen.
+  what: Assess crea, reparte y vigila exámenes en tu aula desde este equipo. Sin internet, sin cuentas y sin que los alumnos instalen nada.
+  one: "Crea tu bóveda: aquí se guardan exámenes, grupos y resultados"
+  two: "Crea un examen, paso a paso"
+  three: Empiézalo con tu clase
+  halfway: Unos 2 minutos, y lo puedes dejar a medias.
+  step: "Paso {n} de {of}"
+  vault_title: Crea tu bóveda
+  name: NOMBRE
+  password: CONTRASEÑA
+  repeat: REPÍTELA
+  pw_rule: "Al menos {n} caracteres"
+  pw_short: "La contraseña necesita al menos {n} caracteres."
+  pw_differ: Las dos contraseñas son distintas.
+  pw_why: La contraseña cifra todo. Después verás una clave de recuperación, por si la olvidas. Ctrl+U la crea sin contraseña.
+  keeps: QUÉ GUARDA
+  keeps_1: Exámenes y respuestas correctas
+  keeps_2: Listas de alumnos
+  keeps_3: Notas e incidencias de cada sesión
+  keeps_4: Copias de seguridad
+  why_encrypt: POR QUÉ CIFRARLA
+  why_encrypt_text: Son datos de tus alumnos. Si pierdes el portátil o el USB, nadie puede leerlos.
+  recovery_title: Clave de recuperación
+  keep_key: Guarda esta clave lejos de este equipo.
+  key_opens: Abre la bóveda si olvidas la contraseña.
+  key_once: Solo se muestra ahora. Apúntala o imprímela.
+  key_lost: Sin contraseña ni clave, la bóveda no se puede abrir.
+  key:
+    begin: empezar
+    language: idioma
+    create: crear la bóveda
+    no_password: sin contraseña
+    saved_it: ya la he guardado
+
+prepare:
+  title: Preparar sesión
+  group: grupo
+  who: quién entra
+  anyone: Cualquiera con el código
+  list_only: Solo la lista
+  who_needs_group: Elige un grupo para dejar entrar solo a sus alumnos.
+  exam_duration: "La suya: {d}"
+  clock_hint: Abrir la sala solo deja entrar a los alumnos. El reloj empieza cuando pulses S en el panel.
+  checks: ANTES DE QUE ESPEREN
+  exam_ok: El examen no tiene errores
+  network_ok: "Los alumnos se conectan a {addr}"
+  no_network: "Sin red: conecta este equipo a la red del aula."
+  fw_ok: "El firewall deja entrar a los alumnos (puerto {ports})"
+  fw_closed: "El firewall puede dejar fuera a los alumnos (puerto {ports}). A lo abre; Enter sigue igualmente."
+  opening_port: Pidiendo a Windows que abra el puerto…
+  group_n:
+    one: "El grupo tiene {n} alumno"
+    other: "El grupo tiene {n} alumnos"
+  key:
+    open_port: abrir el puerto
+    anyway: seguir igualmente
+    open_room: abrir la sala
+
+recover:
+  safe: Tu examen está a salvo.
+  joined: entraron
+  submitted: entregaron
+  waiting: sin entregar
+  down: parado
+  answers_kept: Cada respuesta guardada se conserva. Los alumnos siguen donde estaban cuando el servidor vuelve.
+  lobby: El examen no había empezado, así que nadie perdió tiempo.
+  clock: "El reloj no se paró: el examen termina a las {time} para todos."
+  give_back: DEVOLVER A TODOS EL TIEMPO PERDIDO
+  new_end: "Terminará a las {time}"
+  ran_out: El tiempo se acabó mientras el servidor estaba parado. Dales tiempo antes de seguir; nada se entrega sin que lo digas.
+  log: LO QUE ESCRIBIÓ EL SERVIDOR
+  confirm_end: ¿Terminar el examen para todos? Se entrega lo guardado.
+  key:
+    resume: reanudar
+    minutes: minutos
+    end: terminar el examen
+    log: detalles
+
+hub:
+  first_class: Crear un grupo (opcional)
+  ready: Tu bóveda está lista. Empieza por aquí.
+  ready_hint: Aquí verás tus sesiones recientes.
+  home: Inicio
+  exams: Exámenes
+  classes: Grupos
+  students: Alumnos
+  sessions: Sesiones
+  vault: Bóveda
+  needs_you: Te necesita
+  filter: FILTRAR
+  n_shown: "{n} de {total}"
+  actions: ACCIONES
+  recent: RECIENTE
+  sessions_head: SESIONES
+  mean_by_session: MEDIA POR SESIÓN
+  strikes: avisos
+  note: NOTA
+  more_students: "+{n} más"
+  no_grades: sin notas todavía
+  no_classes: Todavía no hay grupos.
+  no_classes_hint: Un grupo es una lista de clase. Te deja controlar quién entra y ver sus notas juntas. Es opcional.
+  book: Libro de notas
+  book_key: libro de notas
+  book_hint: "% de la última entrega de cada examen"
+  book_note: "En negrita, por debajo de 50 %. — no entregó."
+  search_hint: Exámenes, grupos, alumnos y sesiones.
+  backups: COPIAS DE SEGURIDAD
+  vault_name: bóveda
+  vault_state: estado
+  vault_counts: exámenes, grupos, alumnos
+  no_other_vault: No hay otras bóvedas.
+  empty:
+    exams: "Aún no hay exámenes. Ctrl+N crea uno, Ctrl+O importa uno."
+    classes: "Aún no hay grupos."
+    students: "Aún no hay alumnos. Aparecen al entrar a un examen; Ctrl+N añade uno."
+    sessions: "Aún no hay sesiones."
+  col:
+    exam: EXAMEN
+    sessions: sesiones
+    last: ÚLTIMA
+    mean: MEDIA
+    date: FECHA
+    group: GRUPO
+    code: CÓDIGO
+    submitted: ENTR.
+    student: ALUMNO
+  key:
+    section: sección
+    choose: elegir
+    open: abrir
+    back: volver
+    actions: Acciones
+    search: buscar todo
+    new_exam: nuevo
+    new_class: nuevo grupo
+    new_student: nuevo alumno
+    import: importar
+    import_list: importar lista
+    results: resultados CSV
+  vault_act:
+    backup: Hacer una copia ahora
+    passwd: Cambiar la contraseña
+    encrypt: Cifrar la bóveda
+    lock: Cerrar con llave
+    switch: Cambiar de bóveda
+    settings: Ajustes
+
 explore:
-  short: Explora exámenes, grupos, alumnos y sesiones
+  short: Explora exámenes, grupos, alumnos, sesiones y la bóveda
   long: |-
-    Abre un explorador de la bóveda con cuatro pestañas: exámenes, grupos,
-    alumnos y sesiones. Escribe para filtrar; Intro muestra qué puedes hacer
-    con la fila elegida (historial, editar, importar una lista, empezar un
-    examen, abrir un informe…) y Ctrl+N añade uno nuevo.
-  title: Explorar
-  tab:
-    exams: "Exámenes {n}"
-    classes: "Grupos {n}"
-    students: "Alumnos {n}"
-    sessions: "Sesiones {n}"
+    Abre la pantalla central con seis secciones: inicio, exámenes, grupos,
+    alumnos, sesiones y bóveda. Escribe para filtrar; Intro muestra qué puedes
+    hacer con la fila elegida (historial, editar, importar una lista, empezar
+    un examen, abrir un informe…) y Ctrl+N añade uno nuevo.
   empty:
     exams: "Todavía no hay exámenes en la bóveda. Ctrl+N añade una carpeta de examen."
     classes: "Todavía no hay grupos. Ctrl+N crea uno o importa una lista de clase."
     students: "Todavía no hay alumnos. Aparecen al entrar en un examen; Ctrl+N añade uno."
     sessions: "Todavía no hay sesiones."
-  matches:
-    one: "{n} coincidencia"
-    other: "{n} coincidencias"
   key:
-    tabs: pestañas
-    actions: acciones
-    quit: salir
     new:
       exams: añadir examen
       classes: nuevo grupo
       students: nuevo alumno
   act:
+    duplicate: Duplicar
+    export_sealed: Con contraseña
+    export_no_key: Sin las respuestas
+    export_plain: Con las respuestas, sin contraseña
     back: Volver
     history: Historial
     edit: Editar nombre o nota
@@ -1338,6 +1509,9 @@ explore:
     report: Informe
     results: Resultados (CSV)
   ask:
+    import_exam: Paquete de examen (.examx) o carpeta
+    export_how: El archivo lleva las respuestas correctas. ¿Cómo lo quieres?
+    copy_title: Título de la copia
     id: Identificador
     name: Nombre y apellidos
     note: Nota
@@ -1347,7 +1521,6 @@ explore:
     merge_into: Identificador del alumno que se conserva
     csv: Archivo con la lista (CSV)
     csv_optional: Archivo con la lista (CSV), opcional
-    exam_folder: Carpeta del examen
     export_exam: Archivo del paquete
     export_file: Archivo CSV
     results_file: Archivo CSV
@@ -1355,6 +1528,8 @@ explore:
     gradebook_hint: Si acaba en .xlsx se escribe un libro de Excel; con .csv, un archivo CSV.
     start_class: ¿Qué grupo lo hace?
     roster_only: ¿Solo los alumnos de la lista?
+  copy_of: "{title} (copia)"
+  copied: "Se creó «{title}». Sus sesiones siguen con el original."
   no_class: Sin grupo
   required: No puede quedar vacío.
   no_file: No existe ese archivo o carpeta.
