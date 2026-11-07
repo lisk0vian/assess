@@ -11,6 +11,7 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/lisk0vian/assess/internal/archive"
+	"github.com/lisk0vian/assess/internal/exam"
 	"github.com/lisk0vian/assess/internal/report"
 	"github.com/lisk0vian/assess/internal/session"
 	"github.com/lisk0vian/assess/internal/tui"
@@ -83,6 +84,9 @@ func runReport(cmd *cobra.Command, dir string, rep *report.Report) error {
 		idle = 0
 	}
 	m := tui.NewReport(rep, idle)
+	if rep.Session.State == string(session.StateEnded) {
+		m.Fix = reportFixer(cmd, dir, rep.Session.ID)
+	}
 	if _, err := tea.NewProgram(m).Run(); err != nil {
 		return err
 	}
@@ -122,4 +126,61 @@ func loadReport(ctx context.Context, dir, sessionID string) (*report.Report, err
 		return nil
 	})
 	return rep, err
+}
+
+// reportFixer corrects a finished session from its report, rewriting its
+// archive after each change so the vault keeps the corrected grades.
+func reportFixer(cmd *cobra.Command, dir, sessionID string) *tui.Fixer {
+	ctx := cmd.Context()
+	var pub *exam.Published
+	_ = withService(ctx, dir, func(svc *session.Service) error {
+		var err error
+		_, pub, err = svc.Session(ctx, sessionID)
+		return err
+	})
+	if pub == nil {
+		return nil
+	}
+	reload := func(change func(*session.Service) error) (*report.Report, error) {
+		if err := withStore(ctx, dir, func(s *store) error {
+			if err := change(s.svc); err != nil {
+				return err
+			}
+			_, err := archive.Write(ctx, s.vault, s.svc, sessionID)
+			return err
+		}); err != nil {
+			return nil, err
+		}
+		return loadReport(ctx, dir, sessionID)
+	}
+	return &tui.Fixer{
+		Question: func(id string) *exam.Question { return pub.Exam.Questions[id] },
+		Corrections: func() []session.Correction {
+			var out []session.Correction
+			_ = withService(ctx, dir, func(svc *session.Service) error {
+				var err error
+				out, err = svc.Corrections(ctx, sessionID)
+				return err
+			})
+			return out
+		},
+		Preview: func(c session.Correction) ([]session.ScoreChange, error) {
+			var out []session.ScoreChange
+			err := withService(ctx, dir, func(svc *session.Service) error {
+				var err error
+				out, err = svc.PreviewCorrection(ctx, sessionID, c)
+				return err
+			})
+			return out, err
+		},
+		Apply: func(c session.Correction) (*report.Report, error) {
+			return reload(func(svc *session.Service) error {
+				_, err := svc.Correct(ctx, sessionID, c)
+				return err
+			})
+		},
+		Undo: func(id int64) (*report.Report, error) {
+			return reload(func(svc *session.Service) error { return svc.UndoCorrection(ctx, sessionID, id) })
+		},
+	}
 }
