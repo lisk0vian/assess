@@ -120,7 +120,7 @@ components:
 
 # Design System: Assess · Mesa de luz
 
-Source of truth: `web/src/styles/tokens.css` (tokens, both themes) and `web/src/styles/components.css` (components), used by the React app. The static specimen of every component and state is `web/prototype/components.html` (a snapshot of the same CSS); screens are `question-desktop.html` and `question-mobile.html` (append `?theme=dark`). The direction contract lives in `.impeccable/surfaces/web.md`.
+Source of truth: `web/src/styles/tokens.css` (tokens, both themes) and `web/src/styles/components.css` (components), used by the React app. The static specimen of every component and state is `web/prototype/components.html` (a snapshot of the same CSS); screens are `question-desktop.html` and `question-mobile.html` (append `?theme=dark`). The direction contract lives in `.impeccable/surfaces/web.md`. The teacher's terminal inherits this world; its translation to cells is `internal/tui/DESIGN.md`.
 
 ## Overview
 

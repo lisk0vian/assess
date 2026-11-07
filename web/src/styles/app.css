@@ -209,6 +209,7 @@ button.tf__opt { border: 0; background: transparent; color: inherit; }
   --accent-line: color-mix(in srgb, var(--brand) 40%, transparent);
 }
 .wordmark { display: inline-flex; align-items: center; gap: 10px; }
+.wordmark__type { display: block; height: 1.1em; width: auto; }
 .wordmark__logo { height: .9em; width: auto; max-width: 3em; object-fit: contain; }
 
 /* ---------- Lens, against photos of the screen (components/Lens.tsx) ---------- */
