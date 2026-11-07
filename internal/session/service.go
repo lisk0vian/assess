@@ -489,10 +489,11 @@ func (s *Service) close(tx Tx, sess *Session, att *Attempt, reason SubmitReason)
 		Data: map[string]any{"reason": string(reason), "score": att.Score, "max": att.MaxScore}, ReceivedAt: now})
 }
 
-// grade scores every slot of att into att.Score. Voided questions score 0 and
-// point penalties are subtracted, never below 0.
+// grade scores every slot of att into att.Score and att.MaxScore. Voided
+// questions score 0, point penalties are subtracted, never below 0, and the
+// session's corrections apply (see correction.go).
 func (s *Service) grade(tx Tx, sess *Session, att *Attempt) error {
-	pub, err := s.published(tx, sess.ExamHash)
+	sc, err := s.score(tx, sess, att, nil)
 	if err != nil {
 		return err
 	}
@@ -500,31 +501,14 @@ func (s *Service) grade(tx Tx, sess *Session, att *Attempt) error {
 	if err != nil {
 		return err
 	}
-	penalties, err := tx.ListPenalties(att.ID)
-	if err != nil {
-		return err
-	}
-	void := voided(penalties)
-	byQ := make(map[string]*Answer, len(answers))
 	for _, a := range answers {
-		byQ[a.QuestionID] = a
+		if p, ok := sc.points[a.QuestionID]; ok {
+			if err := tx.SetAnswerGrade(att.ID, a.QuestionID, p, sc.correct[a.QuestionID]); err != nil {
+				return err
+			}
+		}
 	}
-	var score float64
-	for _, sl := range att.Layout {
-		a, ok := byQ[sl.QuestionID]
-		if !ok {
-			continue
-		}
-		res := grading.Grade(pub.Exam.Questions[sl.QuestionID], pub.Exam.Key.Answers[sl.QuestionID], a.Response)
-		if void[sl.QuestionID] {
-			res.Points = 0
-		}
-		if err := tx.SetAnswerGrade(att.ID, sl.QuestionID, res.Points, res.Correct); err != nil {
-			return err
-		}
-		score += res.Points
-	}
-	att.Score = roundScore(max(0, score-pointsLost(penalties)))
+	att.Score, att.MaxScore = sc.score, sc.max
 	return nil
 }
 

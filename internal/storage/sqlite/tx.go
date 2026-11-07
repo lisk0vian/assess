@@ -369,9 +369,9 @@ func (t *tx) InsertAttempt(a *session.Attempt) error {
 }
 
 func (t *tx) UpdateAttempt(a *session.Attempt) error {
-	_, err := t.exec(`UPDATE attempts SET state = ?, extra_ms = ?, submitted_at = ?, submit_reason = ?, score = ?, last_seq = ?,
+	_, err := t.exec(`UPDATE attempts SET state = ?, extra_ms = ?, submitted_at = ?, submit_reason = ?, score = ?, max_score = ?, last_seq = ?,
 		signal_seq = ?, pledged_at = ?, no_lens = ? WHERE id = ?`,
-		string(a.State), a.Extra.Milliseconds(), ms(a.SubmittedAt), nullString(string(a.SubmitReason)), nullScore(a), a.LastSeq,
+		string(a.State), a.Extra.Milliseconds(), ms(a.SubmittedAt), nullString(string(a.SubmitReason)), nullScore(a), a.MaxScore, a.LastSeq,
 		a.SignalSeq, ms(a.PledgedAt), a.NoLens, a.ID)
 	return err
 }
