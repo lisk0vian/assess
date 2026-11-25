@@ -37,7 +37,7 @@ func newTryCmd() *cobra.Command {
 				if err != nil {
 					return err
 				}
-				defer os.RemoveAll(tmp)
+				defer func() { _ = os.RemoveAll(tmp) }()
 				dir := filepath.Join(tmp, "example")
 				if err := exam.Scaffold(dir, exam.ScaffoldOptions{Language: i18n.Language()}); err != nil {
 					return err
@@ -78,7 +78,7 @@ func tryExam(cmd *cobra.Command, examDir string, done <-chan struct{}) error {
 	if err != nil {
 		return err
 	}
-	defer os.RemoveAll(tmp)
+	defer func() { _ = os.RemoveAll(tmp) }()
 	db, err := sqlite.Open(ctx, filepath.Join(tmp, "try.db"))
 	if err != nil {
 		return err
@@ -111,7 +111,7 @@ func tryExam(cmd *cobra.Command, examDir string, done <-chan struct{}) error {
 	}
 	srv := &http.Server{Handler: mux, ReadHeaderTimeout: 10 * time.Second}
 	go func() { _ = srv.Serve(ln) }()
-	defer srv.Close()
+	defer func() { _ = srv.Close() }()
 
 	url := fmt.Sprintf("http://%s/?c=%s", ln.Addr(), sess.Code)
 	fmt.Fprintln(out, T("cli.try.open", "title", pub.Exam.Manifest.Title, "url", url, "code", sess.Code))
