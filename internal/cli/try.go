@@ -170,11 +170,11 @@ var openBrowser = func(url string) error {
 	var c *exec.Cmd
 	switch runtime.GOOS {
 	case "windows":
-		c = exec.Command("rundll32", "url.dll,FileProtocolHandler", url)
+		c = exec.Command("rundll32", "url.dll,FileProtocolHandler", url) //nolint:gosec // G204: the URL is the local rehearsal server
 	case "darwin":
-		c = exec.Command("open", url)
+		c = exec.Command("open", url) //nolint:gosec // G204: the URL is the local rehearsal server
 	default:
-		c = exec.Command("xdg-open", url)
+		c = exec.Command("xdg-open", url) //nolint:gosec // G204: the URL is the local rehearsal server
 	}
 	return c.Start()
 }

@@ -191,9 +191,9 @@ func stubFixer(applied *[]session.Correction) *Fixer {
 	q := &exam.Question{ID: "q001", Type: exam.TypeSingle, Prompt: "¿Cuánto es 2 + 2?",
 		Options: []exam.Option{{ID: "a", Text: "3"}, {ID: "b", Text: "4"}, {ID: "c", Text: "5"}}}
 	return &Fixer{
-		Question:    func(id string) *exam.Question { return q },
+		Question:    func(_ string) *exam.Question { return q },
 		Corrections: func() []session.Correction { return done },
-		Preview: func(c session.Correction) ([]session.ScoreChange, error) {
+		Preview: func(_ session.Correction) ([]session.ScoreChange, error) {
 			return []session.ScoreChange{{Name: "Luis Gómez", Before: 50, After: 62.5}}, nil
 		},
 		Apply: func(c session.Correction) (*report.Report, error) {
@@ -202,7 +202,7 @@ func stubFixer(applied *[]session.Correction) *Fixer {
 			*applied = append(*applied, c)
 			return sampleReport(), nil
 		},
-		Undo: func(id int64) (*report.Report, error) {
+		Undo: func(_ int64) (*report.Report, error) {
 			done = done[:len(done)-1]
 			return sampleReport(), nil
 		},

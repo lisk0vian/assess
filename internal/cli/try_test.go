@@ -67,7 +67,8 @@ func TestTryExam(t *testing.T) {
 	if s := out.String(); !strings.Contains(s, "Your try: 0 of 9 points") || !strings.Contains(s, "nothing was kept") {
 		t.Fatalf("verdict:\n%s", s)
 	}
-	if _, err := http.Get(base); err == nil {
+	if resp, err := http.Get(base); err == nil {
+		resp.Body.Close()
 		t.Fatal("the rehearsal server must be gone")
 	}
 }

@@ -23,6 +23,9 @@ linters:
         - (*os.File).Close
         - (io.Closer).Close
         - (net.Listener).Close
+        # Temp dir and rehearsal server cleanup where the error changes nothing.
+        - os.RemoveAll
+        - (*net/http.Server).Close
         - syscall.CloseHandle
     gosec:
       excludes:
@@ -38,6 +41,7 @@ linters:
       ignore-rules:
         - nto # Spanish ("Cuánto")
         - comparte # Spanish ("Comparte el código")
+        - configuracion # Spanish ("configuración")
   exclusions:
     rules:
       - path: _test\.go

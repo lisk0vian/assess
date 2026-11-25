@@ -328,7 +328,7 @@ func addTree(root *cobra.Command) {
 
 // newPanelPasswordCmd sets or, with --clear, removes the teacher panel password.
 func newPanelPasswordCmd() *cobra.Command {
-	var clear bool
+	var clearFlag bool
 	admin := newAdminCmd()
 	set, unset := child(admin, "set-password"), child(admin, "clear-password")
 	cmd := &cobra.Command{
@@ -337,13 +337,13 @@ func newPanelPasswordCmd() *cobra.Command {
 		Long:  T("cli.admin.long"),
 		Args:  cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			if clear {
+			if clearFlag {
 				return unset.RunE(cmd, args)
 			}
 			return set.RunE(cmd, args)
 		},
 	}
-	cmd.Flags().BoolVar(&clear, "clear", false, T("cli.admin.clear_short"))
+	cmd.Flags().BoolVar(&clearFlag, "clear", false, T("cli.admin.clear_short"))
 	return cmd
 }
 
