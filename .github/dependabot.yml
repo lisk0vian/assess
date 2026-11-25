@@ -10,4 +10,7 @@ updates:
     directory: "/web"
     schedule:
       interval: "weekly"
+    groups:
+      web:
+        patterns: ["*"]
     open-pull-requests-limit: 5
